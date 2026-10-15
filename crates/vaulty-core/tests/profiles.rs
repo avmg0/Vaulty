@@ -1,0 +1,125 @@
+use vaulty_core::profiles::{PasswordOutcome, Registry, Role};
+use vaulty_core::Error;
+
+fn setup() -> (Registry, String) {
+    let r = Registry::open_in_memory().unwrap();
+    let admin = r.create_first_admin("John", "#2563eb", "parent-password").unwrap();
+    (r, admin.id)
+}
+
+fn now_code(secret: &str, name: &str) -> String {
+    totp_rs::Builder::new()
+        .with_secret(totp_rs::Secret::try_from_base32(secret).unwrap())
+        .with_account_name(name)
+        .with_issuer(Some("Vaulty"))
+        .build()
+        .unwrap()
+        .generate_current()
+        .to_string()
+}
+
+#[test]
+fn first_admin_only_once() {
+    let (r, _) = setup();
+    assert!(r.create_first_admin("Someone", "#000", "another-password").is_err());
+    assert_eq!(r.list().unwrap().len(), 1);
+}
+
+#[test]
+fn admin_adds_member_who_sets_own_password() {
+    let (r, admin) = setup();
+    let invite = r.add_user(&admin, "Riya", "#e11d48", Role::Child).unwrap();
+    assert!(!invite.user.active);
+    assert!(matches!(r.sign_in_with_password(&invite.user.id, "whatever-pw"), Err(Error::Auth(_))));
+    assert!(r.claim_profile(&invite.user.id, "WRONG-CODE", "riya-password").is_err());
+    r.claim_profile(&invite.user.id, &invite.setup_code.to_lowercase(), "riya-password").unwrap();
+    assert!(r.get(&invite.user.id).unwrap().active);
+    assert!(matches!(r.sign_in_with_password(&invite.user.id, "riya-password").unwrap(), PasswordOutcome::SignedIn));
+    // Can't be claimed twice.
+    assert!(r.claim_profile(&invite.user.id, &invite.setup_code, "hijack-password").is_err());
+}
+
+#[test]
+fn only_admins_manage_users() {
+    let (r, admin) = setup();
+    let inv = r.add_user(&admin, "Kid", "#000", Role::Member).unwrap();
+    r.claim_profile(&inv.user.id, &inv.setup_code, "member-password").unwrap();
+    assert!(r.add_user(&inv.user.id, "Other", "#000", Role::Member).is_err());
+    assert!(r.remove_user(&inv.user.id, &admin).is_err());
+    assert!(r.remove_user(&admin, &admin).is_err(), "only admin can't be removed");
+    r.remove_user(&admin, &inv.user.id).unwrap();
+    assert_eq!(r.list().unwrap().len(), 1);
+}
+
+#[test]
+fn wrong_passwords_lock_the_profile() {
+    let (r, admin) = setup();
+    for _ in 0..5 {
+        assert!(matches!(r.sign_in_with_password(&admin, "nope-nope"), Err(Error::Auth(_))));
+    }
+    assert!(matches!(r.sign_in_with_password(&admin, "parent-password"), Err(Error::Throttled(s)) if s > 0 && s <= 30));
+}
+
+#[test]
+fn totp_enrollment_sign_in_and_replay_protection() {
+    let (r, admin) = setup();
+    let e = r.begin_totp(&admin, "parent-password").unwrap();
+    assert!(e.otpauth_url.starts_with("otpauth://totp/Vaulty:John"));
+    assert!(!e.qr_png_base64.is_empty());
+    let codes = r.confirm_totp(&admin, "parent-password", &e.secret_base32, &now_code(&e.secret_base32, "John")).unwrap();
+    assert_eq!(codes.len(), 10);
+    assert!(r.get(&admin).unwrap().totp_enabled);
+
+    let PasswordOutcome::NeedsSecondFactor(pending) = r.sign_in_with_password(&admin, "parent-password").unwrap() else {
+        panic!("2FA should be required");
+    };
+    assert_eq!(pending.secret_for_tests(), e.secret_base32, "secret is unsealed with the password");
+    // The code used during enrolment can't be reused within the same 30s step.
+    let step = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() / 30;
+    let before = step();
+    let reuse = r.complete_with_totp(&pending, &now_code(&e.secret_base32, "John"));
+    if step() == before { assert!(reuse.is_err()); }
+    // Backup code works exactly once.
+    r.complete_with_backup_code(&pending, &codes[0].to_lowercase()).unwrap();
+    assert!(r.complete_with_backup_code(&pending, &codes[0]).is_err());
+    assert_eq!(r.backup_codes_remaining(&admin).unwrap(), 9);
+}
+
+#[test]
+fn totp_secret_survives_password_change() {
+    let (r, admin) = setup();
+    let e = r.begin_totp(&admin, "parent-password").unwrap();
+    r.confirm_totp(&admin, "parent-password", &e.secret_base32, &now_code(&e.secret_base32, "John")).unwrap();
+    r.change_password(&admin, "parent-password", "new-parent-password").unwrap();
+    assert!(r.sign_in_with_password(&admin, "parent-password").is_err());
+    let PasswordOutcome::NeedsSecondFactor(p) = r.sign_in_with_password(&admin, "new-parent-password").unwrap() else { panic!() };
+    assert_eq!(p.secret_for_tests(), e.secret_base32);
+    // Sealed secret is not stored in plain text.
+    let sealed: String = r.conn_for_tests().query_row("SELECT totp_secret_sealed FROM users", [], |x| x.get(0)).unwrap();
+    assert!(!sealed.contains(&e.secret_base32));
+}
+
+#[test]
+fn biometric_token_flow() {
+    let (r, admin) = setup();
+    assert!(r.sign_in_with_biometric_token(&admin, "anything").is_err());
+    assert!(r.enable_biometric(&admin, "wrong-password").is_err());
+    let token = r.enable_biometric(&admin, "parent-password").unwrap();
+    r.sign_in_with_biometric_token(&admin, &token).unwrap();
+    assert!(r.sign_in_with_biometric_token(&admin, "forged").is_err());
+    r.disable_biometric(&admin).unwrap();
+    assert!(r.sign_in_with_biometric_token(&admin, &token).is_err());
+}
+
+#[test]
+fn admin_reset_issues_new_setup_code() {
+    let (r, admin) = setup();
+    let inv = r.add_user(&admin, "Mom", "#16a34a", Role::Admin).unwrap();
+    r.claim_profile(&inv.user.id, &inv.setup_code, "mom-password!").unwrap();
+    let reset = r.reset_user(&admin, &inv.user.id).unwrap();
+    assert!(!reset.user.active);
+    assert!(r.sign_in_with_password(&inv.user.id, "mom-password!").is_err());
+    r.claim_profile(&inv.user.id, &reset.setup_code, "mom-new-password").unwrap();
+    // Second admin can now remove the first.
+    r.remove_user(&inv.user.id, &admin).unwrap();
+}

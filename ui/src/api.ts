@@ -1,0 +1,66 @@
+import { invoke } from "@tauri-apps/api/core";
+
+export type Role = "admin" | "member" | "child";
+export type User = { id: string; name: string; color: string; role: Role; active: boolean; totp_enabled: boolean; biometric_enabled: boolean };
+export type Invite = { user: User; setup_code: string };
+export type SignIn = { status: "signed_in"; user: User } | { status: "needs_second_factor" };
+export type TotpEnrollment = { secret_base32: string; otpauth_url: string; qr_png_base64: string };
+export type SecurityStatus = { totp_enabled: boolean; backup_codes_remaining: number; biometric_enabled: boolean; biometric_available: boolean };
+
+export type Account = { id: string; name: string; type: string; currency: string; initial_balance: number; current_balance: number; color?: string; icon?: string };
+export type Category = { id: string; name: string; type: "income" | "expense"; icon?: string; color?: string; is_system: number };
+export type Transaction = { id: string; account_id: string; category_id?: string; type: "income" | "expense" | "transfer"; amount: number; date: string; merchant?: string; description?: string; account_name?: string; category_name?: string };
+
+/** Rust errors arrive as plain strings; normalise for display. */
+export const errorText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : String(e));
+
+export const api = {
+  users: {
+    list: () => invoke<User[]>("users_list"),
+    add: (name: string, color: string, role: Role) => invoke<Invite>("users_add", { name, color, role }),
+    reset: (userId: string) => invoke<Invite>("users_reset", { userId }),
+    remove: (userId: string) => invoke<void>("users_remove", { userId }),
+    updateProfile: (name: string, color: string) => invoke<User>("profile_update", { name, color }),
+  },
+  auth: {
+    current: () => invoke<User | null>("session_current"),
+    setupFirstAdmin: (name: string, color: string, password: string) => invoke<User>("setup_first_admin", { name, color, password }),
+    claimProfile: (userId: string, setupCode: string, password: string) => invoke<User>("claim_profile", { userId, setupCode, password }),
+    signIn: (userId: string, password: string) => invoke<SignIn>("sign_in", { userId, password }),
+    signInTotp: (code: string) => invoke<User>("sign_in_totp", { code }),
+    signInBackupCode: (code: string) => invoke<User>("sign_in_backup_code", { code }),
+    signInBiometric: (userId: string) => invoke<User>("sign_in_biometric", { userId }),
+    signOut: () => invoke<void>("sign_out"),
+  },
+  security: {
+    status: () => invoke<SecurityStatus>("security_status"),
+    changePassword: (current: string, next: string) => invoke<void>("password_change", { current, new: next }),
+    totpBegin: (password: string) => invoke<TotpEnrollment>("totp_begin", { password }),
+    totpConfirm: (password: string, secret: string, code: string) => invoke<string[]>("totp_confirm", { password, secret, code }),
+    totpDisable: (password: string) => invoke<void>("totp_disable", { password }),
+    regenerateBackupCodes: (password: string) => invoke<string[]>("backup_codes_regenerate", { password }),
+    biometricEnable: (password: string) => invoke<void>("biometric_enable", { password }),
+    biometricDisable: () => invoke<void>("biometric_disable"),
+  },
+  accounts: {
+    getAll: () => invoke<Account[]>("accounts_get_all"),
+    create: (account: Partial<Account>) => invoke<Account>("accounts_create", { account }),
+    update: (id: string, account: Partial<Account>) => invoke<Account>("accounts_update", { id, account }),
+    delete: (id: string) => invoke<void>("accounts_delete", { id }),
+  },
+  categories: { getAll: () => invoke<Category[]>("categories_get_all") },
+  transactions: {
+    getAll: (filters?: { accountId?: string; categoryId?: string; type?: string; startDate?: string; endDate?: string; limit?: number }) =>
+      invoke<Transaction[]>("transactions_get_all", { filters }),
+    create: (transaction: Partial<Transaction>) => invoke<Transaction>("transactions_create", { transaction }),
+    delete: (id: string) => invoke<void>("transactions_delete", { id }),
+  },
+};
+
+/** What the OS calls its biometric/device unlock, for button labels. */
+export function biometricLabel() {
+  const ua = navigator.userAgent;
+  if (/Mac/.test(ua)) return "Touch ID";
+  if (/Windows/.test(ua)) return "Windows Hello";
+  return "system unlock";
+}

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+  "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Linux only: lets Vaulty ask the desktop's polkit agent to confirm it's you
+     (password or fingerprint via fprintd, depending on the system's PAM setup).
+     Install to /usr/share/polkit-1/actions/ (the .deb/.rpm bundles do this). -->
+<policyconfig>
+  <vendor>Vaulty</vendor>
+  <action id="com.vaulty.app.unlock">
+    <description>Unlock Vaulty</description>
+    <message>Confirm it's you to unlock Vaulty</message>
+    <defaults>
+      <allow_any>auth_self</allow_any>
+      <allow_inactive>auth_self</allow_inactive>
+      <allow_active>auth_self</allow_active>
+    </defaults>
+  </action>
+</policyconfig>

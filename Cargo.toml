@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = ["crates/vaulty-core", "src-tauri"]
+
+# Argon2 is deliberately slow; optimise it even in debug builds so sign-in stays snappy during development.
+[profile.dev.package.argon2]
+opt-level = 3
+[profile.dev.package.blake2]
+opt-level = 3
