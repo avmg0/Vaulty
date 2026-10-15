@@ -1,187 +1,181 @@
-import { useEffect, useState, type FormEvent } from "react";
-import { Copy, Check, Fingerprint, Loader2, MoreHorizontal, RotateCcw, ShieldCheck, Trash2, UserPlus } from "lucide-react";
-import { api, errorText, type Invite, type Role, type User } from "@/api";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Globe, Layers, Loader2, Lock, Settings2, Users, UsersRound } from "lucide-react";
+import { api, errorText, type FamilyItem, type FamilyMember, type FeedView, type SharingPrefs, type Transaction } from "@/api";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ColorPicker, PROFILE_COLORS, UserAvatar } from "@/components/UserAvatar";
+import { UserAvatar } from "@/components/UserAvatar";
 import { useSession } from "@/hooks/session";
-import { cn } from "@/lib/utils";
+import { useTheme } from "@/hooks/theme";
+import { cn, formatMoney } from "@/lib/utils";
+import { TransactionRow } from "./Transactions";
+import { FamilyMembers } from "./FamilyMembers";
 
-const ROLES: { id: Role; label: string; desc: string }[] = [
-  { id: "member", label: "Member", desc: "Their own private finances." },
-  { id: "admin", label: "Admin", desc: "Can also add, reset and remove family members." },
-  { id: "child", label: "Child", desc: "For kids' allowance tracking (more controls coming)." },
+type Tab = "private" | FeedView;
+const TABS: { id: Tab; label: string; icon: typeof Lock; hint: string }[] = [
+  { id: "all", label: "All", icon: Layers, hint: "Everything you can see: your shared and public items, plus what others share with you" },
+  { id: "private", label: "Private", icon: Lock, hint: "Only you can see these" },
+  { id: "shared", label: "Shared", icon: Users, hint: "Shared with specific people" },
+  { id: "public", label: "Public", icon: Globe, hint: "Visible to the whole family" },
 ];
 
-export function Family() {
-  const { user: me } = useSession();
-  const [users, setUsers] = useState<User[]>([]);
-  const [invite, setInvite] = useState<Invite | null>(null);
-  const [confirm, setConfirm] = useState<{ kind: "reset" | "remove"; user: User } | null>(null);
-  const [menu, setMenu] = useState<string | null>(null);
-  const isAdmin = me.role === "admin";
-  const load = () => api.users.list().then(setUsers);
-  useEffect(() => { load(); }, []);
-
+export function Family({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const [section, setSection] = useState<"view" | "members">("view");
   return (
-    <div className="max-w-3xl space-y-4">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-muted-foreground text-sm">Everyone gets a separate, private profile with their own password. Admins manage who's on this device but can't see other members' data.</p>
-        {isAdmin && <AddMemberDialog onAdded={(inv) => { setInvite(inv); load(); }} />}
+    <div className="space-y-4">
+      <div className="bg-muted inline-flex rounded-lg p-1">
+        {([["view", "Family view", Layers], ["members", "Members", UsersRound]] as const).map(([id, label, Icon]) => (
+          <button key={id} onClick={() => setSection(id)}
+            className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors", section === id ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+            <Icon className="size-4" />{label}
+          </button>
+        ))}
       </div>
-      <Card className="py-2">
-        <CardContent className="divide-y">
-          {users.map((u) => (
-            <div key={u.id} className="flex items-center gap-3 py-3">
-              <UserAvatar name={u.name} color={u.color} />
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 font-medium">{u.name}{u.id === me.id && <span className="text-muted-foreground text-xs font-normal">(you)</span>}</div>
-                <div className="text-muted-foreground flex items-center gap-2 text-xs capitalize">
-                  {u.role}
-                  {u.totp_enabled && <span className="flex items-center gap-0.5 normal-case"><ShieldCheck className="size-3" />2FA</span>}
-                  {u.biometric_enabled && <span className="flex items-center gap-0.5 normal-case"><Fingerprint className="size-3" />Biometric</span>}
-                </div>
-              </div>
-              {!u.active && <Badge variant="secondary">Waiting for setup</Badge>}
-              {isAdmin && u.id !== me.id && (
-                <div className="relative">
-                  <Button variant="ghost" size="icon" onClick={() => setMenu(menu === u.id ? null : u.id)} aria-label="Member actions"><MoreHorizontal /></Button>
-                  {menu === u.id && (
-                    <div className="bg-popover absolute right-0 z-10 mt-1 w-52 rounded-md border p-1 shadow-md" onMouseLeave={() => setMenu(null)}>
-                      <MenuItem icon={RotateCcw} onClick={() => { setMenu(null); setConfirm({ kind: "reset", user: u }); }}>
-                        {u.active ? "Reset password & 2FA" : "New setup code"}
-                      </MenuItem>
-                      <MenuItem icon={Trash2} destructive onClick={() => { setMenu(null); setConfirm({ kind: "remove", user: u }); }}>Remove from Vaulty</MenuItem>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      <InviteDialog invite={invite} onClose={() => setInvite(null)} />
-      <ConfirmDialog target={confirm} onClose={() => setConfirm(null)}
-        onDone={(inv) => { setConfirm(null); if (inv) setInvite(inv); load(); }} />
+      {section === "view" ? <FamilyView onOpenSettings={onOpenSettings} /> : <FamilyMembers />}
     </div>
   );
 }
 
-function MenuItem({ icon: Icon, children, onClick, destructive }: { icon: typeof Trash2; children: React.ReactNode; onClick: () => void; destructive?: boolean }) {
+function monthBounds(offset: number) {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return { startDate: iso(first), endDate: iso(last), label: first.toLocaleDateString(undefined, { month: "long", year: "numeric" }) };
+}
+
+type Row = FamilyItem;
+
+function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const { user } = useSession();
+  const { hideBalances } = useTheme();
+  const [prefs, setPrefs] = useState<SharingPrefs | null>(null);
+  const [members, setMembers] = useState<FamilyMember[]>([]);
+  const [tab, setTab] = useState<Tab>("all");
+  const [month, setMonth] = useState(0);
+  const [owner, setOwner] = useState<string | null>(null);
+  const [rows, setRows] = useState<Row[] | null>(null);
+  const [error, setError] = useState("");
+  const range = monthBounds(month);
+
+  useEffect(() => { api.sharing.get().then((s) => { setPrefs(s.prefs); setMembers(s.members); }); }, []);
+
+  useEffect(() => {
+    if (!prefs?.enabled) return;
+    setRows(null); setError("");
+    const { startDate, endDate } = range;
+    const load: Promise<Row[]> = tab === "private"
+      ? api.transactions.getAll({ visibility: "private", startDate, endDate }).then((txs: Transaction[]) =>
+          txs.map((t) => ({ ...t, owner_id: user.id, is_mine: 1 })))
+      : api.sharing.feed(tab, { startDate, endDate });
+    load.then(setRows).catch((e) => { setRows([]); setError(errorText(e)); });
+  }, [prefs?.enabled, tab, month, user.id]);
+
+  const byId = useMemo(() => Object.fromEntries(members.map((m) => [m.id, m])), [members]);
+  const totals = useMemo(() => {
+    const t = new Map<string, number>();
+    for (const r of rows ?? []) if (r.type === "expense") t.set(r.owner_id, (t.get(r.owner_id) ?? 0) + r.amount);
+    return [...t.entries()].sort((a, b) => b[1] - a[1]);
+  }, [rows]);
+  const visible = (rows ?? []).filter((r) => !owner || r.owner_id === owner);
+  const currency = rows?.find((r) => r.currency)?.currency ?? "INR";
+  const grand = totals.reduce((s, [, v]) => s + v, 0);
+
+  if (!prefs) return <Loader2 className="text-muted-foreground mx-auto mt-10 animate-spin" />;
+  if (!prefs.enabled) {
+    return (
+      <Card className="mx-auto mt-6 max-w-lg">
+        <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
+          <div className="bg-secondary grid size-12 place-items-center rounded-xl"><Users className="size-5" /></div>
+          <div className="font-semibold">Family sharing is off for you</div>
+          <p className="text-muted-foreground max-w-sm text-sm">
+            Turn it on to see the expenses your family chooses to share, and to share yours. Each person decides for themselves; nothing is shared until they do.
+          </p>
+          <Button onClick={onOpenSettings}><Settings2 />Open sharing settings</Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    <button onClick={onClick} className={cn("hover:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-sm", destructive && "text-destructive")}>
-      <Icon className="size-4" />{children}
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="bg-muted inline-flex rounded-lg p-1" role="tablist">
+          {TABS.map((t) => (
+            <button key={t.id} role="tab" aria-selected={tab === t.id} title={t.hint} onClick={() => { setTab(t.id); setOwner(null); }}
+              className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors", tab === t.id ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+              <t.icon className="size-3.5" />{t.label}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => setMonth((m) => m - 1)} aria-label="Previous month"><ChevronLeft /></Button>
+          <div className="w-36 text-center text-sm font-medium">{range.label}</div>
+          <Button variant="ghost" size="icon" onClick={() => setMonth((m) => Math.min(0, m + 1))} disabled={month === 0} aria-label="Next month"><ChevronRight /></Button>
+        </div>
+      </div>
+
+      <Card className="gap-3">
+        <CardHeader>
+          <CardTitle>Spent in {range.label}</CardTitle>
+          <CardDescription>{TABS.find((t) => t.id === tab)!.hint}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="text-3xl font-semibold tabular-nums">{formatMoney(grand, currency, hideBalances)}</div>
+          {totals.length > 0 && (
+            <>
+              <div className="flex h-2 overflow-hidden rounded-full">
+                {totals.map(([id, v]) => (
+                  <div key={id} style={{ width: `${(v / grand) * 100}%`, backgroundColor: byId[id]?.color ?? "#71717a" }} title={byId[id]?.name} />
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Chip active={!owner} onClick={() => setOwner(null)}>Everyone</Chip>
+                {totals.map(([id, v]) => {
+                  const m = byId[id];
+                  return (
+                    <Chip key={id} active={owner === id} onClick={() => setOwner(owner === id ? null : id)}>
+                      <UserAvatar name={m?.name ?? "?"} color={m?.color ?? "#71717a"} className="size-5 text-[10px]" />
+                      {id === user.id ? "You" : m?.name ?? "Removed member"}
+                      <span className="text-muted-foreground tabular-nums">{formatMoney(v, currency, hideBalances)}</span>
+                    </Chip>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="py-2">
+        <CardContent className="divide-y">
+          {rows === null && <Loader2 className="text-muted-foreground mx-auto my-8 animate-spin" />}
+          {error && <p className="text-destructive py-6 text-center text-sm">{error}</p>}
+          {rows !== null && !error && visible.length === 0 && (
+            <p className="text-muted-foreground py-10 text-center text-sm">
+              {tab === "private" ? "No private transactions this month." : "Nothing shared for this month yet."}
+            </p>
+          )}
+          {visible.map((r) => {
+            const m = byId[r.owner_id];
+            return (
+              <TransactionRow key={`${r.owner_id}:${r.id}`} t={r} hidden={hideBalances}
+                lead={<span className="flex shrink-0 items-center gap-1 font-medium text-foreground/80">
+                  <UserAvatar name={m?.name ?? "?"} color={m?.color ?? "#71717a"} className="size-4 text-[8px]" />
+                  {r.owner_id === user.id ? "You" : m?.name ?? "Removed member"} ·
+                </span>} />
+            );
+          })}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick}
+      className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm transition-colors hover:bg-accent", active && "border-primary bg-accent")}>
+      {children}
     </button>
-  );
-}
-
-function AddMemberDialog({ onAdded }: { onAdded: (inv: Invite) => void }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [role, setRole] = useState<Role>("member");
-  const [color, setColor] = useState(PROFILE_COLORS[1]);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    setBusy(true); setError("");
-    try {
-      const inv = await api.users.add(name, color, role);
-      setOpen(false); setName(""); setRole("member");
-      onAdded(inv);
-    } catch (err) { setError(errorText(err)); } finally { setBusy(false); }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button className="shrink-0"><UserPlus />Add member</Button></DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Add a family member</DialogTitle>
-          <DialogDescription>You'll get a one-time setup code to give them. They'll use it to choose their own password.</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={submit} className="space-y-4">
-          <div className="flex items-end gap-3">
-            <UserAvatar name={name || "?"} color={color} className="size-10" />
-            <div className="flex-1 space-y-2"><Label htmlFor="mname">Name</Label><Input id="mname" autoFocus value={name} onChange={(e) => setName(e.target.value)} maxLength={40} required /></div>
-          </div>
-          <div className="space-y-2"><Label>Colour</Label><ColorPicker value={color} onChange={setColor} /></div>
-          <div className="space-y-2"><Label>Role</Label>
-            <div className="grid gap-2">
-              {ROLES.map((r) => (
-                <button type="button" key={r.id} onClick={() => setRole(r.id)}
-                  className={cn("rounded-lg border p-3 text-left transition-colors hover:bg-accent", role === r.id && "border-primary ring-primary/30 ring-2")}>
-                  <div className="text-sm font-medium">{r.label}</div><div className="text-muted-foreground text-xs">{r.desc}</div>
-                </button>
-              ))}
-            </div>
-          </div>
-          {error && <p className="text-destructive text-sm">{error}</p>}
-          <DialogFooter><Button disabled={busy}>{busy && <Loader2 className="animate-spin" />}Add member</Button></DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function InviteDialog({ invite, onClose }: { invite: Invite | null; onClose: () => void }) {
-  const [copied, setCopied] = useState(false);
-  if (!invite) return null;
-  const copy = async () => { await navigator.clipboard.writeText(invite.setup_code); setCopied(true); setTimeout(() => setCopied(false), 1500); };
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader className="items-center text-center">
-          <UserAvatar name={invite.user.name} color={invite.user.color} className="mb-1 size-12" />
-          <DialogTitle>Setup code for {invite.user.name}</DialogTitle>
-          <DialogDescription>On the sign-in screen, {invite.user.name} picks their profile, enters this code and chooses a password. It works once and expires in 7 days.</DialogDescription>
-        </DialogHeader>
-        <button onClick={copy} className="bg-muted hover:bg-accent flex items-center justify-center gap-3 rounded-lg py-4 font-mono text-2xl tracking-widest transition-colors">
-          {invite.setup_code}{copied ? <Check className="size-4" /> : <Copy className="text-muted-foreground size-4" />}
-        </button>
-        <DialogFooter><Button className="w-full" onClick={onClose}>Done</Button></DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function ConfirmDialog({ target, onClose, onDone }: { target: { kind: "reset" | "remove"; user: User } | null; onClose: () => void; onDone: (inv?: Invite) => void }) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  if (!target) return null;
-  const { kind, user } = target;
-  const go = async () => {
-    setBusy(true); setError("");
-    try {
-      if (kind === "reset") onDone(await api.users.reset(user.id));
-      else { await api.users.remove(user.id); onDone(); }
-    } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
-  };
-  return (
-    <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{kind === "reset" ? `Reset ${user.name}'s sign-in?` : `Remove ${user.name}?`}</DialogTitle>
-          <DialogDescription>
-            {kind === "reset"
-              ? "Their password, two-step verification and biometric unlock will be cleared, and you'll get a new setup code for them. Their data is kept."
-              : "This permanently deletes their profile and all of their financial data on this device. Make sure they've exported a backup first."}
-          </DialogDescription>
-        </DialogHeader>
-        {error && <p className="text-destructive text-sm">{error}</p>}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button variant={kind === "remove" ? "destructive" : "default"} onClick={go} disabled={busy}>
-            {busy && <Loader2 className="animate-spin" />}{kind === "reset" ? "Reset" : "Remove permanently"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

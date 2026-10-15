@@ -54,6 +54,30 @@ The code stops anyone else at the computer from claiming an unclaimed profile.
 - **Member data files aren't encrypted yet:** someone with access to the files could read them. With SQLCipher, each member's database is encrypted with a key derived from their password, and biometric unlock releases that key.
 - **Admin reset vs encryption:** once databases are encrypted, an admin reset can't recover a member's data. Each member will get a printable **recovery key** at setup instead.
 
+### 3b. Family sharing ✅ (first version built)
+Members can let others in the family see chosen expenses. They never have to give up their privacy to do it.
+
+- **Every transaction has a visibility:**
+  - **Private:** only you. This is the default.
+  - **Shared:** you plus the people you pick, e.g. a child picks both parents.
+  - **Public:** everyone in the family who has turned Family sharing on.
+- **Consent on both sides:** each person turns Family sharing on in Settings.
+  - Until they do, nothing of theirs is published and they see nothing from others.
+  - Turning it off withdraws everything they shared, immediately.
+- **The owner stays in control:**
+  - change visibility per transaction (click the icon on any row)
+  - set a default for new transactions
+  - choose who sees "Shared" items
+  - Removing someone from that list hides those items from them at once.
+- **Family view** (Family → Family view): tabs for **All / Private / Shared / Public**, a month picker, per-person totals and a filter by person.
+  - Example: parents A and B see children C's and D's Shared and Public expenses alongside their own.
+- **How it's stored:** each member's own database stays private. Shared and Public items are copied to a separate device-level `household.db`, holding only date, amount, merchant, category and account name. Notes, tags and receipts are never copied.
+- **Later:**
+  - the same visibility on bills, recurring payments, goals and investments
+  - a per-account default (e.g. "pocket money account is Shared")
+  - a shared household budget
+- **With encryption (decision 1):** `household.db` gets its own key, wrapped once per member who has sharing on. Withdrawing re-keys it.
+
 ### 4. Online mode = encrypted backup first, true sync later
 - **Phase 1 of online mode:** an encrypted snapshot backup to Google Drive's private `appDataFolder`, with restore and "merge newer" on restore.
 - **Real multi-device sync** needs every change recorded as an event (an append-only change log or CRDT) so it can be merged safely. Design the tables with `updated_at` and soft deletes now, so sync can be added later without a rewrite.
@@ -83,6 +107,7 @@ The code stops anyone else at the computer from claiming an unclaimed profile.
 - [x] Dashboard, Accounts, Transactions (basic)
 - [x] Family profiles: per-user database, setup codes, roles, admin reset and remove
 - [x] Per-user 2FA (authenticator app + backup codes) and biometric unlock (desktop)
+- [x] Family sharing: Private / Shared / Public visibility, two-sided consent, Family view
 - [ ] Money as integer minor units (decision 2)
 - [ ] SQLCipher encryption at rest (decision 1)
 - [ ] Settings persisted in DB: currency, date and time format, first day of week, fiscal year start, decimals, negative format

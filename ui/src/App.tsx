@@ -66,7 +66,7 @@ function Shell({ signOut }: { signOut: () => void }) {
   }, [signOut, hideBalances, setHideBalances]);
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
-  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family /> }[page as string];
+  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} /> }[page as string];
 
   return (
     <div className="flex h-screen overflow-hidden">

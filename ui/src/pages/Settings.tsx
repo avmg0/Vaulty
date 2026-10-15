@@ -13,6 +13,7 @@ import { ColorPicker, UserAvatar } from "@/components/UserAvatar";
 import { PasswordDialog } from "@/components/security/PasswordDialog";
 import { TotpSetupDialog } from "@/components/security/TotpSetupDialog";
 import { BackupCodes } from "@/components/security/BackupCodes";
+import { FamilySharingCard } from "@/components/FamilySharingCard";
 import { useTheme, type Accent, type Theme } from "@/hooks/theme";
 import { useSession } from "@/hooks/session";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ export function Settings() {
     <div className="max-w-3xl space-y-6">
       <ProfileCard />
       <SecurityCard />
+      <FamilySharingCard />
       <AppearanceCard />
     </div>
   );

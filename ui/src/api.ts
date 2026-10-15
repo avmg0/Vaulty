@@ -9,7 +9,19 @@ export type SecurityStatus = { totp_enabled: boolean; backup_codes_remaining: nu
 
 export type Account = { id: string; name: string; type: string; currency: string; initial_balance: number; current_balance: number; color?: string; icon?: string };
 export type Category = { id: string; name: string; type: "income" | "expense"; icon?: string; color?: string; is_system: number };
-export type Transaction = { id: string; account_id: string; category_id?: string; type: "income" | "expense" | "transfer"; amount: number; date: string; merchant?: string; description?: string; account_name?: string; category_name?: string };
+export type Visibility = "private" | "shared" | "public";
+export type Transaction = {
+  id: string; account_id: string; category_id?: string; type: "income" | "expense" | "transfer"; amount: number; date: string;
+  merchant?: string; description?: string; account_name?: string; category_name?: string; category_icon?: string; currency?: string;
+  visibility: Visibility;
+};
+
+export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
+export type FamilyMember = User & { sharing_enabled: boolean };
+/** A transaction someone published to the family view. */
+export type FamilyItem = Omit<Transaction, "account_id" | "category_id"> & { owner_id: string; is_mine: number };
+export type FeedView = "all" | "shared" | "public";
+export type FeedFilter = { startDate?: string; endDate?: string; ownerId?: string; limit?: number };
 
 /** Rust errors arrive as plain strings; normalise for display. */
 export const errorText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : String(e));
@@ -50,10 +62,16 @@ export const api = {
   },
   categories: { getAll: () => invoke<Category[]>("categories_get_all") },
   transactions: {
-    getAll: (filters?: { accountId?: string; categoryId?: string; type?: string; startDate?: string; endDate?: string; limit?: number }) =>
+    getAll: (filters?: { accountId?: string; categoryId?: string; type?: string; visibility?: Visibility; startDate?: string; endDate?: string; limit?: number }) =>
       invoke<Transaction[]>("transactions_get_all", { filters }),
     create: (transaction: Partial<Transaction>) => invoke<Transaction>("transactions_create", { transaction }),
+    setVisibility: (id: string, visibility: Visibility) => invoke<Transaction>("transactions_set_visibility", { id, visibility }),
     delete: (id: string) => invoke<void>("transactions_delete", { id }),
+  },
+  sharing: {
+    get: () => invoke<{ prefs: SharingPrefs; members: FamilyMember[] }>("sharing_get"),
+    update: (prefs: SharingPrefs) => invoke<SharingPrefs>("sharing_update", { prefs }),
+    feed: (view: FeedView, filter?: FeedFilter) => invoke<FamilyItem[]>("family_feed", { view, filter }),
   },
 };
 
