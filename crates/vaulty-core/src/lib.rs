@@ -6,6 +6,7 @@ mod crypto;
 pub mod db;
 pub mod error;
 pub mod export;
+pub mod household;
 pub mod profiles;
 pub mod rows;
 pub mod settings;

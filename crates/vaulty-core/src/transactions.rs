@@ -4,7 +4,8 @@ use serde_json::{json, Value};
 
 pub fn get_all(conn: &Connection, filters: Option<&Value>) -> Result<Vec<Value>> {
     let mut sql = String::from(
-        "SELECT t.*, c.name AS category_name, c.icon AS category_icon, c.color AS category_color, a.name AS account_name
+        "SELECT t.*, c.name AS category_name, c.icon AS category_icon, c.color AS category_color,
+                a.name AS account_name, a.currency AS currency
          FROM transactions t
          LEFT JOIN categories c ON t.category_id = c.id
          LEFT JOIN accounts a ON t.account_id = a.id
@@ -18,6 +19,7 @@ pub fn get_all(conn: &Connection, filters: Option<&Value>) -> Result<Vec<Value>>
             ("type", " AND t.type = ?"),
             ("startDate", " AND t.date >= ?"),
             ("endDate", " AND t.date <= ?"),
+            ("visibility", " AND t.visibility = ?"),
         ] {
             if let Some(v) = str_field(f, key) {
                 sql.push_str(clause);
@@ -39,9 +41,44 @@ fn validate(t: &Value) -> Result<()> {
         return Err(Error::Invalid(format!("unknown transaction type `{kind}`")));
     }
     match num_field(t, "amount") {
-        Some(a) if a.is_finite() && a >= 0.0 => Ok(()),
-        _ => Err(Error::Invalid("`amount` must be a non-negative number".into())),
+        Some(a) if a.is_finite() && a >= 0.0 => {}
+        _ => return Err(Error::Invalid("`amount` must be a non-negative number".into())),
     }
+    visibility(t).map(|_| ())
+}
+
+/// `visibility` defaults to private when omitted.
+fn visibility(t: &Value) -> Result<&str> {
+    match str_field(t, "visibility").unwrap_or("private") {
+        v @ ("private" | "shared" | "public") => Ok(v),
+        other => Err(Error::Invalid(format!("unknown visibility `{other}`"))),
+    }
+}
+
+/// One transaction with the joined names the family view needs.
+pub fn get_one(conn: &Connection, id: &str) -> Result<Option<Value>> {
+    query_one(
+        conn,
+        "SELECT t.*, c.name AS category_name, c.icon AS category_icon, c.color AS category_color,
+                a.name AS account_name, a.currency AS currency
+         FROM transactions t
+         LEFT JOIN categories c ON t.category_id = c.id
+         LEFT JOIN accounts a ON t.account_id = a.id
+         WHERE t.id = ?",
+        &[json!(id)],
+    )
+}
+
+/// Everything the owner has marked shared or public, for (re)publishing.
+pub fn shareable(conn: &Connection) -> Result<Vec<Value>> {
+    get_all(conn, None).map(|rows| rows.into_iter().filter(|r| r["visibility"] != "private").collect())
+}
+
+/// Change only who can see a transaction.
+pub fn set_visibility(conn: &Connection, id: &str, v: &str) -> Result<Value> {
+    visibility(&json!({ "visibility": v }))?;
+    conn.execute("UPDATE transactions SET visibility = ? WHERE id = ?", [v, id])?;
+    get_one(conn, id)?.ok_or_else(|| Error::Invalid("no such transaction".into()))
 }
 
 pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
@@ -50,8 +87,8 @@ pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
     let account_id = require_str(t, "account_id")?;
     let tx = conn.unchecked_transaction()?;
     tx.execute(
-        "INSERT INTO transactions (id, account_id, category_id, type, amount, date, time, merchant, description, notes, tags, is_pending, is_cleared)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO transactions (id, account_id, category_id, type, amount, date, time, merchant, description, notes, tags, is_pending, is_cleared, visibility)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rusqlite::params![
             id,
             account_id,
@@ -66,11 +103,12 @@ pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
             str_field(t, "tags"),
             bool_field(t, "is_pending", false),
             bool_field(t, "is_cleared", true),
+            visibility(t)?,
         ],
     )?;
     recompute_balance(&tx, account_id)?;
     tx.commit()?;
-    Ok(query_one(conn, "SELECT * FROM transactions WHERE id = ?", &[json!(id)])?.unwrap_or(Value::Null))
+    Ok(get_one(conn, &id)?.unwrap_or(Value::Null))
 }
 
 pub fn update(conn: &Connection, id: &str, t: &Value) -> Result<Value> {
@@ -81,7 +119,7 @@ pub fn update(conn: &Connection, id: &str, t: &Value) -> Result<Value> {
     let tx = conn.unchecked_transaction()?;
     tx.execute(
         "UPDATE transactions SET account_id = ?, category_id = ?, type = ?, amount = ?, date = ?, time = ?,
-                merchant = ?, description = ?, notes = ?, tags = ?, is_pending = ?, is_cleared = ? WHERE id = ?",
+                merchant = ?, description = ?, notes = ?, tags = ?, is_pending = ?, is_cleared = ?, visibility = ? WHERE id = ?",
         rusqlite::params![
             new_account,
             str_field(t, "category_id"),
@@ -95,6 +133,7 @@ pub fn update(conn: &Connection, id: &str, t: &Value) -> Result<Value> {
             str_field(t, "tags"),
             bool_field(t, "is_pending", false),
             bool_field(t, "is_cleared", true),
+            visibility(t)?,
             id
         ],
     )?;
@@ -105,7 +144,7 @@ pub fn update(conn: &Connection, id: &str, t: &Value) -> Result<Value> {
         recompute_balance(&tx, new_account)?;
     }
     tx.commit()?;
-    Ok(query_one(conn, "SELECT * FROM transactions WHERE id = ?", &[json!(id)])?.unwrap_or(Value::Null))
+    Ok(get_one(conn, id)?.unwrap_or(Value::Null))
 }
 
 pub fn delete(conn: &Connection, id: &str) -> Result<()> {

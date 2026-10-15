@@ -11,6 +11,7 @@ use std::{
 use tauri::{Manager, State};
 use vaulty_core::{
     accounts, categories, db, export,
+    household::{FeedFilter, FeedView, Household, SharingPrefs},
     profiles::{Invite, PasswordOutcome, Registry, Role, SecondFactor, TotpEnrollment, UserSummary},
     rows, settings, transactions, Error, Result,
 };
@@ -26,6 +27,7 @@ struct Session {
 struct AppState {
     data_dir: PathBuf,
     registry: Mutex<Registry>,
+    household: Mutex<Household>,
     session: Mutex<Option<Session>>,
     pending: Mutex<Option<(SecondFactor, Instant)>>,
 }
@@ -41,6 +43,19 @@ impl AppState {
 
     fn registry<T>(&self, f: impl FnOnce(&Registry) -> Result<T>) -> Result<T> {
         f(&*self.registry.lock().map_err(poisoned)?)
+    }
+
+    fn household<T>(&self, f: impl FnOnce(&Household) -> Result<T>) -> Result<T> {
+        f(&*self.household.lock().map_err(poisoned)?)
+    }
+
+    /// Runs `f` against the signed-in user's own database, then mirrors any change to
+    /// the family sharing store. Lock order is always session → household.
+    fn data_and_share<T>(&self, f: impl FnOnce(&Connection, &str, &Household) -> Result<T>) -> Result<T> {
+        let guard = self.session.lock().map_err(poisoned)?;
+        let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
+        let h = self.household.lock().map_err(poisoned)?;
+        f(&s.conn, &s.user.id, &h)
     }
 
     /// Runs `f` against the signed-in user's own database.
@@ -184,6 +199,7 @@ fn users_reset(s: S, user_id: String) -> Result<Invite> {
 fn users_remove(s: S, user_id: String) -> Result<()> {
     let me = s.current_user()?;
     s.registry(|r| r.remove_user(&me.id, &user_id))?;
+    s.household(|h| h.forget_member(&user_id))?;
     biometric::delete_token(&user_id);
     let path = s.user_db_path(&user_id);
     for suffix in ["", "-wal", "-shm"] {
@@ -280,9 +296,87 @@ fn biometric_disable(s: S) -> Result<()> {
 #[tauri::command] fn categories_delete(s: S, id: String) -> Result<()> { s.data(|c| categories::delete(c, &id)) }
 
 #[tauri::command] fn transactions_get_all(s: S, filters: Option<Value>) -> Result<Vec<Value>> { s.data(|c| transactions::get_all(c, filters.as_ref())) }
-#[tauri::command] fn transactions_create(s: S, transaction: Value) -> Result<Value> { s.data(|c| transactions::create(c, &transaction)) }
-#[tauri::command] fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> { s.data(|c| transactions::update(c, &id, &transaction)) }
-#[tauri::command] fn transactions_delete(s: S, id: String) -> Result<()> { s.data(|c| transactions::delete(c, &id)) }
+
+/// New transactions take the member's default visibility unless the form picked one.
+fn with_default_visibility(h: &Household, user_id: &str, mut t: Value) -> Result<Value> {
+    if t.get("visibility").and_then(Value::as_str).is_none() {
+        let v = h.prefs(user_id)?.default_visibility;
+        if let Some(o) = t.as_object_mut() {
+            o.insert("visibility".into(), json!(v.as_str()));
+        }
+    }
+    Ok(t)
+}
+
+#[tauri::command]
+fn transactions_create(s: S, transaction: Value) -> Result<Value> {
+    s.data_and_share(|c, me, h| {
+        let row = transactions::create(c, &with_default_visibility(h, me, transaction)?)?;
+        h.publish(me, &row)?;
+        Ok(row)
+    })
+}
+#[tauri::command]
+fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> {
+    s.data_and_share(|c, me, h| {
+        let row = transactions::update(c, &id, &transaction)?;
+        h.publish(me, &row)?;
+        Ok(row)
+    })
+}
+#[tauri::command]
+fn transactions_set_visibility(s: S, id: String, visibility: String) -> Result<Value> {
+    s.data_and_share(|c, me, h| {
+        let row = transactions::set_visibility(c, &id, &visibility)?;
+        h.publish(me, &row)?;
+        Ok(row)
+    })
+}
+#[tauri::command]
+fn transactions_delete(s: S, id: String) -> Result<()> {
+    s.data_and_share(|c, me, h| {
+        transactions::delete(c, &id)?;
+        h.withdraw(me, &id)
+    })
+}
+
+// ============================================================ family sharing
+
+#[derive(Serialize)]
+struct FamilyMember {
+    #[serde(flatten)]
+    user: UserSummary,
+    sharing_enabled: bool,
+}
+
+#[tauri::command]
+fn sharing_get(s: S) -> Result<Value> {
+    let me = s.current_user()?;
+    let prefs = s.household(|h| h.prefs(&me.id))?;
+    let enabled = s.household(|h| h.enabled_members())?;
+    let members: Vec<FamilyMember> = s
+        .registry(|r| r.list())?
+        .into_iter()
+        .map(|u| FamilyMember { sharing_enabled: enabled.contains(&u.id), user: u })
+        .collect();
+    Ok(json!({ "prefs": prefs, "members": members }))
+}
+
+#[tauri::command]
+fn sharing_update(s: S, prefs: SharingPrefs) -> Result<SharingPrefs> {
+    s.data_and_share(|c, me, h| {
+        if h.set_prefs(me, &prefs)? {
+            h.republish_all(me, &transactions::shareable(c)?)?;
+        }
+        h.prefs(me)
+    })
+}
+
+#[tauri::command]
+fn family_feed(s: S, view: FeedView, filter: Option<FeedFilter>) -> Result<Vec<Value>> {
+    let me = s.current_user()?;
+    s.household(|h| h.feed(&me.id, view, &filter.unwrap_or_default()))
+}
 
 #[tauri::command] fn settings_get(s: S) -> Result<Value> { s.data(settings::get) }
 #[tauri::command] fn settings_update(s: S, settings: Value) -> Result<Value> { s.data(|c| settings::update(c, &settings)) }
@@ -302,7 +396,11 @@ fn export_csv(s: S, path: String) -> Result<usize> {
 #[tauri::command]
 fn import_json(s: S, path: String) -> Result<Value> {
     let data: Value = serde_json::from_slice(&std::fs::read(path)?)?;
-    let counts = s.data(|c| export::from_json(c, &data))?;
+    let counts = s.data_and_share(|c, me, h| {
+        let counts = export::from_json(c, &data)?;
+        h.republish_all(me, &transactions::shareable(c)?)?;
+        Ok(counts)
+    })?;
     Ok(serde_json::to_value(counts)?)
 }
 #[tauri::command]
@@ -324,9 +422,11 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(data_dir.join("users"))?;
             let registry = Registry::open(&data_dir.join("registry.db"))?;
+            let household = Household::open(&data_dir.join("household.db"))?;
             app.manage(AppState {
                 data_dir,
                 registry: Mutex::new(registry),
+                household: Mutex::new(household),
                 session: Mutex::new(None),
                 pending: Mutex::new(None),
             });
@@ -341,6 +441,7 @@ pub fn run() {
             accounts_get_all, accounts_create, accounts_update, accounts_delete,
             categories_get_all, categories_create, categories_update, categories_delete,
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
+            transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
             export_json, export_csv, import_json, db_size, db_all, db_get, db_run,
         ])

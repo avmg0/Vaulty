@@ -8,6 +8,12 @@ type Migrations = &'static [(&'static str, &'static str)];
 pub const DATA_MIGRATIONS: Migrations = &[
     ("0001_init", include_str!("../migrations/data/0001_init.sql")),
     ("0002_seed", include_str!("../migrations/data/0002_seed.sql")),
+    ("0003_visibility", include_str!("../migrations/data/0003_visibility.sql")),
+];
+
+/// Device-level family sharing store.
+pub const HOUSEHOLD_MIGRATIONS: Migrations = &[
+    ("0001_sharing", include_str!("../migrations/household/0001_sharing.sql")),
 ];
 
 /// Device-level user registry.
