@@ -1,4 +1,5 @@
-//! Family A (parent), B (parent), C (child), D (child).
+//! Sample family (placeholder names only): A = John Doe and B = Jane Doe (parents),
+//! C = Jimmy Doe and D = Jenny Doe (children).
 use serde_json::json;
 use vaulty_core::household::{FeedFilter, FeedView, Household, SharingPrefs, Visibility};
 use vaulty_core::{accounts, db, transactions};

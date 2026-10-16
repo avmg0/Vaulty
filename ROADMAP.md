@@ -275,7 +275,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
   - Import the CAMS/KFintech consolidated account statement PDF, which covers all of a person's mutual funds in one file.
   - Automatic holdings, SIP history and returns (XIRR).
 - ⭐ **Lend and borrow tracker** (Phase 2)
-  - "I paid for Rahul's ticket", "Mom owes me ₹2,000", with reminders and a settle-up history.
+  - "I paid for John Smith's ticket", "Jane Doe owes me ₹2,000", with reminders and a settle-up history.
 
 ### Family and kids (Phase 4)
 - Allowance with chores: a weekly allowance, plus extra earned for tasks.

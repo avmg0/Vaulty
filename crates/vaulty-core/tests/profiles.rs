@@ -3,7 +3,7 @@ use vaulty_core::Error;
 
 fn setup() -> (Registry, String) {
     let r = Registry::open_in_memory().unwrap();
-    let admin = r.create_first_admin("John", "#2563eb", "parent-password").unwrap();
+    let admin = r.create_first_admin("John Doe", "#2563eb", "parent-password").unwrap();
     (r, admin.id)
 }
 
@@ -21,20 +21,20 @@ fn now_code(secret: &str, name: &str) -> String {
 #[test]
 fn first_admin_only_once() {
     let (r, _) = setup();
-    assert!(r.create_first_admin("Someone", "#000", "another-password").is_err());
+    assert!(r.create_first_admin("John Smith", "#000", "another-password").is_err());
     assert_eq!(r.list().unwrap().len(), 1);
 }
 
 #[test]
 fn admin_adds_member_who_sets_own_password() {
     let (r, admin) = setup();
-    let invite = r.add_user(&admin, "Riya", "#e11d48", Role::Child).unwrap();
+    let invite = r.add_user(&admin, "Jenny Doe", "#e11d48", Role::Child).unwrap();
     assert!(!invite.user.active);
     assert!(matches!(r.sign_in_with_password(&invite.user.id, "whatever-pw"), Err(Error::Auth(_))));
-    assert!(r.claim_profile(&invite.user.id, "WRONG-CODE", "riya-password").is_err());
-    r.claim_profile(&invite.user.id, &invite.setup_code.to_lowercase(), "riya-password").unwrap();
+    assert!(r.claim_profile(&invite.user.id, "WRONG-CODE", "jenny-password").is_err());
+    r.claim_profile(&invite.user.id, &invite.setup_code.to_lowercase(), "jenny-password").unwrap();
     assert!(r.get(&invite.user.id).unwrap().active);
-    assert!(matches!(r.sign_in_with_password(&invite.user.id, "riya-password").unwrap(), PasswordOutcome::SignedIn));
+    assert!(matches!(r.sign_in_with_password(&invite.user.id, "jenny-password").unwrap(), PasswordOutcome::SignedIn));
     // Can't be claimed twice.
     assert!(r.claim_profile(&invite.user.id, &invite.setup_code, "hijack-password").is_err());
 }
@@ -42,9 +42,9 @@ fn admin_adds_member_who_sets_own_password() {
 #[test]
 fn only_admins_manage_users() {
     let (r, admin) = setup();
-    let inv = r.add_user(&admin, "Kid", "#000", Role::Member).unwrap();
+    let inv = r.add_user(&admin, "Jimmy Doe", "#000", Role::Member).unwrap();
     r.claim_profile(&inv.user.id, &inv.setup_code, "member-password").unwrap();
-    assert!(r.add_user(&inv.user.id, "Other", "#000", Role::Member).is_err());
+    assert!(r.add_user(&inv.user.id, "Jane Smith", "#000", Role::Member).is_err());
     assert!(r.remove_user(&inv.user.id, &admin).is_err());
     assert!(r.remove_user(&admin, &admin).is_err(), "only admin can't be removed");
     r.remove_user(&admin, &inv.user.id).unwrap();
@@ -64,9 +64,9 @@ fn wrong_passwords_lock_the_profile() {
 fn totp_enrollment_sign_in_and_replay_protection() {
     let (r, admin) = setup();
     let e = r.begin_totp(&admin, "parent-password").unwrap();
-    assert!(e.otpauth_url.starts_with("otpauth://totp/Vaulty:John"));
+    assert!(e.otpauth_url.starts_with("otpauth://totp/Vaulty:John%20Doe"), "{}", e.otpauth_url);
     assert!(!e.qr_png_base64.is_empty());
-    let codes = r.confirm_totp(&admin, "parent-password", &e.secret_base32, &now_code(&e.secret_base32, "John")).unwrap();
+    let codes = r.confirm_totp(&admin, "parent-password", &e.secret_base32, &now_code(&e.secret_base32, "John Doe")).unwrap();
     assert_eq!(codes.len(), 10);
     assert!(r.get(&admin).unwrap().totp_enabled);
 
@@ -77,7 +77,7 @@ fn totp_enrollment_sign_in_and_replay_protection() {
     // The code used during enrolment can't be reused within the same 30s step.
     let step = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() / 30;
     let before = step();
-    let reuse = r.complete_with_totp(&pending, &now_code(&e.secret_base32, "John"));
+    let reuse = r.complete_with_totp(&pending, &now_code(&e.secret_base32, "John Doe"));
     if step() == before { assert!(reuse.is_err()); }
     // Backup code works exactly once.
     r.complete_with_backup_code(&pending, &codes[0].to_lowercase()).unwrap();
@@ -89,7 +89,7 @@ fn totp_enrollment_sign_in_and_replay_protection() {
 fn totp_secret_survives_password_change() {
     let (r, admin) = setup();
     let e = r.begin_totp(&admin, "parent-password").unwrap();
-    r.confirm_totp(&admin, "parent-password", &e.secret_base32, &now_code(&e.secret_base32, "John")).unwrap();
+    r.confirm_totp(&admin, "parent-password", &e.secret_base32, &now_code(&e.secret_base32, "John Doe")).unwrap();
     r.change_password(&admin, "parent-password", "new-parent-password").unwrap();
     assert!(r.sign_in_with_password(&admin, "parent-password").is_err());
     let PasswordOutcome::NeedsSecondFactor(p) = r.sign_in_with_password(&admin, "new-parent-password").unwrap() else { panic!() };
@@ -114,12 +114,12 @@ fn biometric_token_flow() {
 #[test]
 fn admin_reset_issues_new_setup_code() {
     let (r, admin) = setup();
-    let inv = r.add_user(&admin, "Mom", "#16a34a", Role::Admin).unwrap();
-    r.claim_profile(&inv.user.id, &inv.setup_code, "mom-password!").unwrap();
+    let inv = r.add_user(&admin, "Jane Doe", "#16a34a", Role::Admin).unwrap();
+    r.claim_profile(&inv.user.id, &inv.setup_code, "jane-password!").unwrap();
     let reset = r.reset_user(&admin, &inv.user.id).unwrap();
     assert!(!reset.user.active);
-    assert!(r.sign_in_with_password(&inv.user.id, "mom-password!").is_err());
-    r.claim_profile(&inv.user.id, &reset.setup_code, "mom-new-password").unwrap();
+    assert!(r.sign_in_with_password(&inv.user.id, "jane-password!").is_err());
+    r.claim_profile(&inv.user.id, &reset.setup_code, "jane-new-password").unwrap();
     // Second admin can now remove the first.
     r.remove_user(&inv.user.id, &admin).unwrap();
 }
