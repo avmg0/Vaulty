@@ -17,7 +17,7 @@ pub const BACKUP_VERSION: i64 = 2;
 
 /// Tables in a backup, parents first so a restore satisfies foreign keys.
 const TABLES: &[&str] = &[
-    "workspaces", "accounts", "card_details", "categories", "ledger_accounts", "entries", "postings",
+    "workspaces", "accounts", "cards", "categories", "ledger_accounts", "entries", "postings",
     "credit_cards", "recurring_payments", "tasks", "investments", "investment_events",
     "journal_entries", "goals", "calendar_events",
 ];

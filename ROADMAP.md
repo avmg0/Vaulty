@@ -170,7 +170,8 @@ A member can run a small business inside Vaulty without mixing it with personal 
   - generates upcoming instances
   - mark as paid creates the transaction
 - **Credit cards:**
-  - ✅ card page with animated cards (tilt, glare, flip, stack), designs, network detection, last-4-only storage
+  - ✅ Cards page for credit, debit, prepaid/forex, gift and other cards: animated (tilt, glare, flip, stack), network detection, last-4-only storage, expiry
+  - ✅ card backgrounds: preset finishes, solid colour, 2–3 colour gradient, or your own image (cropped, dimmable), with text colour and engraved-line options
   - ✅ limit, available credit, credit-used ring, statement and due day with countdown
   - billing cycle and due date reminders
   - monthly statement generation ("Statement for Dec 2025")

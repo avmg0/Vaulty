@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Nfc } from "lucide-react";
-import type { CardDesign, CardNetwork } from "@/api";
+import type { CardDesign, CardKind, CardLook, CardNetwork } from "@/api";
 import { InstitutionBadge } from "@/components/InstitutionBadge";
-import { NETWORK_NAME, isAmex, ordinal } from "@/lib/cards";
+import { KIND_LABEL, NETWORK_NAME, expiryText, maskedNumber, ordinal } from "@/lib/cards";
 import { cn, formatMoney } from "@/lib/utils";
 
-/** Card finishes. `ink` is the text colour; `line` tints the engraved pattern. */
+/** Preset finishes. `ink` is the text colour; `line` tints the engraved pattern. */
 export const DESIGNS: Record<CardDesign, { label: string; face: string; ink: string; line: string }> = {
   midnight: { label: "Midnight", face: "linear-gradient(135deg,#0b1736 0%,#1b2f6b 55%,#2a4aa8 100%)", ink: "#f4f6fb", line: "#9db4ff" },
   ocean: { label: "Ocean", face: "linear-gradient(140deg,#053b4a 0%,#0e6a8a 50%,#2bb3c9 100%)", ink: "#f2fbfd", line: "#bff3fb" },
@@ -17,21 +17,47 @@ export const DESIGNS: Record<CardDesign, { label: string; face: string; ink: str
   gold: { label: "Gold", face: "linear-gradient(120deg,#7a5410 0%,#c9a24b 30%,#f3dd9a 50%,#c9a24b 70%,#8a6115 100%)", ink: "#2b1d05", line: "#5c4210" },
 };
 
+const INK = { light: "#f8fafc", dark: "#111827" };
+
+/** Resolves any look (preset or custom) to CSS for the card face. */
+export function resolveLook(look: CardLook | undefined): { background: string; ink: string; line: string; pattern: boolean; dim: number; darkInk: boolean } {
+  if (!look || "preset" in look) {
+    const key = look && "preset" in look ? look.preset : "midnight";
+    const d = DESIGNS[key] ?? DESIGNS.midnight;
+    return { background: d.face, ink: d.ink, line: d.line, pattern: true, dim: 0, darkInk: key === "gold" };
+  }
+  const darkInk = look.ink === "dark";
+  const ink = darkInk ? INK.dark : INK.light;
+  const pattern = look.pattern ?? look.fill !== "image";
+  if (look.fill === "solid") return { background: look.colors[0], ink, line: ink, pattern, dim: 0, darkInk };
+  if (look.fill === "gradient") return { background: `linear-gradient(${look.angle ?? 135}deg, ${look.colors.join(", ")})`, ink, line: ink, pattern, dim: 0, darkInk };
+  return { background: `center / cover no-repeat url("${look.image}")`, ink, line: ink, pattern, dim: look.dim ?? 0.15, darkInk };
+}
+
 export type CardVisualData = {
+  kind: CardKind;
   name: string;
   institution?: string | null;
   institutionShort?: string | null;
   institutionLogo?: string | null;
+  issuerName?: string | null;
   logo?: string | null;
   network: CardNetwork | null;
   last4: string | null;
-  design: CardDesign;
+  expiryMonth?: number | null;
+  expiryYear?: number | null;
+  look: CardLook;
   currency: string;
+  // credit
   owed?: number;
   creditLimit?: number | null;
   available?: number | null;
   statementDay?: number | null;
   dueDay?: number | null;
+  // debit / prepaid / gift
+  balance?: number;
+  accountName?: string | null;
+  notes?: string | null;
 };
 
 function usePrefersReducedMotion() {
@@ -45,7 +71,7 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-/** Engraved security-print lines (like banknote guilloche), generated once per design. */
+/** Engraved security-print lines (like banknote guilloche). */
 function Guilloche({ colour, seed }: { colour: string; seed: number }) {
   const paths = useMemo(() => {
     const out: string[] = [];
@@ -80,10 +106,7 @@ function Chip() {
   );
 }
 
-function maskedNumber(network: CardNetwork | null, last4: string | null) {
-  const tail = last4 ?? "••••";
-  return isAmex(network) ? `•••• •••••• •${tail}` : `•••• •••• •••• ${tail}`;
-}
+const HAS_CHIP: Record<CardKind, boolean> = { credit: true, debit: true, prepaid: true, gift: false, other: false };
 
 type Props = {
   card: CardVisualData;
@@ -95,16 +118,19 @@ type Props = {
 };
 
 /**
- * A credit card rendered as a physical object: tilts toward the pointer with a moving glare,
- * flips to show billing details. Respects prefers-reduced-motion. Never shows more than the last 4 digits.
+ * Any card rendered as a physical object: tilts toward the pointer with a moving glare and flips
+ * to show its details. Respects prefers-reduced-motion. Never shows more than the last 4 digits.
  */
 export function CardVisual({ card, interactive = false, hideAmounts = false, className, style }: Props) {
   const reduced = usePrefersReducedMotion();
   const [flipped, setFlipped] = useState(false);
   const shell = useRef<HTMLDivElement>(null);
-  const d = DESIGNS[card.design] ?? DESIGNS.midnight;
-  const seed = useMemo(() => [...card.design].reduce((s, c) => s + c.charCodeAt(0), 0) % 7, [card.design]);
+  const look = resolveLook(card.look);
+  const seed = useMemo(() => [...card.name].reduce((s, c) => s + c.charCodeAt(0), 0) % 7, [card.name]);
   const tiltable = interactive && !reduced;
+  const issuer = card.institution ?? card.issuerName;
+  const expiry = expiryText(card.expiryMonth ?? null, card.expiryYear ?? null);
+  const showNumber = card.kind !== "other" || !!card.last4;
 
   const setVars = (rx: number, ry: number, gx: number, gy: number, go: number, fast: boolean) => {
     const el = shell.current;
@@ -127,7 +153,13 @@ export function CardVisual({ card, interactive = false, hideAmounts = false, cla
   const onKey = (e: KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } };
 
   const money = (n: number | null | undefined) => (n == null ? "—" : formatMoney(n, card.currency, hideAmounts));
-  const face = "absolute inset-0 overflow-hidden rounded-[4.5cqw] [backface-visibility:hidden] shadow-[0_18px_40px_-18px_rgba(0,0,0,.55),0_2px_6px_rgba(0,0,0,.18)]";
+  const faceClass = "absolute inset-0 overflow-hidden rounded-[4.5cqw] [backface-visibility:hidden] shadow-[0_18px_40px_-18px_rgba(0,0,0,.55),0_2px_6px_rgba(0,0,0,.18)]";
+  const surface = (
+    <>
+      {look.dim > 0 && <div aria-hidden className="absolute inset-0 bg-black" style={{ opacity: look.dim }} />}
+      {look.pattern && <Guilloche colour={look.line} seed={seed} />}
+    </>
+  );
   const glare = (
     <div aria-hidden className="pointer-events-none absolute inset-0 transition-opacity duration-300"
       style={{ opacity: "var(--go,0)", background: "radial-gradient(circle at var(--gx,50%) var(--gy,50%), rgba(255,255,255,.38), rgba(255,255,255,0) 45%)" }} />
@@ -141,40 +173,44 @@ export function CardVisual({ card, interactive = false, hideAmounts = false, cla
         role={interactive ? "button" : undefined}
         tabIndex={interactive ? 0 : undefined}
         aria-pressed={interactive ? flipped : undefined}
-        aria-label={interactive ? `${card.name} card ending ${card.last4 ?? "unknown"}. ${flipped ? "Showing billing details" : "Press to see billing details"}` : undefined}
+        aria-label={interactive ? `${card.name}, ${KIND_LABEL[card.kind]} card${card.last4 ? ` ending ${card.last4}` : ""}. ${flipped ? "Showing details" : "Press to see details"}` : undefined}
         onClick={flip}
         onKeyDown={interactive ? onKey : undefined}
-        className={cn(
-          "relative aspect-[1.586] w-full [transform-style:preserve-3d] outline-none focus-visible:ring-4 focus-visible:ring-ring/50 rounded-[4.5cqw]",
-          interactive && "cursor-pointer",
-        )}
+        className={cn("relative aspect-[1.586] w-full rounded-[4.5cqw] [transform-style:preserve-3d] outline-none focus-visible:ring-4 focus-visible:ring-ring/50", interactive && "cursor-pointer")}
         style={{
           transform: `rotateX(var(--rx,0deg)) rotateY(calc(var(--ry,0deg) + ${flipped ? 180 : 0}deg))`,
           transition: reduced ? "none" : "transform var(--tilt-speed,600ms) cubic-bezier(.2,.7,.2,1)",
-          color: d.ink,
+          color: look.ink,
+          textShadow: look.darkInk ? undefined : "0 1px 2px rgba(0,0,0,.35)",
         }}
       >
         {/* Front */}
-        <div className={face} style={{ background: d.face }}>
-          <Guilloche colour={d.line} seed={seed} />
+        <div className={faceClass} style={{ background: look.background }}>
+          {surface}
           <div className="relative flex h-full flex-col justify-between p-[6.5cqw]">
             <div className="flex items-start justify-between gap-[3cqw]">
               <div className="flex min-w-0 items-center gap-[2.5cqw]">
                 {(card.logo || card.institutionLogo || card.institutionShort) && (
                   <InstitutionBadge logo={card.logo} institutionLogo={card.institutionLogo} short={card.institutionShort}
-                    name={card.institution ?? card.name} className="size-[9cqw] rounded-[2cqw] ring-1 ring-white/20" />
+                    name={issuer ?? card.name} className="size-[9cqw] rounded-[2cqw] ring-1 ring-white/20" />
                 )}
-                {card.institution && <span className="truncate text-[4.4cqw] font-semibold tracking-tight">{card.institution}</span>}
+                {issuer && <span className="truncate text-[4.4cqw] font-semibold tracking-tight">{issuer}</span>}
               </div>
-              <Nfc className="size-[7cqw] shrink-0 opacity-80" aria-hidden />
+              <div className="flex shrink-0 items-center gap-[2cqw]">
+                <span className="rounded-full border border-current/30 px-[2cqw] py-[0.4cqw] text-[2.8cqw] font-medium">{KIND_LABEL[card.kind]}</span>
+                {HAS_CHIP[card.kind] && <Nfc className="size-[7cqw] opacity-80" aria-hidden />}
+              </div>
             </div>
-            <Chip />
-            <div className="space-y-[2.5cqw]">
-              <div className="text-[6.2cqw] font-medium tracking-[0.12em] tabular-nums [text-shadow:0_1px_0_rgba(0,0,0,.35),0_-1px_0_rgba(255,255,255,.12)]">
-                {maskedNumber(card.network, card.last4)}
-              </div>
+            {HAS_CHIP[card.kind] ? <Chip /> : <div />}
+            <div className="space-y-[2cqw]">
+              {showNumber && (
+                <div className="text-[6cqw] font-medium tracking-[0.14em] tabular-nums">{maskedNumber(card.network, card.last4)}</div>
+              )}
               <div className="flex items-end justify-between gap-[3cqw]">
-                <span className="truncate text-[3.8cqw] opacity-85">{card.name}</span>
+                <div className="min-w-0">
+                  <div className="truncate text-[3.8cqw] opacity-90">{card.name}</div>
+                  {expiry && <div className="text-[2.9cqw] opacity-75">Valid thru <span className="tabular-nums">{expiry}</span></div>}
+                </div>
                 <span className="shrink-0 text-[4.6cqw] font-semibold italic tracking-tight">{card.network ? NETWORK_NAME[card.network] : ""}</span>
               </div>
             </div>
@@ -183,24 +219,46 @@ export function CardVisual({ card, interactive = false, hideAmounts = false, cla
         </div>
 
         {/* Back */}
-        <div className={face} style={{ background: d.face, transform: "rotateY(180deg)" }}>
-          <Guilloche colour={d.line} seed={seed + 3} />
-          <div className="absolute inset-x-0 top-[11%] h-[17%] bg-black/80" aria-hidden />
-          <div className="relative flex h-full flex-col justify-end gap-[3cqw] p-[6.5cqw] pt-[33%]">
-            <div className="grid grid-cols-3 gap-[3cqw] text-[3.4cqw]">
-              <div><div className="opacity-70">Owed</div><div className="text-[4.6cqw] font-semibold tabular-nums">{money(card.owed)}</div></div>
-              <div><div className="opacity-70">Available</div><div className="text-[4.6cqw] font-semibold tabular-nums">{money(card.available)}</div></div>
-              <div><div className="opacity-70">Limit</div><div className="text-[4.6cqw] font-semibold tabular-nums">{money(card.creditLimit)}</div></div>
-            </div>
-            <div className="flex justify-between gap-[3cqw] text-[3.4cqw] opacity-85">
-              <span>{card.statementDay ? `Statement on the ${ordinal(card.statementDay)}` : "Statement day not set"}</span>
-              <span>{card.dueDay ? `Due on the ${ordinal(card.dueDay)}` : ""}</span>
-            </div>
-            <div className="text-[2.8cqw] opacity-60">Vaulty keeps only the last 4 digits of this card.</div>
+        <div className={faceClass} style={{ background: look.background, transform: "rotateY(180deg)" }}>
+          {surface}
+          {card.kind !== "other" && <div className="absolute inset-x-0 top-[11%] h-[17%] bg-black/80" aria-hidden />}
+          <div className={cn("relative flex h-full flex-col justify-end gap-[3cqw] p-[6.5cqw]", card.kind !== "other" && "pt-[33%]")}>
+            <BackDetails card={card} money={money} />
+            <div className="text-[2.8cqw] opacity-65">Vaulty keeps only the last 4 digits of this card.</div>
           </div>
           {glare}
         </div>
       </div>
     </div>
   );
+}
+
+function BackDetails({ card, money }: { card: CardVisualData; money: (n: number | null | undefined) => string }) {
+  const stat = (label: string, value: string) => (
+    <div className="min-w-0"><div className="text-[3.2cqw] opacity-70">{label}</div><div className="truncate text-[4.6cqw] font-semibold tabular-nums">{value}</div></div>
+  );
+  switch (card.kind) {
+    case "credit":
+      return (
+        <>
+          <div className="grid grid-cols-3 gap-[3cqw]">{stat("Owed", money(card.owed))}{stat("Available", money(card.available))}{stat("Limit", money(card.creditLimit))}</div>
+          <div className="flex justify-between gap-[3cqw] text-[3.4cqw] opacity-85">
+            <span>{card.statementDay ? `Statement on the ${ordinal(card.statementDay)}` : "Statement day not set"}</span>
+            <span>{card.dueDay ? `Due on the ${ordinal(card.dueDay)}` : ""}</span>
+          </div>
+        </>
+      );
+    case "debit":
+      return <div className="grid grid-cols-2 gap-[3cqw]">{stat("Linked account", card.accountName ?? "—")}{stat("Balance", money(card.balance))}</div>;
+    case "prepaid":
+    case "gift":
+      return (
+        <div className="grid grid-cols-2 gap-[3cqw]">
+          {stat(card.kind === "gift" ? "Remaining" : "Balance", money(card.balance))}
+          {stat("Expires", expiryText(card.expiryMonth ?? null, card.expiryYear ?? null) ?? "No expiry set")}
+        </div>
+      );
+    default:
+      return <div className="line-clamp-4 text-[3.6cqw] opacity-90">{card.notes || "No notes on this card."}</div>;
+  }
 }

@@ -404,8 +404,10 @@ fn import_json(s: S, path: String) -> Result<Value> {
     Ok(serde_json::to_value(counts)?)
 }
 #[tauri::command] fn cards_list(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::cards::list) }
-/// Never receives a full card number: only network, last4, limit, cycle days and design.
-#[tauri::command] fn cards_set_details(s: S, account_id: String, details: Value) -> Result<Value> { s.data(|c| vaulty_core::cards::set_details(c, &account_id, &details)) }
+/// Card commands never receive a full card number: only network, last 4 and the other details.
+#[tauri::command] fn cards_create(s: S, card: Value) -> Result<Value> { s.data(|c| vaulty_core::cards::create(c, &card)) }
+#[tauri::command] fn cards_update(s: S, id: String, card: Value) -> Result<Value> { s.data(|c| vaulty_core::cards::update(c, &id, &card)) }
+#[tauri::command] fn cards_delete(s: S, id: String) -> Result<()> { s.data(|c| vaulty_core::cards::delete(c, &id)) }
 
 /// Bank / card / broker directory search. `currency` ranks that country's institutions first.
 #[tauri::command]
@@ -454,7 +456,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, db_size, institutions_search, cards_list, cards_set_details, db_all, db_get, db_run,
+            export_json, export_csv, import_json, db_size, institutions_search, cards_list, cards_create, cards_update, cards_delete, db_all, db_get, db_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");

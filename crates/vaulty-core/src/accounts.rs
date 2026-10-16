@@ -143,6 +143,13 @@ pub fn create(conn: &Connection, a: &Value) -> Result<Value> {
             ],
         )?;
         let ledger_id = ledger::create_account_ledger(tx, &id, name, kind)?;
+        // Every credit-card account has a card (details can be added later on the Cards page).
+        if account_type == "credit" {
+            tx.execute(
+                "INSERT INTO cards (id, kind, name, account_id, owns_account) VALUES (?, 'credit', ?, ?, 1)",
+                params![format!("card_{id}"), name, id],
+            )?;
+        }
         set_opening(tx, &id, &ledger_id, &currency, opening, str_field(a, "opening_date"))?;
         Ok(())
     })?;

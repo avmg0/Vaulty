@@ -1,4 +1,4 @@
-import type { CardNetwork } from "@/api";
+import type { CardKind, CardNetwork } from "@/api";
 
 /** Mirrors vaulty-core cards::detect_network (keep in sync; the Rust side has the tests). */
 export function detectNetwork(number: string): CardNetwork | null {
@@ -31,8 +31,6 @@ export const NETWORK_NAME: Record<CardNetwork, string> = {
   diners: "Diners Club", jcb: "JCB", unionpay: "UnionPay", maestro: "Maestro",
 };
 
-/** Typical number length for the masked display; Amex is 15. */
-export const isAmex = (n: CardNetwork | null) => n === "amex";
 
 /** Next occurrence of a day-of-month (clamped to month length), from today. */
 export function nextDay(dayOfMonth: number, from = new Date()) {
@@ -47,4 +45,31 @@ export function nextDay(dayOfMonth: number, from = new Date()) {
 export function ordinal(n: number) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+export const KIND_LABEL: Record<CardKind, string> = { credit: "Credit", debit: "Debit", prepaid: "Prepaid", gift: "Gift card", other: "Other" };
+
+/** "XXXX XXXX XXXX 4242" (Amex: "XXXX XXXXXX X4242"). Never more than the last 4 digits. */
+export function maskedNumber(network: CardNetwork | null, last4: string | null) {
+  const tail = last4 ?? "XXXX";
+  return network === "amex" ? `XXXX XXXXXX X${tail}` : `XXXX XXXX XXXX ${tail}`;
+}
+
+/** Relative luminance (0 dark – 1 light) of a #rrggbb colour. */
+export function luminance(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+}
+
+/** Light text on dark backgrounds and vice versa. */
+export const inkFor = (lum: number): "light" | "dark" => (lum > 0.45 ? "dark" : "light");
+
+export function expiryText(m: number | null, y: number | null) {
+  return m && y ? `${String(m).padStart(2, "0")}/${String(y).slice(-2)}` : null;
+}
+
+/** Months until the end of the expiry month (negative once expired). */
+export function monthsUntilExpiry(m: number, y: number, from = new Date()) {
+  return (y - from.getFullYear()) * 12 + (m - 1 - from.getMonth());
 }

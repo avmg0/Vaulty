@@ -28,16 +28,35 @@ export type NewAccount = {
 };
 export type CardNetwork = "visa" | "mastercard" | "amex" | "discover" | "rupay" | "diners" | "jcb" | "unionpay" | "maestro";
 export type CardDesign = "midnight" | "ocean" | "aurora" | "sunset" | "graphite" | "emerald" | "rose" | "gold";
-/** A credit-card account plus its card details. Only the network and last 4 digits are ever stored. */
-export type CreditCard = Account & {
-  network: CardNetwork | null; last4: string | null; statement_day: number | null; due_day: number | null; design: CardDesign;
-  owed: number; owed_minor: number; credit_limit: number | null; credit_limit_minor: number | null;
-  available: number | null; available_minor: number | null; utilization: number | null;
+export type CardKind = "credit" | "debit" | "prepaid" | "gift" | "other";
+type LookCommon = { ink?: "light" | "dark"; pattern?: boolean };
+/** Card background: a preset finish, or the user's own colour, gradient or image. */
+export type CardLook =
+  | { preset: CardDesign }
+  | ({ fill: "solid"; colors: [string] } & LookCommon)
+  | ({ fill: "gradient"; colors: string[]; angle?: number } & LookCommon)
+  | ({ fill: "image"; image: string; dim?: number } & LookCommon);
+
+/** Any card. Only the network and last 4 digits are ever stored. Money fields depend on `kind`. */
+export type WalletCard = {
+  id: string; kind: CardKind; name: string; account_id: string | null; owns_account: number;
+  institution_id: string | null; institution: string | null; institution_short: string | null; institution_logo: string | null;
+  issuer_name: string | null; network: CardNetwork | null; last4: string | null;
+  expiry_month: number | null; expiry_year: number | null; look: CardLook; notes: string | null;
+  currency: string; account_name: string | null; account_logo: string | null;
+  // credit
+  statement_day: number | null; due_day: number | null; credit_limit_minor: number | null;
+  owed?: number; credit_limit?: number | null; available?: number | null; utilization?: number | null;
+  // debit / prepaid / gift
+  balance?: number;
 };
-export type CardDetailsInput = {
-  network?: CardNetwork | null; last4?: string | null; credit_limit?: string | null;
-  statement_day?: number | null; due_day?: number | null; design?: CardDesign;
-};
+/** Create needs `kind`; edits send only what changed. Amounts as typed text. */
+export type CardInput = Partial<{
+  kind: CardKind; name: string; currency: string; owed: string; balance: string; account_id: string;
+  institution_id: string | null; issuer_name: string | null; network: CardNetwork | null; last4: string | null;
+  expiry_month: number | null; expiry_year: number | null; credit_limit: string | null;
+  statement_day: number | null; due_day: number | null; look: CardLook; notes: string | null;
+}>;
 
 /** A bank, card issuer, broker or wallet from the bundled directory. */
 export type Institution = { id: string; name: string; short: string; kind: "bank" | "card" | "broker" | "wallet"; country: string; aliases: string[]; logo?: string };
@@ -98,8 +117,10 @@ export const api = {
   },
   categories: { getAll: () => invoke<Category[]>("categories_get_all") },
   cards: {
-    list: () => invoke<CreditCard[]>("cards_list"),
-    setDetails: (accountId: string, details: CardDetailsInput) => invoke<CreditCard>("cards_set_details", { accountId, details }),
+    list: () => invoke<WalletCard[]>("cards_list"),
+    create: (card: CardInput) => invoke<WalletCard>("cards_create", { card }),
+    update: (id: string, card: CardInput) => invoke<WalletCard>("cards_update", { id, card }),
+    delete: (id: string) => invoke<void>("cards_delete", { id }),
   },
   institutions: {
     search: (query: string, currency?: string, limit = 20) => invoke<Institution[]>("institutions_search", { query, currency, limit }),

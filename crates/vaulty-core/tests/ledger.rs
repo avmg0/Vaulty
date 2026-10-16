@@ -282,27 +282,120 @@ fn accounts_link_to_institutions_and_take_a_logo() {
 }
 
 #[test]
-fn credit_card_details_and_utilization() {
+fn credit_cards_track_owed_limit_and_utilization() {
     use vaulty_core::cards;
     let c = conn();
-    let card = accounts::create(&c, &json!({"name": "Rewards", "type": "credit", "currency": "INR", "institution_id": "in-hdfc", "initial_balance": "12400"})).unwrap();
+    let card = cards::create(&c, &json!({"kind": "credit", "name": "Rewards", "currency": "INR", "institution_id": "in-hdfc", "owed": "12400",
+        "network": "visa", "last4": "4242", "credit_limit": "100000", "statement_day": 12, "due_day": "2", "look": {"preset": "ocean"}})).unwrap();
     let id = card["id"].as_str().unwrap();
-    let d = cards::set_details(&c, id, &json!({"network": "visa", "last4": "4242", "credit_limit": "100000", "statement_day": 12, "due_day": "2", "design": "ocean"})).unwrap();
-    assert_eq!((d["owed"].clone(), d["available"].clone(), d["utilization"].clone()), (json!(12400.0), json!(87600.0), json!(0.124)));
-    assert_eq!((d["network"].clone(), d["last4"].clone(), d["design"].clone()), (json!("visa"), json!("4242"), json!("ocean")));
+    assert_eq!((card["owed"].clone(), card["available"].clone(), card["utilization"].clone()), (json!(12400.0), json!(87600.0), json!(0.124)));
+    assert_eq!((card["institution"].clone(), card["look"]["preset"].clone()), (json!("HDFC Bank"), json!("ocean")));
 
-    // Full numbers, bad values and non-card accounts are refused.
-    assert!(cards::set_details(&c, id, &json!({"number": "4111111111111111"})).is_err());
-    assert!(cards::set_details(&c, id, &json!({"last4": "42a2"})).is_err());
-    assert!(cards::set_details(&c, id, &json!({"network": "notanetwork"})).is_err());
-    assert!(cards::set_details(&c, id, &json!({"due_day": 40})).is_err());
-    assert!(cards::set_details(&c, id, &json!({"credit_limit": "-5"})).is_err());
-    let bank = accounts::create(&c, &json!({"name": "Bank", "type": "checking", "currency": "INR"})).unwrap();
-    assert!(cards::set_details(&c, bank["id"].as_str().unwrap(), &json!({"last4": "1111"})).is_err());
+    // Spending on the card's account updates owed / available live.
+    transactions::create(&c, &json!({"account_id": card["account_id"], "type": "expense", "amount": "600", "date": "2026-10-10"})).unwrap();
+    assert_eq!(cards::get(&c, id).unwrap()["owed"], json!(13000.0));
 
-    // Spending on the card updates owed / available live.
-    transactions::create(&c, &json!({"account_id": id, "type": "expense", "amount": "600", "date": "2026-10-10"})).unwrap();
-    let listed = cards::list(&c).unwrap();
-    assert_eq!(listed.len(), 1);
-    assert_eq!((listed[0]["owed"].clone(), listed[0]["available"].clone()), (json!(13000.0), json!(87000.0)));
+    // Full numbers and bad values are refused.
+    assert!(cards::update(&c, id, &json!({"number": "4111111111111111"})).is_err());
+    assert!(cards::create(&c, &json!({"kind": "credit", "card_number": "4111111111111111"})).is_err());
+    assert!(cards::update(&c, id, &json!({"last4": "42a2"})).is_err());
+    assert!(cards::update(&c, id, &json!({"network": "notanetwork"})).is_err());
+    assert!(cards::update(&c, id, &json!({"due_day": 40})).is_err());
+    assert!(cards::update(&c, id, &json!({"credit_limit": "-5"})).is_err());
+
+    // Renaming the card renames its account; deleting it archives the account.
+    cards::update(&c, id, &json!({"name": "Travel"})).unwrap();
+    assert_eq!(accounts::get(&c, card["account_id"].as_str().unwrap()).unwrap()["name"], json!("Travel"));
+    cards::delete(&c, id).unwrap();
+    assert!(cards::list(&c).unwrap().is_empty());
+    assert!(accounts::get_all(&c).unwrap().is_empty());
+}
+
+#[test]
+fn debit_prepaid_gift_and_other_cards() {
+    use vaulty_core::cards;
+    let c = conn();
+    let bank = accounts::create(&c, &json!({"name": "Salary", "type": "checking", "currency": "INR", "initial_balance": 50000, "institution_id": "in-sbi"})).unwrap();
+    let bank_id = bank["id"].as_str().unwrap();
+
+    // Two debit cards can share one bank account; they show its balance and inherit its bank.
+    let d1 = cards::create(&c, &json!({"kind": "debit", "name": "Primary debit", "account_id": bank_id, "network": "rupay", "last4": "1111", "expiry_month": 8, "expiry_year": 29})).unwrap();
+    let d2 = cards::create(&c, &json!({"kind": "debit", "name": "Spouse debit", "account_id": bank_id})).unwrap();
+    assert_eq!((d1["balance"].clone(), d1["institution"].clone(), d1["expiry_year"].clone()), (json!(50000.0), json!("State Bank of India"), json!(2029)));
+    assert_eq!(d2["account_name"], json!("Salary"));
+    // Deleting a debit card leaves the bank account alone.
+    cards::delete(&c, d2["id"].as_str().unwrap()).unwrap();
+    assert_eq!(accounts::get_all(&c).unwrap().len(), 1);
+    // Debit cards need an asset account; credit-only fields are refused.
+    assert!(cards::create(&c, &json!({"kind": "debit", "name": "x"})).is_err());
+    assert!(cards::update(&c, d1["id"].as_str().unwrap(), &json!({"credit_limit": "100"})).is_err());
+
+    // Prepaid and gift cards hold their own balance.
+    let gift = cards::create(&c, &json!({"kind": "gift", "name": "Bookstore", "issuer_name": "Corner Books", "currency": "INR", "balance": "2000", "expiry_month": 3, "expiry_year": 2027})).unwrap();
+    assert_eq!((gift["balance"].clone(), gift["issuer_name"].clone()), (json!(2000.0), json!("Corner Books")));
+    transactions::create(&c, &json!({"account_id": gift["account_id"], "type": "expense", "amount": 450, "date": "2026-10-11"})).unwrap();
+    assert_eq!(cards::get(&c, gift["id"].as_str().unwrap()).unwrap()["balance"], json!(1550.0));
+    let forex = cards::create(&c, &json!({"kind": "prepaid", "name": "Travel forex", "currency": "USD", "balance": "500", "network": "visa"})).unwrap();
+    assert_eq!(forex["currency"], json!("USD"));
+
+    // Other cards carry no money.
+    let gym = cards::create(&c, &json!({"kind": "other", "name": "Gym membership", "issuer_name": "City Gym", "notes": "Member no. on the back"})).unwrap();
+    assert_eq!((gym["account_id"].clone(), gym.get("balance").cloned()), (Value::Null, None));
+
+    assert!(cards::create(&c, &json!({"kind": "loyalty"})).is_err());
+    assert_eq!(cards::list(&c).unwrap().len(), 4);
+    assert_books_balance(&c);
+}
+
+#[test]
+fn card_backgrounds_are_validated() {
+    use vaulty_core::cards::normalize_look;
+    let ok = |v: Value| serde_json::from_str::<Value>(&normalize_look(&v).unwrap()).unwrap();
+    assert_eq!(ok(json!({"preset": "gold"})), json!({"preset": "gold"}));
+    let solid = ok(json!({"fill": "solid", "colors": ["#1E3A8A"], "ink": "light"}));
+    assert_eq!((solid["colors"][0].clone(), solid["pattern"].clone()), (json!("#1e3a8a"), json!(true)));
+    let grad = ok(json!({"fill": "gradient", "colors": ["#0f766e", "#7c3aed", "#db2777"], "angle": 200.4, "ink": "dark", "pattern": false}));
+    assert_eq!((grad["angle"].clone(), grad["ink"].clone()), (json!(200.0), json!("dark")));
+    let img = ok(json!({"fill": "image", "image": "data:image/jpeg;base64,/9j/4AAQ", "dim": 0.333}));
+    assert_eq!((img["dim"].clone(), img["pattern"].clone()), (json!(0.33), json!(false)));
+
+    for bad in [
+        json!({"preset": "neon"}),
+        json!({"fill": "solid", "colors": ["red"]}),
+        json!({"fill": "solid", "colors": ["#111111", "#222222"]}),
+        json!({"fill": "gradient", "colors": ["#111111"]}),
+        json!({"fill": "gradient", "colors": ["#111111", "#222222"], "angle": 400}),
+        json!({"fill": "image", "image": "data:image/svg+xml;base64,PHN2Zz4="}),
+        json!({"fill": "image", "image": format!("data:image/jpeg;base64,{}", "A".repeat(vaulty_core::cards::IMAGE_MAX_LEN))}),
+        json!({"fill": "image", "image": "data:image/png;base64,iVBO", "dim": 0.95}),
+        json!({"fill": "solid", "colors": ["#111111"], "ink": "purple"}),
+        json!({}),
+    ] {
+        assert!(normalize_look(&bad).is_err(), "{bad}");
+    }
+}
+
+/// Credit-card accounts and details from migration 0006 become cards in 0007.
+#[test]
+fn card_details_migrate_to_cards() {
+    let c = rusqlite::Connection::open_in_memory().unwrap();
+    c.pragma_update(None, "foreign_keys", "ON").unwrap();
+    db::migrate(&c, &db::DATA_MIGRATIONS[..6]).unwrap();
+    c.execute_batch(
+        "INSERT INTO accounts (id, name, type, currency, institution_id) VALUES
+           ('cc1', 'Rewards', 'credit', 'INR', 'in-hdfc'), ('cc2', 'Old card', 'credit', 'INR', NULL), ('b1', 'Bank', 'checking', 'INR', NULL);
+         INSERT INTO ledger_accounts (id, workspace_id, kind, name, account_id) VALUES
+           ('la_acc_cc1', 'ws_personal', 'liability', 'Rewards', 'cc1'), ('la_acc_cc2', 'ws_personal', 'liability', 'Old card', 'cc2'),
+           ('la_acc_b1', 'ws_personal', 'asset', 'Bank', 'b1');
+         INSERT INTO card_details (account_id, network, last4, credit_limit_minor, statement_day, due_day, design)
+           VALUES ('cc1', 'visa', '4242', 10000000, 12, 2, 'gold');",
+    )
+    .unwrap();
+    db::migrate(&c, db::DATA_MIGRATIONS).unwrap();
+    let cards = vaulty_core::cards::list(&c).unwrap();
+    assert_eq!(cards.len(), 2, "both credit accounts, not the bank account");
+    let rewards = cards.iter().find(|x| x["account_id"] == "cc1").unwrap();
+    assert_eq!((rewards["last4"].clone(), rewards["look"]["preset"].clone(), rewards["credit_limit"].clone()), (json!("4242"), json!("gold"), json!(100000.0)));
+    let exists: bool = c.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'card_details')", [], |r| r.get(0)).unwrap();
+    assert!(!exists);
 }

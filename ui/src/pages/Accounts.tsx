@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Banknote, Building2, CreditCard, ImageMinus, ImagePlus, Landmark, LineChart, Plus, Trash2, Wallet } from "lucide-react";
+import { Banknote, Building2, CreditCard, Gift, ImageMinus, ImagePlus, Landmark, LineChart, Plus, Ticket, Trash2, Wallet } from "lucide-react";
 import { api, errorText, type Account, type Institution } from "@/api";
 import { InstitutionBadge } from "@/components/InstitutionBadge";
 import { InstitutionPicker } from "@/components/InstitutionPicker";
@@ -17,6 +17,8 @@ export const ACCOUNT_TYPES = {
   credit: { label: "Credit card", icon: CreditCard },
   investment: { label: "Investment", icon: LineChart },
   business: { label: "Business", icon: Building2 },
+  prepaid: { label: "Prepaid card", icon: Ticket },
+  gift_card: { label: "Gift card", icon: Gift },
   other: { label: "Other", icon: Wallet },
 } as const;
 
