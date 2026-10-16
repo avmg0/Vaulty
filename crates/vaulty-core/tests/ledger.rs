@@ -259,3 +259,24 @@ fn household_migration_converts_real_amounts() {
     assert_eq!(rows[1]["amount_minor"], json!(1200));
     assert_eq!(rows[1]["amount_scale"], json!(1));
 }
+
+#[test]
+fn accounts_link_to_institutions_and_take_a_logo() {
+    let c = conn();
+    let acc = accounts::create(&c, &json!({"name": "Salary account", "type": "checking", "currency": "INR", "institution_id": "in-hdfc"})).unwrap();
+    let id = acc["id"].as_str().unwrap();
+    assert_eq!(acc["institution_id"], json!("in-hdfc"));
+    assert_eq!(acc["institution"], json!("HDFC Bank"));
+    assert!(accounts::create(&c, &json!({"name": "X", "type": "cash", "institution_id": "nope"})).is_err());
+
+    // Partial update: only the logo changes; name, type, colour and bank are kept.
+    let logo = "data:image/png;base64,iVBORw0KGgo=";
+    let after = accounts::update(&c, id, &json!({"logo": logo})).unwrap();
+    assert_eq!((after["logo"].as_str(), after["name"].as_str(), after["institution_id"].as_str()), (Some(logo), Some("Salary account"), Some("in-hdfc")));
+    assert!(accounts::update(&c, id, &json!({"logo": "data:text/html;base64,PHNjcmlwdD4="})).is_err());
+    assert!(accounts::update(&c, id, &json!({"logo": format!("data:image/png;base64,{}", "A".repeat(accounts::MAX_LOGO_LEN))})).is_err());
+
+    // Clearing works too.
+    let cleared = accounts::update(&c, id, &json!({"logo": null, "institution_id": null})).unwrap();
+    assert_eq!((cleared["logo"].clone(), cleared["institution_id"].clone()), (Value::Null, Value::Null));
+}

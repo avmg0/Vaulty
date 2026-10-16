@@ -31,6 +31,10 @@ fn decorate(mut row: Value) -> Value {
         o.insert("initial_balance".into(), json!(money::to_decimal(initial, &currency)));
         o.insert("initial_balance_minor".into(), json!(initial));
         o.remove("opening_minor");
+        // Badge info from the institution directory (monogram text and optional bundled logo file).
+        let inst = o.get("institution_id").and_then(Value::as_str).and_then(crate::institutions::get);
+        o.insert("institution_short".into(), json!(inst.map(|i| i.short.clone())));
+        o.insert("institution_logo".into(), json!(inst.and_then(|i| i.logo.clone())));
     }
     row
 }
@@ -69,6 +73,47 @@ fn opening_minor(a: &Value, currency: &str, kind: Kind) -> Result<Option<i64>> {
     }
 }
 
+/// Largest logo accepted, as a data URL (the app resizes uploads to a small square first).
+pub const MAX_LOGO_LEN: usize = 200_000;
+
+/// `None` = key absent (keep current), `Some(None)` = clear, `Some(Some(v))` = set.
+type Change<T> = Option<Option<T>>;
+
+fn change_str(a: &Value, key: &str) -> Change<String> {
+    match a.get(key) {
+        None => None,
+        Some(Value::Null) => Some(None),
+        Some(Value::String(s)) if s.trim().is_empty() => Some(None),
+        Some(v) => Some(v.as_str().map(|s| s.trim().to_string())),
+    }
+}
+
+fn institution_change(a: &Value) -> Result<Change<&'static crate::institutions::Institution>> {
+    match change_str(a, "institution_id") {
+        None => Ok(None),
+        Some(None) => Ok(Some(None)),
+        Some(Some(id)) => crate::institutions::get(&id)
+            .map(|i| Some(Some(i)))
+            .ok_or_else(|| Error::Invalid(format!("unknown bank or institution `{id}`"))),
+    }
+}
+
+fn logo_change(a: &Value) -> Result<Change<String>> {
+    let change = change_str(a, "logo");
+    if let Some(Some(logo)) = &change {
+        let ok_type = ["data:image/png;base64,", "data:image/jpeg;base64,", "data:image/webp;base64,"]
+            .iter()
+            .any(|p| logo.starts_with(p));
+        if !ok_type {
+            return Err(Error::Invalid("logo must be a PNG, JPEG or WebP image".into()));
+        }
+        if logo.len() > MAX_LOGO_LEN {
+            return Err(Error::Invalid("logo image is too large".into()));
+        }
+    }
+    Ok(change)
+}
+
 pub fn create(conn: &Connection, a: &Value) -> Result<Value> {
     let id = str_field(a, "id").map(String::from).unwrap_or_else(new_id);
     let name = require_str(a, "name")?;
@@ -76,16 +121,20 @@ pub fn create(conn: &Connection, a: &Value) -> Result<Value> {
     let currency = currency_code(a)?;
     let kind = Kind::for_account_type(account_type);
     let opening = opening_minor(a, &currency, kind)?.unwrap_or(0);
+    let institution = institution_change(a)?.flatten();
+    let logo = logo_change(a)?.flatten();
 
     atomic(conn, |tx| {
         tx.execute(
-            "INSERT INTO accounts (id, name, type, institution, currency, color, icon, notes, include_in_total)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO accounts (id, name, type, institution, institution_id, logo, currency, color, icon, notes, include_in_total)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 id,
                 name,
                 account_type,
-                str_field(a, "institution"),
+                str_field(a, "institution").or(institution.map(|i| i.name.as_str())),
+                institution.map(|i| i.id.as_str()),
+                logo,
                 currency,
                 str_field(a, "color").unwrap_or("#3b82f6"),
                 str_field(a, "icon").unwrap_or("💰"),
@@ -100,10 +149,21 @@ pub fn create(conn: &Connection, a: &Value) -> Result<Value> {
     get(conn, &id)
 }
 
+/// Partial update: only the keys present in `a` change.
 pub fn update(conn: &Connection, id: &str, a: &Value) -> Result<Value> {
     let (ledger_id, old_kind, old_currency) = ledger::for_account(conn, id)?;
-    let name = require_str(a, "name")?;
-    let account_type = require_str(a, "type")?;
+    let current = query_one(conn, "SELECT * FROM accounts WHERE id = ?", &[json!(id)])?
+        .ok_or_else(|| Error::Invalid("no such account".into()))?;
+    let keep = |key: &str| current[key].as_str().map(String::from);
+    let pick = |key: &str| -> Option<String> {
+        match change_str(a, key) {
+            None => keep(key),
+            Some(v) => v,
+        }
+    };
+
+    let name = pick("name").ok_or_else(|| Error::Invalid("`name` is required".into()))?;
+    let account_type = pick("type").ok_or_else(|| Error::Invalid("`type` is required".into()))?;
     let currency = match str_field(a, "currency") {
         Some(_) => currency_code(a)?,
         None => old_currency.clone(),
@@ -116,17 +176,38 @@ pub fn update(conn: &Connection, id: &str, a: &Value) -> Result<Value> {
     if currency != old_currency && has_postings {
         return Err(Error::Invalid("can't change the currency of an account that already has transactions".into()));
     }
-    let kind = Kind::for_account_type(account_type);
+    let kind = Kind::for_account_type(&account_type);
     if kind != old_kind && has_postings {
         return Err(Error::Invalid(
             "can't switch between a card/loan and a bank/cash account once it has transactions".into(),
         ));
     }
+    let (institution_id, institution_name) = match institution_change(a)? {
+        None => (keep("institution_id"), pick("institution")),
+        Some(None) => (None, pick("institution")),
+        Some(Some(i)) => (Some(i.id.clone()), Some(change_str(a, "institution").flatten().unwrap_or_else(|| i.name.clone()))),
+    };
+    let logo = match logo_change(a)? {
+        None => keep("logo"),
+        Some(v) => v,
+    };
 
     atomic(conn, |tx| {
         tx.execute(
-            "UPDATE accounts SET name = ?, type = ?, currency = ?, notes = ?, color = ?, icon = ? WHERE id = ?",
-            params![name, account_type, currency, str_field(a, "notes"), str_field(a, "color"), str_field(a, "icon"), id],
+            "UPDATE accounts SET name = ?, type = ?, currency = ?, notes = ?, color = ?, icon = ?,
+                    institution = ?, institution_id = ?, logo = ? WHERE id = ?",
+            params![
+                name,
+                account_type,
+                currency,
+                pick("notes"),
+                pick("color"),
+                pick("icon"),
+                institution_name,
+                institution_id,
+                logo,
+                id
+            ],
         )?;
         tx.execute(
             "UPDATE ledger_accounts SET name = ?, kind = ? WHERE id = ?",

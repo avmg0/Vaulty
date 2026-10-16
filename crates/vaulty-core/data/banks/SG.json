@@ -1,0 +1,70 @@
+{
+  "country": "SG",
+  "institutions": [
+    {
+      "id": "sg-dbs",
+      "name": "DBS Bank",
+      "short": "DBS",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "sg-posb",
+      "name": "POSB",
+      "short": "POSB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "sg-ocbc",
+      "name": "OCBC",
+      "short": "OCBC",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "sg-uob",
+      "name": "UOB",
+      "short": "UOB",
+      "kind": "bank",
+      "aliases": [
+        "united overseas bank"
+      ]
+    },
+    {
+      "id": "sg-standard-chartered-singapore",
+      "name": "Standard Chartered Singapore",
+      "short": "SC",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "sg-hsbc",
+      "name": "HSBC Singapore",
+      "short": "HSBC",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "sg-citi",
+      "name": "Citibank Singapore",
+      "short": "Citi",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "sg-trust",
+      "name": "Trust Bank",
+      "short": "Trust",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "sg-gxs",
+      "name": "GXS Bank",
+      "short": "GXS",
+      "kind": "bank",
+      "aliases": []
+    }
+  ]
+}

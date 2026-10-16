@@ -1,0 +1,145 @@
+{
+  "country": "US",
+  "institutions": [
+    {
+      "id": "us-chase",
+      "name": "JPMorgan Chase",
+      "short": "Chase",
+      "kind": "bank",
+      "aliases": [
+        "jpmorgan"
+      ]
+    },
+    {
+      "id": "us-bofa",
+      "name": "Bank of America",
+      "short": "BofA",
+      "kind": "bank",
+      "aliases": [
+        "boa"
+      ]
+    },
+    {
+      "id": "us-wells",
+      "name": "Wells Fargo",
+      "short": "Wells",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "us-citi",
+      "name": "Citibank",
+      "short": "Citi",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "us-usb",
+      "name": "U.S. Bank",
+      "short": "USB",
+      "kind": "bank",
+      "aliases": [
+        "us bank"
+      ]
+    },
+    {
+      "id": "us-pnc",
+      "name": "PNC Bank",
+      "short": "PNC",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "us-truist",
+      "name": "Truist",
+      "short": "Truist",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "us-capone",
+      "name": "Capital One",
+      "short": "CapOne",
+      "kind": "bank",
+      "aliases": [
+        "capital one"
+      ]
+    },
+    {
+      "id": "us-td-bank",
+      "name": "TD Bank",
+      "short": "TD",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "us-ally",
+      "name": "Ally Bank",
+      "short": "Ally",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "us-discover",
+      "name": "Discover",
+      "short": "Discover",
+      "kind": "card",
+      "aliases": []
+    },
+    {
+      "id": "us-amex",
+      "name": "American Express",
+      "short": "Amex",
+      "kind": "card",
+      "aliases": [
+        "amex"
+      ]
+    },
+    {
+      "id": "us-nfcu",
+      "name": "Navy Federal Credit Union",
+      "short": "NFCU",
+      "kind": "bank",
+      "aliases": [
+        "navy federal"
+      ]
+    },
+    {
+      "id": "us-usaa",
+      "name": "USAA",
+      "short": "USAA",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "us-schwab",
+      "name": "Charles Schwab",
+      "short": "Schwab",
+      "kind": "broker",
+      "aliases": []
+    },
+    {
+      "id": "us-fidelity",
+      "name": "Fidelity",
+      "short": "Fidelity",
+      "kind": "broker",
+      "aliases": []
+    },
+    {
+      "id": "us-vanguard",
+      "name": "Vanguard",
+      "short": "Vanguard",
+      "kind": "broker",
+      "aliases": []
+    },
+    {
+      "id": "us-goldman-sachs",
+      "name": "Goldman Sachs",
+      "short": "GS",
+      "kind": "bank",
+      "aliases": [
+        "marcus"
+      ]
+    }
+  ]
+}

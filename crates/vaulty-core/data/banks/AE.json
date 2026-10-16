@@ -1,0 +1,68 @@
+{
+  "country": "AE",
+  "institutions": [
+    {
+      "id": "ae-enbd",
+      "name": "Emirates NBD",
+      "short": "ENBD",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ae-fab",
+      "name": "First Abu Dhabi Bank",
+      "short": "FAB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ae-adcb",
+      "name": "Abu Dhabi Commercial Bank",
+      "short": "ADCB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ae-dib",
+      "name": "Dubai Islamic Bank",
+      "short": "DIB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ae-adib",
+      "name": "Abu Dhabi Islamic Bank",
+      "short": "ADIB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ae-emirates-islamic",
+      "name": "Emirates Islamic",
+      "short": "EI",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ae-mashreq",
+      "name": "Mashreq",
+      "short": "Mashreq",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ae-rak",
+      "name": "RAKBANK",
+      "short": "RAK",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ae-wio",
+      "name": "Wio Bank",
+      "short": "Wio",
+      "kind": "bank",
+      "aliases": []
+    }
+  ]
+}

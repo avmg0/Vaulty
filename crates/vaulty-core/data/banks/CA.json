@@ -1,0 +1,83 @@
+{
+  "country": "CA",
+  "institutions": [
+    {
+      "id": "ca-rbc",
+      "name": "RBC Royal Bank",
+      "short": "RBC",
+      "kind": "bank",
+      "aliases": [
+        "royal bank"
+      ]
+    },
+    {
+      "id": "ca-td-canada-trust",
+      "name": "TD Canada Trust",
+      "short": "TD",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ca-scotia",
+      "name": "Scotiabank",
+      "short": "Scotia",
+      "kind": "bank",
+      "aliases": [
+        "bank of nova scotia"
+      ]
+    },
+    {
+      "id": "ca-bmo",
+      "name": "BMO Bank of Montreal",
+      "short": "BMO",
+      "kind": "bank",
+      "aliases": [
+        "bank of montreal"
+      ]
+    },
+    {
+      "id": "ca-cibc",
+      "name": "CIBC",
+      "short": "CIBC",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ca-nbc",
+      "name": "National Bank of Canada",
+      "short": "NBC",
+      "kind": "bank",
+      "aliases": [
+        "banque nationale"
+      ]
+    },
+    {
+      "id": "ca-desj",
+      "name": "Desjardins",
+      "short": "Desj",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ca-tangerine",
+      "name": "Tangerine",
+      "short": "Tangerine",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ca-eq-bank",
+      "name": "EQ Bank",
+      "short": "EQ",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "ca-wealthsimple",
+      "name": "Wealthsimple",
+      "short": "WS",
+      "kind": "broker",
+      "aliases": []
+    }
+  ]
+}

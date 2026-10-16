@@ -1,0 +1,72 @@
+{
+  "country": "AU",
+  "institutions": [
+    {
+      "id": "au-cba",
+      "name": "Commonwealth Bank",
+      "short": "CBA",
+      "kind": "bank",
+      "aliases": [
+        "commbank"
+      ]
+    },
+    {
+      "id": "au-westpac",
+      "name": "Westpac",
+      "short": "Westpac",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "au-anz",
+      "name": "ANZ",
+      "short": "ANZ",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "au-nab",
+      "name": "National Australia Bank",
+      "short": "NAB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "au-macquarie",
+      "name": "Macquarie Bank",
+      "short": "Macquarie",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "au-ing",
+      "name": "ING Australia",
+      "short": "ING",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "au-bendigo",
+      "name": "Bendigo Bank",
+      "short": "Bendigo",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "au-stg",
+      "name": "St.George Bank",
+      "short": "StG",
+      "kind": "bank",
+      "aliases": [
+        "st george"
+      ]
+    },
+    {
+      "id": "au-boq",
+      "name": "Bank of Queensland",
+      "short": "BOQ",
+      "kind": "bank",
+      "aliases": []
+    }
+  ]
+}

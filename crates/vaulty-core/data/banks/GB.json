@@ -1,0 +1,114 @@
+{
+  "country": "GB",
+  "institutions": [
+    {
+      "id": "gb-barclays",
+      "name": "Barclays",
+      "short": "Barclays",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-hsbc",
+      "name": "HSBC UK",
+      "short": "HSBC",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-lloyds",
+      "name": "Lloyds Bank",
+      "short": "Lloyds",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-natwest",
+      "name": "NatWest",
+      "short": "NatWest",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-rbs",
+      "name": "Royal Bank of Scotland",
+      "short": "RBS",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-santander",
+      "name": "Santander UK",
+      "short": "Santander",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-nationwide",
+      "name": "Nationwide Building Society",
+      "short": "Nationwide",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-halifax",
+      "name": "Halifax",
+      "short": "Halifax",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-tsb",
+      "name": "TSB",
+      "short": "TSB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-first-direct",
+      "name": "first direct",
+      "short": "FD",
+      "kind": "bank",
+      "aliases": [
+        "firstdirect"
+      ]
+    },
+    {
+      "id": "gb-metro",
+      "name": "Metro Bank",
+      "short": "Metro",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-monzo",
+      "name": "Monzo",
+      "short": "Monzo",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-starling",
+      "name": "Starling Bank",
+      "short": "Starling",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-revolut",
+      "name": "Revolut",
+      "short": "Revolut",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "gb-amex",
+      "name": "American Express",
+      "short": "Amex",
+      "kind": "card",
+      "aliases": [
+        "amex"
+      ]
+    }
+  ]
+}

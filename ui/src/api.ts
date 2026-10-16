@@ -16,10 +16,18 @@ export type SecurityStatus = { totp_enabled: boolean; backup_codes_remaining: nu
 export type Account = {
   id: string; name: string; type: string; currency: string; color?: string; icon?: string;
   ledger_kind: "asset" | "liability";
+  /** Directory link (see Institution) and the user's own logo image (data URL), if any. */
+  institution_id?: string | null; institution?: string | null; institution_short?: string | null;
+  institution_logo?: string | null; logo?: string | null;
   current_balance: number; current_balance_minor: number;
   initial_balance: number; initial_balance_minor: number;
 };
-export type NewAccount = { name: string; type: string; currency: string; initial_balance?: string | number; color?: string; icon?: string };
+export type NewAccount = {
+  name: string; type: string; currency: string; initial_balance?: string | number; color?: string; icon?: string;
+  institution_id?: string | null; logo?: string | null;
+};
+/** A bank, card issuer, broker or wallet from the bundled directory. */
+export type Institution = { id: string; name: string; short: string; kind: "bank" | "card" | "broker" | "wallet"; country: string; aliases: string[]; logo?: string };
 export type Category = { id: string; name: string; type: "income" | "expense"; icon?: string; color?: string; is_system: number };
 export type Visibility = "private" | "shared" | "public";
 export type Transaction = {
@@ -71,10 +79,14 @@ export const api = {
   accounts: {
     getAll: () => invoke<Account[]>("accounts_get_all"),
     create: (account: NewAccount) => invoke<Account>("accounts_create", { account }),
-    update: (id: string, account: NewAccount) => invoke<Account>("accounts_update", { id, account }),
+    /** Partial update: only the fields given change. */
+    update: (id: string, account: Partial<NewAccount>) => invoke<Account>("accounts_update", { id, account }),
     delete: (id: string) => invoke<void>("accounts_delete", { id }),
   },
   categories: { getAll: () => invoke<Category[]>("categories_get_all") },
+  institutions: {
+    search: (query: string, currency?: string, limit = 20) => invoke<Institution[]>("institutions_search", { query, currency, limit }),
+  },
   transactions: {
     getAll: (filters?: { accountId?: string; categoryId?: string; type?: string; visibility?: Visibility; startDate?: string; endDate?: string; limit?: number }) =>
       invoke<Transaction[]>("transactions_get_all", { filters }),

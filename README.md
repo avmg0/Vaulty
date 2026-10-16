@@ -17,6 +17,11 @@ Privacy-first, offline-first family finance planner. Tauri v2 + Rust (SQLite, Ar
 - `assets/brand/app-icon-1024.png` (macOS/Linux tile) and `app-icon-small-1024.png` (tight crop for small sizes and Windows) are the sources for `src-tauri/icons/`.
   To regenerate after a logo change: `npx @tauri-apps/cli icon assets/brand/app-icon-1024.png -o src-tauri/icons`, then re-export the small sizes and `icon.ico` from the tight crop.
 
+## Banks and institutions
+- Directory of banks, card issuers, brokers and wallets per country: `crates/vaulty-core/data/banks/<COUNTRY>.json` (community-maintained).
+- Optional logo files go in `ui/public/institutions/` (see the README there). Without one, the app shows a monogram badge; users can also attach their own image to an account.
+- Names and logos belong to their owners and are not covered by the MIT licence; see `TRADEMARKS.md`.
+
 ## Where data lives
 ```
 <app data dir>/

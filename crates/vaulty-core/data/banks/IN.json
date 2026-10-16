@@ -1,0 +1,435 @@
+{
+  "country": "IN",
+  "institutions": [
+    {
+      "id": "in-sbi",
+      "name": "State Bank of India",
+      "short": "SBI",
+      "kind": "bank",
+      "aliases": [
+        "sbi",
+        "state bank"
+      ]
+    },
+    {
+      "id": "in-pnb",
+      "name": "Punjab National Bank",
+      "short": "PNB",
+      "kind": "bank",
+      "aliases": [
+        "pnb"
+      ]
+    },
+    {
+      "id": "in-bob",
+      "name": "Bank of Baroda",
+      "short": "BOB",
+      "kind": "bank",
+      "aliases": [
+        "baroda",
+        "bob"
+      ]
+    },
+    {
+      "id": "in-canara",
+      "name": "Canara Bank",
+      "short": "Canara",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-ubi",
+      "name": "Union Bank of India",
+      "short": "UBI",
+      "kind": "bank",
+      "aliases": [
+        "union bank"
+      ]
+    },
+    {
+      "id": "in-boi",
+      "name": "Bank of India",
+      "short": "BOI",
+      "kind": "bank",
+      "aliases": [
+        "boi"
+      ]
+    },
+    {
+      "id": "in-indian",
+      "name": "Indian Bank",
+      "short": "Indian",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-cbi",
+      "name": "Central Bank of India",
+      "short": "CBI",
+      "kind": "bank",
+      "aliases": [
+        "central bank"
+      ]
+    },
+    {
+      "id": "in-iob",
+      "name": "Indian Overseas Bank",
+      "short": "IOB",
+      "kind": "bank",
+      "aliases": [
+        "iob"
+      ]
+    },
+    {
+      "id": "in-uco",
+      "name": "UCO Bank",
+      "short": "UCO",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-bom",
+      "name": "Bank of Maharashtra",
+      "short": "BOM",
+      "kind": "bank",
+      "aliases": [
+        "mahabank"
+      ]
+    },
+    {
+      "id": "in-psb",
+      "name": "Punjab & Sind Bank",
+      "short": "PSB",
+      "kind": "bank",
+      "aliases": [
+        "punjab and sind"
+      ]
+    },
+    {
+      "id": "in-hdfc",
+      "name": "HDFC Bank",
+      "short": "HDFC",
+      "kind": "bank",
+      "aliases": [
+        "hdfc"
+      ]
+    },
+    {
+      "id": "in-icici",
+      "name": "ICICI Bank",
+      "short": "ICICI",
+      "kind": "bank",
+      "aliases": [
+        "icici"
+      ]
+    },
+    {
+      "id": "in-axis",
+      "name": "Axis Bank",
+      "short": "Axis",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-kotak",
+      "name": "Kotak Mahindra Bank",
+      "short": "Kotak",
+      "kind": "bank",
+      "aliases": [
+        "kotak"
+      ]
+    },
+    {
+      "id": "in-indusind",
+      "name": "IndusInd Bank",
+      "short": "IndusInd",
+      "kind": "bank",
+      "aliases": [
+        "indusind"
+      ]
+    },
+    {
+      "id": "in-yes",
+      "name": "Yes Bank",
+      "short": "Yes",
+      "kind": "bank",
+      "aliases": [
+        "yes bank"
+      ]
+    },
+    {
+      "id": "in-idfc",
+      "name": "IDFC FIRST Bank",
+      "short": "IDFC",
+      "kind": "bank",
+      "aliases": [
+        "idfc first"
+      ]
+    },
+    {
+      "id": "in-idbi",
+      "name": "IDBI Bank",
+      "short": "IDBI",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-federal",
+      "name": "Federal Bank",
+      "short": "Federal",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-rbl",
+      "name": "RBL Bank",
+      "short": "RBL",
+      "kind": "bank",
+      "aliases": [
+        "ratnakar"
+      ]
+    },
+    {
+      "id": "in-bandhan",
+      "name": "Bandhan Bank",
+      "short": "Bandhan",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-sib",
+      "name": "South Indian Bank",
+      "short": "SIB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-kvb",
+      "name": "Karur Vysya Bank",
+      "short": "KVB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-cub",
+      "name": "City Union Bank",
+      "short": "CUB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-kbl",
+      "name": "Karnataka Bank",
+      "short": "KBL",
+      "kind": "bank",
+      "aliases": [
+        "karnataka"
+      ]
+    },
+    {
+      "id": "in-dcb",
+      "name": "DCB Bank",
+      "short": "DCB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-csb",
+      "name": "CSB Bank",
+      "short": "CSB",
+      "kind": "bank",
+      "aliases": [
+        "catholic syrian"
+      ]
+    },
+    {
+      "id": "in-tmb",
+      "name": "Tamilnad Mercantile Bank",
+      "short": "TMB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-j-k",
+      "name": "Jammu & Kashmir Bank",
+      "short": "J&K",
+      "kind": "bank",
+      "aliases": [
+        "jk bank",
+        "jammu and kashmir"
+      ]
+    },
+    {
+      "id": "in-dhanlaxmi",
+      "name": "Dhanlaxmi Bank",
+      "short": "Dhanlaxmi",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-au-small-finance-bank",
+      "name": "AU Small Finance Bank",
+      "short": "AU",
+      "kind": "bank",
+      "aliases": [
+        "au bank"
+      ]
+    },
+    {
+      "id": "in-equitas",
+      "name": "Equitas Small Finance Bank",
+      "short": "Equitas",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-ujjivan",
+      "name": "Ujjivan Small Finance Bank",
+      "short": "Ujjivan",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-jana",
+      "name": "Jana Small Finance Bank",
+      "short": "Jana",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-suryoday",
+      "name": "Suryoday Small Finance Bank",
+      "short": "Suryoday",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-esaf",
+      "name": "ESAF Small Finance Bank",
+      "short": "ESAF",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-ippb",
+      "name": "India Post Payments Bank",
+      "short": "IPPB",
+      "kind": "bank",
+      "aliases": [
+        "post office",
+        "india post"
+      ]
+    },
+    {
+      "id": "in-airtel",
+      "name": "Airtel Payments Bank",
+      "short": "Airtel",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-fino",
+      "name": "Fino Payments Bank",
+      "short": "Fino",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-standard-chartered",
+      "name": "Standard Chartered",
+      "short": "SC",
+      "kind": "bank",
+      "aliases": [
+        "stanchart"
+      ]
+    },
+    {
+      "id": "in-hsbc",
+      "name": "HSBC India",
+      "short": "HSBC",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-dbs",
+      "name": "DBS Bank India",
+      "short": "DBS",
+      "kind": "bank",
+      "aliases": [
+        "digibank"
+      ]
+    },
+    {
+      "id": "in-deutsche-bank",
+      "name": "Deutsche Bank",
+      "short": "DB",
+      "kind": "bank",
+      "aliases": []
+    },
+    {
+      "id": "in-amex",
+      "name": "American Express",
+      "short": "Amex",
+      "kind": "card",
+      "aliases": [
+        "amex"
+      ]
+    },
+    {
+      "id": "in-zerodha",
+      "name": "Zerodha",
+      "short": "Zerodha",
+      "kind": "broker",
+      "aliases": [
+        "kite",
+        "coin"
+      ]
+    },
+    {
+      "id": "in-groww",
+      "name": "Groww",
+      "short": "Groww",
+      "kind": "broker",
+      "aliases": []
+    },
+    {
+      "id": "in-upstox",
+      "name": "Upstox",
+      "short": "Upstox",
+      "kind": "broker",
+      "aliases": []
+    },
+    {
+      "id": "in-angel",
+      "name": "Angel One",
+      "short": "Angel",
+      "kind": "broker",
+      "aliases": [
+        "angel broking"
+      ]
+    },
+    {
+      "id": "in-icicidir",
+      "name": "ICICI Direct",
+      "short": "ICICIdir",
+      "kind": "broker",
+      "aliases": [
+        "icicidirect"
+      ]
+    },
+    {
+      "id": "in-hdfcsec",
+      "name": "HDFC Securities",
+      "short": "HDFCsec",
+      "kind": "broker",
+      "aliases": []
+    },
+    {
+      "id": "in-kotaksec",
+      "name": "Kotak Securities",
+      "short": "Kotaksec",
+      "kind": "broker",
+      "aliases": []
+    }
+  ]
+}

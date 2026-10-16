@@ -1,0 +1,28 @@
+{
+  "country": "XX",
+  "institutions": [
+    {
+      "id": "xx-wise",
+      "name": "Wise",
+      "short": "Wise",
+      "kind": "wallet",
+      "aliases": [
+        "transferwise"
+      ]
+    },
+    {
+      "id": "xx-paypal",
+      "name": "PayPal",
+      "short": "PayPal",
+      "kind": "wallet",
+      "aliases": []
+    },
+    {
+      "id": "xx-revolut",
+      "name": "Revolut",
+      "short": "Revolut",
+      "kind": "bank",
+      "aliases": []
+    }
+  ]
+}

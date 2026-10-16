@@ -403,6 +403,13 @@ fn import_json(s: S, path: String) -> Result<Value> {
     })?;
     Ok(serde_json::to_value(counts)?)
 }
+/// Bank / card / broker directory search. `currency` ranks that country's institutions first.
+#[tauri::command]
+fn institutions_search(query: String, currency: Option<String>, limit: Option<usize>) -> Vec<vaulty_core::institutions::Institution> {
+    let country = currency.as_deref().and_then(vaulty_core::institutions::country_for_currency);
+    vaulty_core::institutions::search(&query, country, limit.unwrap_or(20)).into_iter().cloned().collect()
+}
+
 #[tauri::command]
 fn db_size(s: S) -> Result<String> {
     let me = s.current_user()?;
@@ -443,7 +450,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, db_size, db_all, db_get, db_run,
+            export_json, export_csv, import_json, db_size, institutions_search, db_all, db_get, db_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");

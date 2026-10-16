@@ -7,6 +7,7 @@ pub mod db;
 pub mod error;
 pub mod export;
 pub mod household;
+pub mod institutions;
 pub mod ledger;
 pub mod money;
 pub mod profiles;

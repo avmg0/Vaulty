@@ -312,6 +312,12 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - Languages: Hindi and other Indian languages; right-to-left languages such as Arabic (Phase 4).
 - Bank holidays per country: due dates that fall on a holiday move to the next working day (Phase 2).
 
+### Banks and institutions
+- ✅ Bank / card / broker / wallet directory per country, with search, monogram badges, optional bundled logo files and per-account custom logos.
+- Grow the directory and logo files through contributions (see `ui/public/institutions/README.md` and `TRADEMARKS.md`).
+- Online mode, opt-in: fetch an institution's own website icon directly from its official domain (no third-party logo services), cached on the device.
+- Statement import: suggest the account's institution parser automatically.
+
 ### Open-source community
 - Shared bank statement parsers: a separate folder or repo where contributors add import rules for each bank (HDFC, ICICI, SBI…), so CSV and PDF import keeps improving without app changes.
 - Region packs are community-maintained too: anyone can update their country's tax rules, with worked examples as tests.
