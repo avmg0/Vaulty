@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { DESIGNS } from "@/components/cards/CardVisual";
 import { inkFor, luminance } from "@/lib/cards";
 import { cn } from "@/lib/utils";
+import { Segmented } from "@/components/Segmented";
 
 type Mode = "preset" | "solid" | "gradient" | "image";
 const MODES: { id: Mode; label: string }[] = [
@@ -74,14 +75,8 @@ export function LookEditor({ value, onChange }: { value: CardLook; onChange: (l:
 
   return (
     <div className="space-y-3">
-      <div className="bg-muted grid grid-cols-4 gap-1 rounded-lg p-1" role="tablist" aria-label="Background type">
-        {MODES.map((m) => (
-          <button key={m.id} type="button" role="tab" aria-selected={mode === m.id} onClick={() => switchMode(m.id)}
-            className={cn("rounded-md py-1 text-xs transition-colors", mode === m.id ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-            {m.label}
-          </button>
-        ))}
-      </div>
+      <Segmented role="tablist" label="Background type" value={mode} onChange={switchMode} className="flex w-full" itemClassName="text-xs"
+        options={MODES.map((m) => ({ value: m.id, label: m.label }))} />
 
       {mode === "preset" && (
         <div className="grid grid-cols-4 gap-2">

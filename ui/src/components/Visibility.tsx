@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Check, Globe, Lock, Users, type LucideIcon } from "lucide-react";
 import type { Visibility } from "@/api";
 import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "motion/react";
+import { SPRING, useMotion } from "@/lib/motion";
+import { Segmented } from "@/components/Segmented";
 
 export const VISIBILITY: Record<Visibility, { label: string; icon: LucideIcon; desc: string }> = {
   private: { label: "Private", icon: Lock, desc: "Only you" },
@@ -13,19 +16,8 @@ const ORDER: Visibility[] = ["private", "shared", "public"];
 /** Segmented control used in forms and settings. */
 export function VisibilityPicker({ value, onChange, disabled }: { value: Visibility; onChange: (v: Visibility) => void; disabled?: boolean }) {
   return (
-    <div role="radiogroup" className={cn("bg-muted grid grid-cols-3 gap-1 rounded-lg p-1", disabled && "opacity-50")}>
-      {ORDER.map((v) => {
-        const { label, icon: Icon } = VISIBILITY[v];
-        return (
-          <button key={v} type="button" role="radio" aria-checked={value === v} disabled={disabled} onClick={() => onChange(v)}
-            title={VISIBILITY[v].desc}
-            className={cn("flex items-center justify-center gap-1.5 rounded-md py-1.5 text-sm transition-colors",
-              value === v ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-            <Icon className="size-3.5" />{label}
-          </button>
-        );
-      })}
-    </div>
+    <Segmented value={value} onChange={onChange} disabled={disabled} className="flex w-full" itemClassName="py-1.5" label="Who can see this"
+      options={ORDER.map((v) => { const { label, icon: Icon, desc } = VISIBILITY[v]; return { value: v, title: desc, label: <><Icon className="size-3.5" />{label}</> }; })} />
   );
 }
 
@@ -40,13 +32,22 @@ export function VisibilityBadge({ value, onChange }: { value: Visibility; onChan
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
   const { icon: Icon, label } = VISIBILITY[value];
+  const { move } = useMotion();
   const tone = value === "private" ? "text-muted-foreground" : value === "shared" ? "text-primary" : "text-success";
 
   return (
     <div ref={ref} className="relative">
       <button type="button" disabled={!onChange} onClick={() => setOpen((o) => !o)} title={`${label}: ${VISIBILITY[value].desc}`}
         className={cn("grid size-7 place-items-center rounded-md", tone, onChange && "hover:bg-accent")}>
-        <Icon className="size-3.5" /><span className="sr-only">{label}</span>
+        {/* The icon morphs when visibility changes: the old one turns away, the new one turns in. */}
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.span key={value} className="grid place-items-center"
+            initial={{ opacity: 0, scale: 0.5, rotate: -90 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} exit={{ opacity: 0, scale: 0.5, rotate: 90 }}
+            transition={move(SPRING)}>
+            <Icon className="size-3.5" />
+          </motion.span>
+        </AnimatePresence>
+        <span className="sr-only">{label}</span>
       </button>
       {open && onChange && (
         <div className="bg-popover absolute right-0 z-20 mt-1 w-60 rounded-md border p-1 shadow-md">

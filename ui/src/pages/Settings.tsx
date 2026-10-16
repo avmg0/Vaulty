@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { Skeleton } from "@/components/Skeleton";
 import { Check, Fingerprint, KeyRound, Loader2, LockKeyhole, Monitor, Moon, ShieldCheck, Sun, Timer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES } from "@/i18n";
@@ -7,6 +8,10 @@ import { currencyFor, useDisplayNames, useLocale } from "@/hooks/locale";
 import { CurrencyPicker } from "@/components/CurrencyPicker";
 import { MarketCard } from "@/components/MarketCard";
 import { SnapshotsCard } from "@/components/SnapshotsCard";
+import { SuccessTick } from "@/components/SuccessTick";
+import { Segmented } from "@/components/Segmented";
+import { motion as m } from "motion/react";
+import { useMotion } from "@/lib/motion";
 import { api, biometricLabel, errorText, type SecurityStatus } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,7 +90,7 @@ function ProfileCard() {
           <UserAvatar name={name || "?"} color={color} className="size-12 text-base" />
           <div className="min-w-48 flex-1 space-y-2"><Label htmlFor="pname">{t("settings.profile.name")}</Label><Input id="pname" value={name} onChange={(e) => setName(e.target.value)} maxLength={40} /></div>
           <div className="space-y-2"><Label>{t("settings.profile.colour")}</Label><ColorPicker value={color} onChange={setColor} /></div>
-          <Button disabled={!dirty && !saved} variant={saved ? "outline" : "default"}>{saved ? <><Check />{t("common.saved")}</> : t("common.save")}</Button>
+          <Button disabled={!dirty && !saved} variant={saved ? "outline" : "default"}>{saved ? <><SuccessTick />{t("common.saved")}</> : t("common.save")}</Button>
         </form>
         <div className="text-muted-foreground mt-3 text-xs">{t("settings.profile.role", { role: t(`role.${user.role}`) })}</div>
       </CardContent>
@@ -160,7 +165,7 @@ function SecurityCard() {
   const refresh = () => api.security.status().then(setStatus);
   useEffect(() => { refresh(); }, []);
 
-  if (!status) return <Card><CardContent className="py-8"><Loader2 className="text-muted-foreground mx-auto animate-spin" /></CardContent></Card>;
+  if (!status) return <Card><CardContent className="space-y-4 py-2">{[0, 1, 2].map((i) => <div key={i} className="flex items-center gap-3"><Skeleton className="size-4" /><div className="flex-1 space-y-1.5"><Skeleton className="h-3.5 w-1/3" /><Skeleton className="h-3 w-1/2" /></div><Skeleton className="h-5 w-9 rounded-full" /></div>)}</CardContent></Card>;
   const bio = biometricLabel();
 
   return (
@@ -265,6 +270,7 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 function AppearanceCard() {
   const { theme, setTheme, accent, setAccent, hideBalances, setHideBalances, motionPref, setMotionPref, motion } = useTheme();
   const { t } = useTranslation();
+  const { move } = useMotion();
   return (
     <Card>
       <CardHeader><CardTitle>{t("settings.appearance.title")}</CardTitle><CardDescription>{t("settings.appearance.desc")}</CardDescription></CardHeader>
@@ -281,23 +287,19 @@ function AppearanceCard() {
         </div>
         <div className="space-y-2"><Label>{t("settings.appearance.motion")}</Label>
           <p className="text-muted-foreground text-xs">{t("settings.appearance.motionDesc")}</p>
-          <div className="bg-muted inline-flex rounded-lg p-1" role="radiogroup" aria-label={t("settings.appearance.motion")}>
-            {(["full", "reduced", "off"] as const).map((m) => (
-              <button key={m} role="radio" aria-checked={motionPref === m} onClick={() => setMotionPref(m)}
-                className={cn("rounded-md px-3 py-1 text-sm transition-colors", motionPref === m ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-                {t(`settings.appearance.motion${m[0].toUpperCase()}${m.slice(1)}`)}
-              </button>
-            ))}
-          </div>
+          <div><Segmented value={motionPref} onChange={setMotionPref} label={t("settings.appearance.motion")}
+            options={(["full", "reduced", "off"] as const).map((x) => ({ value: x, label: t(`settings.appearance.motion${x[0].toUpperCase()}${x.slice(1)}`) }))} /></div>
           {motionPref === "full" && motion === "reduced" && <p className="text-muted-foreground text-xs">{t("settings.appearance.motionSystem")}</p>}
         </div>
         <div className="space-y-2"><Label>{t("settings.appearance.accent")}</Label>
           <div className="flex items-center gap-2">
             {ACCENTS.map((a) => (
-              <button key={a.id} onClick={() => setAccent(a.id)} title={a.label} aria-label={a.label}
-                className={cn("grid size-8 place-items-center rounded-full text-white ring-offset-2 ring-offset-background", a.swatch, accent === a.id && "ring-2 ring-ring")}>
-                {accent === a.id && <Check className="size-4 mix-blend-difference" />}
-              </button>
+              <m.button key={a.id} onClick={() => setAccent(a.id)} title={a.label} aria-label={a.label} aria-pressed={accent === a.id}
+                animate={accent === a.id ? { scale: [1, 1.18, 1] } : { scale: 1 }} transition={move({ duration: 0.3 })}
+                whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}
+                className={cn("grid size-8 place-items-center rounded-full text-white ring-offset-2 ring-offset-background transition-shadow", a.swatch, accent === a.id && "ring-2 ring-ring")}>
+                {accent === a.id && <SuccessTick className="size-4 mix-blend-difference" />}
+              </m.button>
             ))}
             <div className="ml-auto flex items-center gap-3">
               <span className="text-muted-foreground max-w-28 text-end text-xs">{t("settings.appearance.logoFollows")}</span>

@@ -142,3 +142,18 @@
   animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important; transition-delay: 0ms !important;
 }
+
+/* Loading placeholders: a soft light sweeps across. Static with reduced motion. */
+@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.skeleton {
+  background-image: linear-gradient(90deg, transparent 0%, color-mix(in oklab, var(--foreground) 6%, transparent) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+[data-motion="reduced"] .skeleton { animation: none; }
+
+/* Theme and accent changes cross-fade the whole window (View Transitions, where supported). */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 260ms; animation-timing-function: ease-out; }
+
+/* The logo eases to a new accent colour rather than snapping. */
+.vaulty-logo * { transition: fill 300ms ease, stroke 300ms ease; }

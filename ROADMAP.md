@@ -189,7 +189,8 @@ A member can run a small business inside Vaulty without mixing it with personal 
 - [x] SQLCipher encryption at rest, recovery keys, parent recovery for children (decision 1)
 - [x] Change history, undo, trash and encrypted safety copies (decision 1b)
 - [x] Motion: rolling amounts, list enter/exit and undo, sliding sidebar highlight, card lift and staggered details; Motion setting (Full / Reduced / Off, following the system)
-- [ ] More motion: progress bars and goal rings, theme cross-fade, unlock moment, skeleton loaders, success ticks
+- [x] More motion: sign-in (avatar glide, code boxes, shake, recovery key reveal, lock blur, unlock moment), sliding segmented controls, change arrows and progress bars, card look cross-fade and removal, tax totals and badge, family fan-out and "new" dots, history strike-through, ticker price flash, theme cross-fade, skeleton loaders, success ticks
+- [ ] Motion for pages not built yet (Reports charts drawing in, goal rings, calendar) as they arrive
 - [ ] Settings persisted in DB: date and time format, first day of week, fiscal year start, decimals, negative format (language, country and currency done)
 - [ ] CI: `cargo test`, `tsc`, and Tauri builds for all three desktop OSes (GitHub Actions)
 

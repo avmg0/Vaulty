@@ -8,17 +8,21 @@ export function AnimatedList({ children }: { children: ReactNode }) {
 }
 
 /** One list row. Give it the item's id as `key`, so an undone delete slides back in place. */
-export function AnimatedItem({ children }: { children: ReactNode }) {
+export function AnimatedItem({ children, exitX = 0, as = "div", className }: {
+  children: ReactNode; /** Slide sideways while leaving, e.g. restored items. */ exitX?: number;
+  /** "li" inside lists. */ as?: "div" | "li"; className?: string;
+}) {
   const { move, fade } = useMotion();
+  const Comp = as === "li" ? motion.li : motion.div;
   return (
-    <motion.div
+    <Comp className={className}
       layout="position"
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: "auto" }}
-      exit={{ opacity: 0, height: 0 }}
-      transition={{ height: move(), opacity: fade(), layout: move() }}
+      exit={{ opacity: 0, height: 0, x: exitX }}
+      transition={{ height: move(exitX ? { duration: 0.25, delay: 0.15 } : undefined), x: move(), opacity: fade(), layout: move() }}
       style={{ overflow: "hidden" }}>
       {children}
-    </motion.div>
+    </Comp>
   );
 }

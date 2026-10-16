@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Skeleton } from "@/components/Skeleton";
 import { CalendarClock, ChevronLeft, ChevronRight, CreditCard as CardIcon, Info, Landmark, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { api, DATA_RESTORED, errorText, type Account, type CardInput, type CardKind, type CardLook, type CardNetwork, type Institution, type WalletCard } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -14,8 +15,9 @@ import { LookEditor } from "@/components/cards/LookEditor";
 import { KIND_LABEL, NETWORK_NAME, detectNetwork, expiryText, luhnOk, maskedNumber, monthsUntilExpiry, nextDay, ordinal } from "@/lib/cards";
 import { useTheme } from "@/hooks/theme";
 import { cn, getNumberLocale } from "@/lib/utils";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { AnimatedMoney } from "@/components/AnimatedMoney";
+import { Segmented } from "@/components/Segmented";
 import { EASE_OUT, SOFT_SPRING, useMotion } from "@/lib/motion";
 
 const KINDS: CardKind[] = ["credit", "debit", "prepaid", "gift", "other"];
@@ -66,21 +68,22 @@ export function Cards() {
     return () => window.removeEventListener("keydown", onKey);
   }, [shown.length]);
 
-  if (!cards) return <Loader2 className="text-muted-foreground mx-auto mt-16 animate-spin" />;
+  if (!cards) return (
+    <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,460px)_1fr]" aria-busy="true">
+      <Skeleton className="mx-auto mt-14 aspect-[1.586] w-full max-w-[460px] rounded-2xl" />
+      <div className="mt-14 space-y-3"><Skeleton className="h-6 w-40" /><Skeleton className="h-4 w-64" /><Skeleton className="h-32 w-full rounded-xl" /></div>
+    </div>
+  );
   const current = shown[Math.min(index, shown.length - 1)];
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="bg-muted inline-flex flex-wrap rounded-lg p-1" role="tablist" aria-label="Card type">
-          {(["all", ...KINDS] as const).map((k) => (
-            <button key={k} role="tab" aria-selected={filter === k} onClick={() => { setFilter(k); setIndex(0); }}
-              className={cn("rounded-md px-3 py-1.5 text-sm transition-colors", filter === k ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-              {k === "all" ? "All" : KIND_LABEL[k]}
-              {k !== "all" && counts[k] > 0 && <span className="text-muted-foreground ml-1.5 tabular-nums">{counts[k]}</span>}
-            </button>
-          ))}
-        </div>
+        <Segmented role="tablist" label="Card type" value={filter} onChange={(k) => { setFilter(k); setIndex(0); }} className="flex-wrap" itemClassName="py-1.5"
+          options={(["all", ...KINDS] as const).map((k) => ({ value: k, label: <>
+            {k === "all" ? "All" : KIND_LABEL[k]}
+            {k !== "all" && counts[k] > 0 && <span className="text-muted-foreground tabular-nums">{counts[k]}</span>}
+          </> }))} />
         <Button onClick={() => setDialog({ mode: "add" })}><Plus />Add card</Button>
       </div>
 
@@ -138,12 +141,15 @@ export function Cards() {
 function Stack({ cards, index, dealt, hideBalances, onSelect }: { cards: WalletCard[]; index: number; dealt: boolean; hideBalances: boolean; onSelect: (i: number) => void }) {
   const order = useMemo(() => cards.map((_, i) => (i - index + cards.length) % cards.length), [cards, index]);
   const peek = Math.min(cards.length - 1, 2);
-  const { full, move } = useMotion();
+  const { full, move, fade } = useMotion();
   // Depth of each card in the previous render, to tell a card being lifted to the front.
   const prev = useRef<Record<string, number>>({});
   useEffect(() => { prev.current = Object.fromEntries(cards.map((c, i) => [c.id, order[i]])); });
+  const ids = cards.map((c) => c.id);
+  // A card leaving the stack drops out if it was removed, or just fades if it moved deeper than 3.
   return (
     <div className="relative mx-auto w-full max-w-[460px]" style={{ paddingTop: `${peek * 22}px` }}>
+      <AnimatePresence custom={ids}>
       {cards.map((c, i) => {
         const depth = order[i];
         if (depth > 2) return null;
@@ -167,6 +173,11 @@ function Stack({ cards, index, dealt, hideBalances, onSelect }: { cards: WalletC
             transition={lifting
               ? move({ duration: 0.6, times: [0, 0.42, 1], ease: [0.2, 0.7, 0.2, 1] })
               : { ...move(SOFT_SPRING), delay: dealt ? 0 : (2 - depth) * 0.08 }}
+            custom={ids}
+            variants={{ gone: (still: string[]) => still.includes(c.id)
+              ? { opacity: 0, transition: fade({ duration: 0.15 }) }
+              : { opacity: 0, y: 160, rotate: 6, scale: 0.92, transition: move({ duration: 0.45, ease: [0.4, 0, 0.8, 0.2] }) } }}
+            exit="gone"
             onClick={front ? undefined : () => onSelect(i)}
             aria-hidden={!front}
           >
@@ -174,6 +185,7 @@ function Stack({ cards, index, dealt, hideBalances, onSelect }: { cards: WalletC
           </motion.div>
         );
       })}
+      </AnimatePresence>
     </div>
   );
 }
@@ -228,6 +240,7 @@ function CreditDetails({ card, money }: { card: WalletCard; money: (n: number | 
   const u = card.utilization ?? null;
   const tone = u == null ? "text-muted-foreground" : u < 0.3 ? "text-success" : u < 0.7 ? "text-orange-500" : "text-destructive";
   const due = card.due_day ? nextDay(card.due_day) : null;
+  const { full } = useMotion();
   const dueText = !due ? "Set a due day to see the countdown" : due.days === 0 ? "Due today" : due.days === 1 ? "Due tomorrow" : `Due in ${due.days} days`;
   return (
     <>
@@ -244,7 +257,12 @@ function CreditDetails({ card, money }: { card: WalletCard; money: (n: number | 
       </Card>
       <Card>
         <CardContent className="flex items-center gap-4">
-          <div className={cn("grid size-10 place-items-center rounded-lg", due && due.days <= 3 ? "bg-destructive/10 text-destructive" : "bg-secondary")}><CalendarClock className="size-5" /></div>
+          {/* Only "due today/tomorrow" moves, a few times, then settles. */}
+          <motion.div className={cn("grid size-10 place-items-center rounded-lg", due && due.days <= 3 ? "bg-destructive/10 text-destructive" : "bg-secondary")}
+            animate={due && due.days <= 1 && full ? { scale: [1, 1.12, 1] } : { scale: 1 }}
+            transition={{ duration: 0.9, repeat: 3, repeatDelay: 0.6, ease: "easeInOut" }}>
+            <CalendarClock className="size-5" />
+          </motion.div>
           <div className="flex-1">
             <div className="font-medium">{dueText}</div>
             <div className="text-muted-foreground text-sm">

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Skeleton } from "@/components/Skeleton";
 import { Check, Globe, Loader2, Lock, Users } from "lucide-react";
 import { api, errorText, type FamilyMember, type SharingPrefs } from "@/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/UserAvatar";
 import { VisibilityPicker } from "@/components/Visibility";
 import { useSession } from "@/hooks/session";
+import { motion } from "motion/react";
+import { SPRING, useMotion } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 /** Each member's own consent and audience for Family sharing. */
@@ -19,6 +22,9 @@ export function FamilySharingCard() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [available, setAvailable] = useState(true);
+  const { move } = useMotion();
+  /** Bumped when sharing is switched on, so only that moment fans the cards out (not page load). */
+  const [fan, setFan] = useState(0);
 
   useEffect(() => {
     api.sharing.get().then((s) => { setPrefs(s.prefs); setAvailable(s.available); setMembers(s.members.filter((m) => m.id !== user.id)); });
@@ -29,7 +35,7 @@ export function FamilySharingCard() {
     try { setPrefs(await api.sharing.update(next)); } catch (e) { setError(errorText(e)); } finally { setSaving(false); }
   };
 
-  if (!prefs) return <Card><CardContent className="py-8"><Loader2 className="text-muted-foreground mx-auto animate-spin" /></CardContent></Card>;
+  if (!prefs) return <Card><CardContent className="space-y-3"><Skeleton className="h-5 w-40" /><Skeleton className="h-4 w-3/4" /><div className="grid gap-3 sm:grid-cols-3">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-16 rounded-lg" />)}</div></CardContent></Card>;
   const toggleViewer = (id: string) =>
     save({ ...prefs, shared_with: prefs.shared_with.includes(id) ? prefs.shared_with.filter((x) => x !== id) : [...prefs.shared_with, id] });
 
@@ -41,7 +47,7 @@ export function FamilySharingCard() {
             <CardTitle className="flex items-center gap-2">Family sharing {saving && <Loader2 className="text-muted-foreground size-4 animate-spin" />}</CardTitle>
             <CardDescription>Share chosen expenses with your family, and see what they share with you. Nothing is shared until you turn this on.</CardDescription>
           </div>
-          <Switch checked={prefs.enabled} disabled={!available} onCheckedChange={(enabled) => save({ ...prefs, enabled })} aria-label="Family sharing" />
+          <Switch checked={prefs.enabled} disabled={!available} onCheckedChange={(enabled) => { if (enabled) setFan((n) => n + 1); save({ ...prefs, enabled }); }} aria-label="Family sharing" />
         </div>
         {!available && (
           <p className="text-muted-foreground pt-2 text-xs">
@@ -55,11 +61,14 @@ export function FamilySharingCard() {
             { icon: Lock, title: "Private", text: "Only you. The default for everything." },
             { icon: Users, title: "Shared", text: "You plus the people you pick below, e.g. parents." },
             { icon: Globe, title: "Public", text: "Everyone in the family who has sharing on." },
-          ].map((x) => (
-            <div key={x.title} className="bg-muted/50 rounded-lg p-3">
+          ].map((x, i) => (
+            // Turning sharing on fans the three levels out, left to right.
+            <motion.div key={`${x.title}-${fan}`} className="bg-muted/50 rounded-lg p-3"
+              initial={fan ? { opacity: 0, y: 10, rotate: (i - 1) * -3 } : false} animate={{ opacity: 1, y: 0, rotate: 0 }}
+              transition={{ ...move(SPRING), delay: i * 0.07 }}>
               <div className="mb-1 flex items-center gap-1.5 font-medium"><x.icon className="size-4" />{x.title}</div>
               <div className="text-muted-foreground text-xs">{x.text}</div>
-            </div>
+            </motion.div>
           ))}
         </div>
 

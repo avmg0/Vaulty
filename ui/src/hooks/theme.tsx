@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { MotionConfig } from "motion/react";
+import { flushSync } from "react-dom";
 
 export type Theme = "light" | "dark" | "system";
 export type Accent = "neutral" | "black" | "blue" | "green" | "violet" | "orange" | "rose";
@@ -23,12 +24,21 @@ function read<T extends string>(key: string, fallback: T): T {
 function write(key: string, v: string) { try { localStorage.setItem(key, v); } catch { /* ignore */ } }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => read("vaulty.theme", "system"));
-  const [accent, setAccent] = useState<Accent>(() => read("vaulty.accent", "neutral"));
+  const [theme, setThemeState] = useState<Theme>(() => read("vaulty.theme", "system"));
+  const [accent, setAccentState] = useState<Accent>(() => read("vaulty.accent", "neutral"));
   const [hideBalances, setHideBalances] = useState(() => read<string>("vaulty.hide", "0") === "1");
   const [motionPref, setMotionPref] = useState<MotionPref>(() => read("vaulty.motion", "full"));
   const [systemReduce, setSystemReduce] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const motion: MotionLevel = motionPref === "off" ? "off" : motionPref === "reduced" || systemReduce ? "reduced" : "full";
+
+  /** Theme and accent changes cross-fade the window where the browser supports view transitions. */
+  const crossFade = (apply: () => void) => {
+    const doc = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+    if (motion === "off" || !doc.startViewTransition) { apply(); return; }
+    doc.startViewTransition(() => flushSync(apply));
+  };
+  const setTheme = (t: Theme) => crossFade(() => setThemeState(t));
+  const setAccent = (a: Accent) => crossFade(() => setAccentState(a));
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");

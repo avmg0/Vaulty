@@ -1,4 +1,6 @@
 import { useTheme } from "@/hooks/theme";
+import { AnimatePresence, motion } from "motion/react";
+import { useMotion } from "@/lib/motion";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Nfc } from "lucide-react";
 import type { CardDesign, CardKind, CardLook, CardNetwork } from "@/api";
@@ -118,6 +120,7 @@ type Props = {
  */
 export function CardVisual({ card, interactive = false, hideAmounts = false, className, style }: Props) {
   const reduced = usePrefersReducedMotion();
+  const { fade } = useMotion();
   const [flipped, setFlipped] = useState(false);
   const shell = useRef<HTMLDivElement>(null);
   const look = resolveLook(card.look);
@@ -181,6 +184,11 @@ export function CardVisual({ card, interactive = false, hideAmounts = false, cla
       >
         {/* Front */}
         <div className={faceClass} style={{ background: look.background }}>
+          {/* When the look changes, the old face fades away over the new one. */}
+          <AnimatePresence initial={false}>
+            <motion.div key={look.background} aria-hidden className="absolute inset-0" style={{ background: look.background }}
+              initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={fade({ duration: 0.4 })} />
+          </AnimatePresence>
           {surface}
           <div className="relative flex h-full flex-col justify-between p-[6.5cqw]">
             <div className="flex items-start justify-between gap-[3cqw]">
@@ -206,7 +214,12 @@ export function CardVisual({ card, interactive = false, hideAmounts = false, cla
                   <div className="truncate text-[3.8cqw] opacity-90">{card.name}</div>
                   {expiry && <div className="text-[2.9cqw] opacity-75">Valid thru <span className="tabular-nums">{expiry}</span></div>}
                 </div>
-                <span className="shrink-0 text-[4.6cqw] font-semibold italic tracking-tight">{card.network ? NETWORK_NAME[card.network] : ""}</span>
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.span key={card.network ?? "none"} className="shrink-0 text-[4.6cqw] font-semibold italic tracking-tight"
+                    initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={fade({ duration: 0.25 })}>
+                    {card.network ? NETWORK_NAME[card.network] : ""}
+                  </motion.span>
+                </AnimatePresence>
               </div>
             </div>
           </div>

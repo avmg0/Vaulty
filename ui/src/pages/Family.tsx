@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Skeleton, SkeletonRows } from "@/components/Skeleton";
 import { ChevronLeft, ChevronRight, Globe, Layers, Loader2, Lock, Settings2, Users, UsersRound } from "lucide-react";
 import { api, errorText, type FamilyItem, type FamilyMember, type FeedView, type SharingPrefs, type Transaction } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -6,6 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { UserAvatar } from "@/components/UserAvatar";
 import { useSession } from "@/hooks/session";
 import { useTheme } from "@/hooks/theme";
+import { Segmented } from "@/components/Segmented";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
+import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
+import { motion } from "motion/react";
+import { useMotion } from "@/lib/motion";
 import { cn, formatMoney, getNumberLocale } from "@/lib/utils";
 import { TransactionRow } from "./Transactions";
 import { FamilyMembers } from "./FamilyMembers";
@@ -22,14 +28,8 @@ export function Family({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [section, setSection] = useState<"view" | "members">("view");
   return (
     <div className="space-y-4">
-      <div className="bg-muted inline-flex rounded-lg p-1">
-        {([["view", "Family view", Layers], ["members", "Members", UsersRound]] as const).map(([id, label, Icon]) => (
-          <button key={id} onClick={() => setSection(id)}
-            className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors", section === id ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-            <Icon className="size-4" />{label}
-          </button>
-        ))}
-      </div>
+      <Segmented role="tablist" value={section} onChange={setSection} itemClassName="py-1.5"
+        options={[{ value: "view", label: <><Layers className="size-4" />Family view</> }, { value: "members", label: <><UsersRound className="size-4" />Members</> }]} />
       {section === "view" ? <FamilyView onOpenSettings={onOpenSettings} /> : <FamilyMembers />}
     </div>
   );
@@ -79,8 +79,9 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
   const visible = (rows ?? []).filter((r) => !owner || r.owner_id === owner);
   const currency = rows?.find((r) => r.currency)?.currency ?? "INR";
   const grand = totals.reduce((s, [, v]) => s + v, 0);
+  const fresh = useFreshItems(rows, user.id);
 
-  if (!prefs) return <Loader2 className="text-muted-foreground mx-auto mt-10 animate-spin" />;
+  if (!prefs) return <div className="space-y-4"><Skeleton className="h-9 w-72" /><Skeleton className="h-36 w-full rounded-xl" /></div>;
   if (!prefs.enabled) {
     return (
       <Card className="mx-auto mt-6 max-w-lg">
@@ -99,14 +100,8 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="bg-muted inline-flex rounded-lg p-1" role="tablist">
-          {TABS.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} title={t.hint} onClick={() => { setTab(t.id); setOwner(null); }}
-              className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors", tab === t.id ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
-              <t.icon className="size-3.5" />{t.label}
-            </button>
-          ))}
-        </div>
+        <Segmented role="tablist" value={tab} onChange={(v) => { setTab(v); setOwner(null); }} itemClassName="py-1.5"
+          options={TABS.map((t) => ({ value: t.id, title: t.hint, label: <><t.icon className="size-3.5" />{t.label}</> }))} />
         <div className="ml-auto flex items-center gap-1">
           <Button variant="ghost" size="icon" onClick={() => setMonth((m) => m - 1)} aria-label="Previous month"><ChevronLeft /></Button>
           <div className="w-36 text-center text-sm font-medium">{range.label}</div>
@@ -120,12 +115,12 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
           <CardDescription>{TABS.find((t) => t.id === tab)!.hint}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="text-3xl font-semibold tabular-nums">{formatMoney(grand, currency, hideBalances)}</div>
+          {rows === null ? <Skeleton className="h-9 w-40" /> : <AnimatedMoney value={grand} currency={currency} hidden={hideBalances} className="text-3xl font-semibold tabular-nums" />}
           {totals.length > 0 && (
             <>
               <div className="flex h-2 overflow-hidden rounded-full">
                 {totals.map(([id, v]) => (
-                  <div key={id} style={{ width: `${(v / grand) * 100}%`, backgroundColor: byId[id]?.color ?? "#71717a" }} title={byId[id]?.name} />
+                  <div key={id} className="transition-[width] duration-500 ease-out" style={{ width: `${(v / grand) * 100}%`, backgroundColor: byId[id]?.color ?? "#71717a" }} title={byId[id]?.name} />
                 ))}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -148,23 +143,29 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
 
       <Card className="py-2">
         <CardContent className="divide-y">
-          {rows === null && <Loader2 className="text-muted-foreground mx-auto my-8 animate-spin" />}
+          {rows === null && <SkeletonRows />}
           {error && <p className="text-destructive py-6 text-center text-sm">{error}</p>}
           {rows !== null && !error && visible.length === 0 && (
             <p className="text-muted-foreground py-10 text-center text-sm">
               {tab === "private" ? "No private transactions this month." : "Nothing shared for this month yet."}
             </p>
           )}
+          <AnimatedList>
           {visible.map((r) => {
             const m = byId[r.owner_id];
+            const key = `${r.owner_id}:${r.id}`;
             return (
-              <TransactionRow key={`${r.owner_id}:${r.id}`} t={r} hidden={hideBalances}
-                lead={<span className="flex shrink-0 items-center gap-1 font-medium text-foreground/80">
-                  <UserAvatar name={m?.name ?? "?"} color={m?.color ?? "#71717a"} className="size-4 text-[8px]" />
-                  {r.owner_id === user.id ? "You" : m?.name ?? "Removed member"} ·
-                </span>} />
+              <AnimatedItem key={key}>
+                <TransactionRow t={r} hidden={hideBalances}
+                  lead={<span className="flex shrink-0 items-center gap-1 font-medium text-foreground/80">
+                    {fresh.has(key) && <NewDot />}
+                    <UserAvatar name={m?.name ?? "?"} color={m?.color ?? "#71717a"} className="size-4 text-[8px]" />
+                    {r.owner_id === user.id ? "You" : m?.name ?? "Removed member"} ·
+                  </span>} />
+              </AnimatedItem>
             );
           })}
+          </AnimatedList>
         </CardContent>
       </Card>
     </div>
@@ -177,5 +178,35 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-sm transition-colors hover:bg-accent", active && "border-primary bg-accent")}>
       {children}
     </button>
+  );
+}
+
+const SEEN_KEY = "vaulty.family.seen";
+
+/**
+ * Family items this device hasn't shown before (other people's only). The first visit marks
+ * everything as seen, so dots only ever mean "shared since you last looked".
+ */
+function useFreshItems(rows: Row[] | null, me: string) {
+  const [fresh, setFresh] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!rows) return;
+    let seen: string[] | null = null;
+    try { seen = JSON.parse(localStorage.getItem(`${SEEN_KEY}.${me}`) ?? "null"); } catch { seen = null; }
+    const keys = rows.filter((r) => r.owner_id !== me).map((r) => `${r.owner_id}:${r.id}`);
+    const known = new Set(seen ?? keys);
+    setFresh(new Set(keys.filter((k) => !known.has(k))));
+    try { localStorage.setItem(`${SEEN_KEY}.${me}`, JSON.stringify([...new Set([...keys, ...(seen ?? [])])].slice(0, 3000))); } catch { /* private mode */ }
+  }, [rows, me]);
+  return fresh;
+}
+
+/** "New" marker that fades after a few seconds. */
+function NewDot() {
+  const { fade } = useMotion();
+  return (
+    <motion.span className="bg-primary size-1.5 shrink-0 rounded-full" title="New" aria-label="New"
+      initial={{ opacity: 0, scale: 0 }} animate={{ opacity: [0, 1, 1, 0], scale: [0, 1.4, 1, 1] }}
+      transition={{ ...fade({ duration: 6, times: [0, 0.05, 0.85, 1] }) }} />
   );
 }

@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, Info, Plus, Search, Trash2 } from "lucide-react";
 import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
+import { Segmented } from "@/components/Segmented";
+import { motion } from "motion/react";
+import { useMotion } from "@/lib/motion";
 import { AnimatedMoney } from "@/components/AnimatedMoney";
 import { api, DATA_RESTORED, errorText, type Account, type Category, type SharingPrefs, type Transaction, type Visibility } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -46,6 +49,7 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange }
 
 export function Transactions() {
   const { hideBalances } = useTheme();
+  const { fade } = useMotion();
   const [rows, setRows] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -124,14 +128,18 @@ export function Transactions() {
           <DialogContent>
             <DialogHeader><DialogTitle>New transaction</DialogTitle></DialogHeader>
             <form onSubmit={create} className="grid gap-4">
-              <div className="bg-muted grid grid-cols-2 gap-1 rounded-lg p-1">
-                {(["expense", "income"] as const).map((k) => (
-                  <button type="button" key={k} onClick={() => setKind(k)}
-                    className={cn("rounded-md py-1.5 text-sm capitalize transition-colors", kind === k ? "bg-background shadow-sm font-medium" : "text-muted-foreground")}>{k}</button>
-                ))}
-              </div>
+              <Segmented value={kind} onChange={setKind} className="flex w-full" itemClassName="py-1.5"
+                options={[{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }]} label="Type" />
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2"><Label htmlFor="amount">Amount</Label><Input id="amount" name="amount" type="number" step="0.01" min="0" required autoFocus /></div>
+                <div className="grid gap-2"><Label htmlFor="amount">Amount</Label>
+                  {/* The amount box flashes the colour of the chosen type. */}
+                  <motion.div key={kind} className="rounded-md"
+                    initial={{ boxShadow: `0 0 0 0px ${kind === "income" ? "var(--success)" : "var(--destructive)"}` }}
+                    animate={{ boxShadow: [`0 0 0 3px color-mix(in oklab, ${kind === "income" ? "var(--success)" : "var(--destructive)"} 45%, transparent)`, "0 0 0 0px transparent"] }}
+                    transition={fade({ duration: 0.7, ease: "easeOut" })}>
+                    <Input id="amount" name="amount" type="number" step="0.01" min="0" required autoFocus />
+                  </motion.div>
+                </div>
                 <div className="grid gap-2"><Label htmlFor="date">Date</Label><Input id="date" name="date" type="date" defaultValue={today} required /></div>
               </div>
               <div className="grid gap-2"><Label htmlFor="merchant">Merchant / description</Label><Input id="merchant" name="merchant" /></div>
