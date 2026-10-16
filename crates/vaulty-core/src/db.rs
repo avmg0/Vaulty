@@ -31,7 +31,18 @@ pub const REGISTRY_MIGRATIONS: Migrations = &[
 
 /// Opens (creating if needed) a member's encrypted finance database.
 pub fn open(path: &Path, key: &Key) -> Result<Connection> {
-    open_encrypted(path, key, DATA_MIGRATIONS)
+    let conn = open_encrypted(path, key, &[])?;
+    with_history(&conn)?;
+    Ok(conn)
+}
+
+/// Data migrations wrapped by the change-history triggers: drop them, migrate, reinstall from
+/// the new columns (a migration that alters a tracked table would otherwise trip over them).
+fn with_history(conn: &Connection) -> Result<()> {
+    let has_log: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'change_context')", [], |r| r.get(0))?;
+    if has_log { crate::history::drop_triggers(conn)?; }
+    migrate(conn, DATA_MIGRATIONS)?;
+    crate::history::install(conn)
 }
 
 /// Opens an SQLCipher database (AES-256), encrypting a legacy plain file first if needed.
@@ -120,7 +131,7 @@ pub fn shred(path: &Path) {
 pub fn open_in_memory() -> Result<Connection> {
     let conn = Connection::open_in_memory()?;
     configure(&conn)?;
-    migrate(&conn, DATA_MIGRATIONS)?;
+    with_history(&conn)?;
     Ok(conn)
 }
 

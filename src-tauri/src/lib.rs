@@ -14,7 +14,7 @@ use vaulty_core::{
     accounts, categories, db, export,
     household::{FeedFilter, FeedView, Household, SharingPrefs},
     profiles::{Invite, PasswordOutcome, Registry, Role, SecondFactor, TotpEnrollment, Unlocked, UserSummary},
-    rows, settings, transactions, Error, Result,
+    settings, transactions, Error, Result,
 };
 
 /// How long a "password OK, now enter your code" step stays valid.
@@ -73,6 +73,16 @@ impl AppState {
         let guard = self.session.lock().map_err(poisoned)?;
         let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
         f(&s.conn, &s.user.id, &s.household)
+    }
+
+    /// Like `data`, recorded as one undoable action in the member's history.
+    fn act<T>(&self, action: &str, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
+        self.data(|c| vaulty_core::history::record(c, action, f))
+    }
+
+    /// Like `data_and_share`, recorded as one undoable action.
+    fn act_and_share<T>(&self, action: &str, f: impl FnOnce(&Connection, &str, &Household) -> Result<T>) -> Result<T> {
+        self.data_and_share(|c, me, h| vaulty_core::history::record(c, action, |c| f(c, me, h)))
     }
 
     fn keys<T>(&self, f: impl FnOnce(&Unlocked) -> Result<T>) -> Result<T> {
@@ -351,14 +361,14 @@ fn biometric_disable(s: S) -> Result<()> {
 // ============================================================ finance data (signed-in user's own DB)
 
 #[tauri::command] fn accounts_get_all(s: S) -> Result<Vec<Value>> { s.data(accounts::get_all) }
-#[tauri::command] fn accounts_create(s: S, account: Value) -> Result<Value> { s.data(|c| accounts::create(c, &account)) }
-#[tauri::command] fn accounts_update(s: S, id: String, account: Value) -> Result<Value> { s.data(|c| accounts::update(c, &id, &account)) }
-#[tauri::command] fn accounts_delete(s: S, id: String) -> Result<()> { s.data(|c| accounts::delete(c, &id)) }
+#[tauri::command] fn accounts_create(s: S, account: Value) -> Result<Value> { s.act("account.create", |c| accounts::create(c, &account)) }
+#[tauri::command] fn accounts_update(s: S, id: String, account: Value) -> Result<Value> { s.act("account.update", |c| accounts::update(c, &id, &account)) }
+#[tauri::command] fn accounts_delete(s: S, id: String) -> Result<()> { s.act("account.delete", |c| accounts::delete(c, &id)) }
 
 #[tauri::command] fn categories_get_all(s: S) -> Result<Vec<Value>> { s.data(categories::get_all) }
-#[tauri::command] fn categories_create(s: S, category: Value) -> Result<Value> { s.data(|c| categories::create(c, &category)) }
-#[tauri::command] fn categories_update(s: S, id: String, category: Value) -> Result<Value> { s.data(|c| categories::update(c, &id, &category)) }
-#[tauri::command] fn categories_delete(s: S, id: String) -> Result<()> { s.data(|c| categories::delete(c, &id)) }
+#[tauri::command] fn categories_create(s: S, category: Value) -> Result<Value> { s.act("category.create", |c| categories::create(c, &category)) }
+#[tauri::command] fn categories_update(s: S, id: String, category: Value) -> Result<Value> { s.act("category.update", |c| categories::update(c, &id, &category)) }
+#[tauri::command] fn categories_delete(s: S, id: String) -> Result<()> { s.act("category.delete", |c| categories::delete(c, &id)) }
 
 #[tauri::command] fn transactions_get_all(s: S, filters: Option<Value>) -> Result<Vec<Value>> { s.data(|c| transactions::get_all(c, filters.as_ref())) }
 
@@ -375,7 +385,7 @@ fn with_default_visibility(h: &Household, user_id: &str, mut t: Value) -> Result
 
 #[tauri::command]
 fn transactions_create(s: S, transaction: Value) -> Result<Value> {
-    s.data_and_share(|c, me, h| {
+    s.act_and_share("transaction.create", |c, me, h| {
         let row = transactions::create(c, &with_default_visibility(h, me, transaction)?)?;
         h.publish(me, &row)?;
         Ok(row)
@@ -383,7 +393,7 @@ fn transactions_create(s: S, transaction: Value) -> Result<Value> {
 }
 #[tauri::command]
 fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> {
-    s.data_and_share(|c, me, h| {
+    s.act_and_share("transaction.update", |c, me, h| {
         let row = transactions::update(c, &id, &transaction)?;
         h.publish(me, &row)?;
         Ok(row)
@@ -391,7 +401,7 @@ fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> {
 }
 #[tauri::command]
 fn transactions_set_visibility(s: S, id: String, visibility: String) -> Result<Value> {
-    s.data_and_share(|c, me, h| {
+    s.act_and_share("transaction.visibility", |c, me, h| {
         let row = transactions::set_visibility(c, &id, &visibility)?;
         h.publish(me, &row)?;
         Ok(row)
@@ -399,7 +409,7 @@ fn transactions_set_visibility(s: S, id: String, visibility: String) -> Result<V
 }
 #[tauri::command]
 fn transactions_delete(s: S, id: String) -> Result<()> {
-    s.data_and_share(|c, me, h| {
+    s.act_and_share("transaction.delete", |c, me, h| {
         transactions::delete(c, &id)?;
         h.withdraw(me, &id)
     })
@@ -445,7 +455,7 @@ fn family_feed(s: S, view: FeedView, filter: Option<FeedFilter>) -> Result<Vec<V
 }
 
 #[tauri::command] fn settings_get(s: S) -> Result<Value> { s.data(settings::get) }
-#[tauri::command] fn settings_update(s: S, settings: Value) -> Result<Value> { s.data(|c| settings::update(c, &settings)) }
+#[tauri::command] fn settings_update(s: S, settings: Value) -> Result<Value> { s.act("settings.update", |c| settings::update(c, &settings)) }
 
 #[tauri::command]
 fn export_json(s: S, path: String) -> Result<()> {
@@ -462,7 +472,7 @@ fn export_csv(s: S, path: String) -> Result<usize> {
 #[tauri::command]
 fn import_json(s: S, path: String) -> Result<Value> {
     let data: Value = serde_json::from_slice(&std::fs::read(path)?)?;
-    let counts = s.data_and_share(|c, me, h| {
+    let counts = s.act_and_share("import", |c, me, h| {
         let counts = export::from_json(c, &data)?;
         h.republish_all(me, &transactions::shareable(c)?)?;
         Ok(counts)
@@ -471,9 +481,9 @@ fn import_json(s: S, path: String) -> Result<Value> {
 }
 #[tauri::command] fn cards_list(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::cards::list) }
 /// Card commands never receive a full card number: only network, last 4 and the other details.
-#[tauri::command] fn cards_create(s: S, card: Value) -> Result<Value> { s.data(|c| vaulty_core::cards::create(c, &card)) }
-#[tauri::command] fn cards_update(s: S, id: String, card: Value) -> Result<Value> { s.data(|c| vaulty_core::cards::update(c, &id, &card)) }
-#[tauri::command] fn cards_delete(s: S, id: String) -> Result<()> { s.data(|c| vaulty_core::cards::delete(c, &id)) }
+#[tauri::command] fn cards_create(s: S, card: Value) -> Result<Value> { s.act("card.create", |c| vaulty_core::cards::create(c, &card)) }
+#[tauri::command] fn cards_update(s: S, id: String, card: Value) -> Result<Value> { s.act("card.update", |c| vaulty_core::cards::update(c, &id, &card)) }
+#[tauri::command] fn cards_delete(s: S, id: String) -> Result<()> { s.act("card.delete", |c| vaulty_core::cards::delete(c, &id)) }
 
 #[tauri::command] fn market_get(s: S) -> Result<Value> { s.data(vaulty_core::market::prefs_view) }
 #[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
@@ -506,6 +516,32 @@ async fn market_refresh(s: S<'_>) -> Result<Value> {
     Ok(json!({ "quotes": ticker, "problems": problems }))
 }
 
+// ============================================================ history, undo and trash
+
+#[tauri::command] fn history_recent(s: S, limit: Option<i64>) -> Result<Vec<Value>> { s.data(|c| vaulty_core::history::recent(c, limit.unwrap_or(100))) }
+#[tauri::command] fn history_trash(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::history::trash) }
+#[tauri::command] fn history_item(s: S, table: String, id: String) -> Result<Vec<Value>> { s.data(|c| vaulty_core::history::for_item(c, &table, &id)) }
+
+/// Undo one action (restore from trash, or undo from history). Shared items are re-published.
+#[tauri::command]
+fn history_undo(s: S, batch_id: i64) -> Result<()> {
+    s.data_and_share(|c, me, h| {
+        vaulty_core::history::undo(c, batch_id)?;
+        h.republish_all(me, &transactions::shareable(c)?)?;
+        Ok(())
+    })
+}
+
+/// Ctrl+Z: undo the most recent action. Returns what was undone, or null if nothing.
+#[tauri::command]
+fn history_undo_last(s: S) -> Result<Option<Value>> {
+    s.data_and_share(|c, me, h| {
+        let done = vaulty_core::history::undo_last(c)?;
+        if done.is_some() { h.republish_all(me, &transactions::shareable(c)?)?; }
+        Ok(done)
+    })
+}
+
 /// Countries with tax rules, the rules themselves, and an estimate comparing every regime.
 #[tauri::command] fn tax_countries() -> Result<Vec<String>> { vaulty_core::tax::countries() }
 #[tauri::command] fn tax_describe(country: String) -> Result<Value> { vaulty_core::tax::describe(&country) }
@@ -525,12 +561,6 @@ fn db_size(s: S) -> Result<String> {
     let me = s.current_user()?;
     Ok(db::file_size_label(&s.user_db_path(&me.id)))
 }
-
-/// Escape hatch for screens not yet moved to typed commands. Always scoped to the
-/// signed-in user's own database; parameters are bound and multi-statement SQL is rejected.
-#[tauri::command] fn db_all(s: S, sql: String, params: Option<Vec<Value>>) -> Result<Vec<Value>> { s.data(|c| rows::query(c, &sql, &params.unwrap_or_default())) }
-#[tauri::command] fn db_get(s: S, sql: String, params: Option<Vec<Value>>) -> Result<Option<Value>> { s.data(|c| rows::query_one(c, &sql, &params.unwrap_or_default())) }
-#[tauri::command] fn db_run(s: S, sql: String, params: Option<Vec<Value>>) -> Result<rows::RunResult> { s.data(|c| rows::run(c, &sql, &params.unwrap_or_default())) }
 
 pub fn run() {
     tauri::Builder::default()
@@ -558,7 +588,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete, db_all, db_get, db_run,
+            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, history_recent, history_trash, history_item, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");

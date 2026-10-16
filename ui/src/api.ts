@@ -1,4 +1,17 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+
+/** Fired after any change command succeeds, so the undo toast can offer to reverse it. */
+export const DATA_CHANGED = "vaulty:data-changed";
+/** Fired after an undo or restore, so open pages reload. */
+export const DATA_RESTORED = "vaulty:data-restored";
+
+const RECORDED = /^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$|^settings_update$|^import_json$/;
+
+async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  const out = await tauriInvoke<T>(cmd, args);
+  if (RECORDED.test(cmd)) window.dispatchEvent(new CustomEvent(DATA_CHANGED, { detail: { cmd } }));
+  return out;
+}
 
 export type Role = "admin" | "member" | "child";
 export type User = { id: string; name: string; color: string; role: Role; active: boolean; totp_enabled: boolean; biometric_enabled: boolean };
@@ -33,6 +46,12 @@ export type MarketView = {
 };
 /** Display-only prices; never part of the ledger. */
 export type Quote = { kind: "stock" | "crypto"; symbol: string; label: string; price: number; change_pct: number | null; currency: string | null; source: string; as_of: string };
+/** One undoable action from the member's change history. */
+export type HistoryItem = {
+  id: number; at: string; action: string; kind: string; op: "insert" | "update" | "delete" | ""; title: string;
+  amount: { amount: number; currency: string } | null; changes: number; undo_of: number | null; undone: boolean;
+  can_undo: boolean; blocked_reason: string | null;
+};
 export type SecurityStatus = { totp_enabled: boolean; backup_codes_remaining: number; biometric_enabled: boolean; biometric_available: boolean };
 
 /**
@@ -170,6 +189,17 @@ export const api = {
     setKey: (which: "stock" | "crypto", key: string) => invoke<MarketView>("market_set_key", { which, key }),
     quotes: () => invoke<Quote[]>("market_quotes"),
     refresh: () => invoke<{ quotes: Quote[]; problems: { source: string; symbol?: string; message: string }[] }>("market_refresh"),
+  },
+  history: {
+    recent: (limit = 100) => invoke<HistoryItem[]>("history_recent", { limit }),
+    trash: () => invoke<HistoryItem[]>("history_trash"),
+    item: (table: string, id: string) => invoke<HistoryItem[]>("history_item", { table, id }),
+    undo: async (batchId: number) => { await invoke<void>("history_undo", { batchId }); window.dispatchEvent(new Event(DATA_RESTORED)); },
+    undoLast: async () => {
+      const done = await invoke<HistoryItem | null>("history_undo_last");
+      if (done) window.dispatchEvent(new Event(DATA_RESTORED));
+      return done;
+    },
   },
   tax: {
     countries: () => invoke<string[]>("tax_countries"),

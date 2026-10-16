@@ -20,6 +20,9 @@ import { Cards } from "@/pages/Cards";
 import { ComingSoon } from "@/pages/ComingSoon";
 import { TaxPlanner } from "@/pages/TaxPlanner";
 import { TickerBar } from "@/components/TickerBar";
+import { UndoToaster } from "@/components/UndoToaster";
+import { History } from "@/pages/History";
+import { DATA_RESTORED } from "@/api";
 
 const LAST_USER_KEY = "vaulty.lastUser";
 
@@ -66,6 +69,13 @@ function Shell({ signOut }: { signOut: () => void }) {
   const [collapsed, setCollapsed] = useState(false);
   const { hideBalances, setHideBalances } = useTheme();
   useIdleLock(signOut);
+  // After an undo or restore, re-mount the open page so it shows current data.
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    const bump = () => setVersion((v) => v + 1);
+    window.addEventListener(DATA_RESTORED, bump);
+    return () => window.removeEventListener(DATA_RESTORED, bump);
+  }, []);
 
   // Keyboard shortcuts. Ctrl on Windows/Linux, Cmd on macOS.
   useEffect(() => {
@@ -83,7 +93,7 @@ function Shell({ signOut }: { signOut: () => void }) {
   }, [signOut, hideBalances, setHideBalances]);
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
-  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, tax: <TaxPlanner /> }[page as string];
+  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, tax: <TaxPlanner />, history: <History /> }[page as string];
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -92,9 +102,10 @@ function Shell({ signOut }: { signOut: () => void }) {
         <Header title={t(`nav.${item.id}`)} />
         <TickerBar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div key={page} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
+          <div key={page === "history" ? page : `${page}:${version}`} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
         </main>
       </div>
+      <UndoToaster />
     </div>
   );
 }

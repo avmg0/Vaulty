@@ -28,7 +28,8 @@
     "settings": "Settings",
     "collapse": "Collapse sidebar (Ctrl+B)",
     "expand": "Expand sidebar (Ctrl+B)",
-    "lock": "Lock / switch profile (Ctrl+L)"
+    "lock": "Lock / switch profile (Ctrl+L)",
+    "history": "History"
   },
   "role": {
     "admin": "Admin",
@@ -232,5 +233,49 @@
     "recover": "Unlock and set password",
     "childHint": "No recovery key? A parent can reset your password from the Family page.",
     "adultHint": "No recovery key? An admin can only erase this profile and start it over; the data can't be recovered without your password or key."
+  },
+  "history": {
+    "title": "History",
+    "recent": "Recent changes",
+    "deleted": "Deleted items",
+    "keep": "Every change you make is recorded in your encrypted data. Deleted items can be restored for 30 days; changes stay in history for 90 days.",
+    "empty": "No changes yet.",
+    "emptyTrash": "Nothing deleted in the last 30 days.",
+    "undo": "Undo",
+    "restore": "Restore",
+    "undone": "Undone",
+    "blocked": "Can't undo: this item was changed again later. Undo the later change first.",
+    "toastDone": "{{what}}",
+    "toastUndone": "Undone: {{what}}",
+    "nothing": "Nothing to undo",
+    "shortcut": "Ctrl+Z undoes your last change.",
+    "actions": {
+      "account": {
+        "create": "Added account",
+        "update": "Edited account",
+        "delete": "Archived account"
+      },
+      "category": {
+        "create": "Added category",
+        "update": "Edited category",
+        "delete": "Deleted category"
+      },
+      "card": {
+        "create": "Added card",
+        "update": "Edited card",
+        "delete": "Removed card"
+      },
+      "transaction": {
+        "create": "Added transaction",
+        "update": "Edited transaction",
+        "delete": "Deleted transaction",
+        "visibility": "Changed who can see a transaction"
+      },
+      "settings": {
+        "update": "Changed settings"
+      },
+      "import": "Imported a backup",
+      "undo": "Undid a change"
+    }
   }
 }
