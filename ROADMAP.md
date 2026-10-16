@@ -404,6 +404,27 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - [ ] Import from other apps: Money Manager, Walnut, YNAB and similar (Phase 2).
 - [ ] Accessibility check: screen readers and keyboard-only use, with older family members in mind (Phase 2).
 
+## Further ideas (added 16 October 2026, evening)
+
+### Tax and salary (India first, via region packs)
+- [ ] Rent receipts for HRA: monthly rent receipts as PDFs with the landlord's name and PAN; rent paid fills the tax planner's HRA field (Phase 3, top pick).
+- [ ] Form 16 and payslip import: read salary, TDS and deductions so the tax planner fills itself in (Phase 3).
+- [ ] Landlord mode: rent received, tenant details, security deposit, maintenance and property tax, with "rent not received" reminders (Phase 4).
+
+### Planning
+- [ ] What-if scenarios: prepay a loan or invest, afford a purchase by a date, salary growth; outcomes side by side (Phase 3).
+- [ ] Retirement and early-retirement planner: inflation-adjusted target, progress and the monthly amount needed (Phase 3).
+- [ ] Inflation-adjusted view: optionally show spending and net worth in today's money (Phase 3).
+- [ ] Cash-flow diagram: salary into accounts, out to bills, investments and savings, built on the chart kit (Phase 2).
+
+### Family life
+- [ ] Senior mode: large text, fewer menus, bigger buttons; a family member can help set it up (Phase 2, top pick).
+- [ ] Document expiry reminders: passport, driving licence, vehicle insurance, PUC, health policy, FD maturity; on the calendar with advance reminders (Phase 2, top pick).
+- [ ] Medical expenses and insurance claims: bills, claim status, reimbursements, remaining tax-saving health cover (Phase 3).
+
+### Security
+- [ ] Shared recovery key: split a recovery key into parts held by trusted family members (e.g. any 2 of 3 rebuild it, Shamir's secret sharing); no single person can unlock the data, and losing one part isn't fatal (Phase 2, top pick).
+
 ## Keyboard shortcuts (current)
 | Keys | Action |
 |---|---|
