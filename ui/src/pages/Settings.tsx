@@ -22,9 +22,12 @@ import { cn } from "@/lib/utils";
 const THEMES: { id: Theme; label: string; icon: typeof Sun }[] = [
   { id: "system", label: "System", icon: Monitor }, { id: "light", label: "Light", icon: Sun }, { id: "dark", label: "Dark", icon: Moon },
 ];
-const ACCENTS: { id: Accent; swatch: string }[] = [
-  { id: "neutral", swatch: "bg-zinc-800 dark:bg-zinc-200" }, { id: "blue", swatch: "bg-blue-600" }, { id: "green", swatch: "bg-green-600" },
-  { id: "violet", swatch: "bg-violet-600" }, { id: "orange", swatch: "bg-orange-500" }, { id: "rose", swatch: "bg-rose-600" },
+const ACCENTS: { id: Accent; label: string; swatch: string }[] = [
+  { id: "neutral", label: "Default (grey with Vaulty-blue logo)", swatch: "bg-[linear-gradient(135deg,#52525b_50%,#235BAA_50%)]" },
+  { id: "black", label: "Black (white in dark mode)", swatch: "bg-black dark:bg-white border border-zinc-300 dark:border-zinc-600" },
+  { id: "blue", label: "Blue", swatch: "bg-blue-600" }, { id: "green", label: "Green", swatch: "bg-green-600" },
+  { id: "violet", label: "Violet", swatch: "bg-violet-600" }, { id: "orange", label: "Orange", swatch: "bg-orange-500" },
+  { id: "rose", label: "Rose", swatch: "bg-rose-600" },
 ];
 
 export function Settings() {
@@ -191,7 +194,7 @@ function AppearanceCard() {
         <div className="space-y-2"><Label>Accent colour</Label>
           <div className="flex items-center gap-2">
             {ACCENTS.map((a) => (
-              <button key={a.id} onClick={() => setAccent(a.id)} title={a.id}
+              <button key={a.id} onClick={() => setAccent(a.id)} title={a.label} aria-label={a.label}
                 className={cn("grid size-8 place-items-center rounded-full text-white ring-offset-2 ring-offset-background", a.swatch, accent === a.id && "ring-2 ring-ring")}>
                 {accent === a.id && <Check className="size-4 mix-blend-difference" />}
               </button>

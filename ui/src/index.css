@@ -66,6 +66,17 @@
 /* Any non-neutral accent recolours the logo to match. */
 [data-accent] { --logo: var(--primary); }
 
+/* Black: monochrome. Inverts to white in dark mode so buttons and the logo stay visible;
+   the logo's dial details flip too so they contrast with the logo body. */
+[data-accent="black"] {
+  --primary: oklch(0.145 0 0); --primary-foreground: oklch(0.985 0 0);
+  --logo: #0a0a0a; --logo-detail: #fafafa;
+}
+.dark[data-accent="black"] {
+  --primary: oklch(0.985 0 0); --primary-foreground: oklch(0.145 0 0);
+  --logo: #fafafa; --logo-detail: #0a0a0a;
+}
+
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

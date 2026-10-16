@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 export type Theme = "light" | "dark" | "system";
-export type Accent = "neutral" | "blue" | "green" | "violet" | "orange" | "rose";
+export type Accent = "neutral" | "black" | "blue" | "green" | "violet" | "orange" | "rose";
 
 type Ctx = {
   theme: Theme; setTheme: (t: Theme) => void;
