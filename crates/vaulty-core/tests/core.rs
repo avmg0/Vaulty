@@ -72,3 +72,21 @@ fn json_backup_roundtrip() {
     assert_eq!(n, 1);
     assert!(csv.starts_with("date,type,amount"));
 }
+
+#[test]
+fn settings_validate_locale_and_currency() {
+    use vaulty_core::settings;
+    let conn = vaulty_core::db::open_in_memory().unwrap();
+    let s = settings::update(&conn, &json!({ "locale": "hi-IN", "currency": "INR" })).unwrap();
+    assert_eq!(s["locale"], "hi-IN");
+    assert_eq!(s["currency"], "INR");
+    assert!(settings::update(&conn, &json!({ "locale": "hindi" })).is_err());
+    assert!(settings::update(&conn, &json!({ "currency": "inr" })).is_err());
+    // A rejected patch changes nothing, even keys that were valid.
+    assert!(settings::update(&conn, &json!({ "currency": "EUR", "locale": "x" })).is_err());
+    assert_eq!(settings::get(&conn).unwrap()["currency"], "INR");
+    for ok in ["en", "hi-IN", "zh-Hant-TW", "es-419", "fil-PH"] { assert!(settings::is_locale(ok), "{ok}"); }
+    for bad in ["EN-us", "en_US", "en-US-x", "e", ""] { assert!(!settings::is_locale(bad), "{bad}"); }
+    assert_eq!(settings::country_of("hi-IN"), Some("IN"));
+    assert_eq!(settings::country_of("es-419"), None);
+}

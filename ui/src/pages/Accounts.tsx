@@ -2,6 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Banknote, Building2, CreditCard, Gift, ImageMinus, ImagePlus, Landmark, LineChart, Plus, Ticket, Trash2, Wallet } from "lucide-react";
 import { api, errorText, type Account, type Institution } from "@/api";
 import { InstitutionBadge } from "@/components/InstitutionBadge";
+import { CurrencyPicker } from "@/components/CurrencyPicker";
+import { useLocale } from "@/hooks/locale";
 import { InstitutionPicker } from "@/components/InstitutionPicker";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +31,8 @@ export function Accounts() {
   const [newType, setNewType] = useState<keyof typeof ACCOUNT_TYPES>("checking");
   const [error, setError] = useState("");
   const [institution, setInstitution] = useState<Institution | null>(null);
-  const [currency, setCurrency] = useState("INR");
+  const { currency: mainCurrency } = useLocale();
+  const [currency, setCurrency] = useState(mainCurrency);
   const [logoTarget, setLogoTarget] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const load = () => api.accounts.getAll().then(setAccounts);
@@ -74,7 +77,7 @@ export function Accounts() {
                 <div className="grid gap-2"><Label htmlFor="type">Type</Label>
                   <NativeSelect id="type" name="type" value={newType} onChange={(e) => setNewType(e.target.value as keyof typeof ACCOUNT_TYPES)}>{Object.entries(ACCOUNT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</NativeSelect>
                 </div>
-                <div className="grid gap-2"><Label htmlFor="currency">Currency</Label><Input id="currency" name="currency" value={currency} onChange={(e) => setCurrency(e.target.value.toUpperCase())} maxLength={3} required /></div>
+                <div className="grid gap-2"><Label htmlFor="currency">Currency</Label><CurrencyPicker id="currency" value={currency} onChange={setCurrency} /></div>
               </div>
               {showInstitution && (
                 <div className="grid gap-2">

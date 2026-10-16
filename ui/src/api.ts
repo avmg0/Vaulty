@@ -58,6 +58,9 @@ export type CardInput = Partial<{
   statement_day: number | null; due_day: number | null; look: CardLook; notes: string | null;
 }>;
 
+/** Subset of user_settings the UI uses. `locale` is BCP 47, e.g. "hi-IN" (language + country). */
+export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string };
+
 /** A bank, card issuer, broker or wallet from the bundled directory. */
 export type Institution = { id: string; name: string; short: string; kind: "bank" | "card" | "broker" | "wallet"; country: string; aliases: string[]; logo?: string };
 export type Category = { id: string; name: string; type: "income" | "expense"; icon?: string; color?: string; is_system: number };
@@ -116,6 +119,11 @@ export const api = {
     delete: (id: string) => invoke<void>("accounts_delete", { id }),
   },
   categories: { getAll: () => invoke<Category[]>("categories_get_all") },
+  /** Per-user preferences stored in the user's own database. */
+  settings: {
+    get: () => invoke<UserSettings>("settings_get"),
+    update: (settings: Partial<UserSettings>) => invoke<UserSettings>("settings_update", { settings }),
+  },
   cards: {
     list: () => invoke<WalletCard[]>("cards_list"),
     create: (card: CardInput) => invoke<WalletCard>("cards_create", { card }),

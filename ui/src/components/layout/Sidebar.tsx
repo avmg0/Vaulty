@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { NAV, SETTINGS_ITEM, type NavItem, type PageId } from "@/nav";
@@ -10,17 +11,18 @@ type Props = { page: PageId; onNavigate: (p: PageId) => void; collapsed: boolean
 
 export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
   const { user, signOut } = useSession();
+  const { t } = useTranslation();
   const Item = ({ item }: { item: NavItem }) => (
     <button
       onClick={() => onNavigate(item.id)}
-      title={collapsed ? item.label : undefined}
+      title={collapsed ? t(`nav.${item.id}`) : undefined}
       className={cn(
         "flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors",
         page === item.id ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
         collapsed && "justify-center px-0",
       )}>
       <item.icon className="size-4 shrink-0" />
-      {!collapsed && <span className="truncate">{item.label}</span>}
+      {!collapsed && <span className="truncate">{t(`nav.${item.id}`)}</span>}
     </button>
   );
 
@@ -30,14 +32,14 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
         <Logo className="w-7 shrink-0" />
         {!collapsed && <span className="font-semibold tracking-tight">Vaulty</span>}
         {!collapsed && (
-          <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title="Collapse sidebar (Ctrl+B)"><PanelLeftClose /></Button>
+          <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title={t("nav.collapse")}><PanelLeftClose /></Button>
         )}
       </div>
       <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-2">
-        {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title="Expand sidebar (Ctrl+B)"><PanelLeftOpen /></Button>}
+        {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title={t("nav.expand")}><PanelLeftOpen /></Button>}
         {NAV.map((g) => (
           <div key={g.group} className="space-y-0.5">
-            {!collapsed && <div className="text-muted-foreground px-2.5 pb-1 text-xs font-medium">{g.group}</div>}
+            {!collapsed && <div className="text-muted-foreground px-2.5 pb-1 text-xs font-medium">{t(`nav.group.${g.group}`)}</div>}
             {g.items.map((i) => <Item key={i.id} item={i} />)}
           </div>
         ))}
@@ -49,10 +51,10 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
           {!collapsed && (
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium">{user.name}</div>
-              <div className="text-muted-foreground text-xs capitalize">{user.role}</div>
+              <div className="text-muted-foreground text-xs">{t(`role.${user.role}`)}</div>
             </div>
           )}
-          <Button variant="ghost" size="icon" className="size-8" onClick={signOut} title="Lock / switch profile (Ctrl+L)"><LogOut /></Button>
+          <Button variant="ghost" size="icon" className="size-8" onClick={signOut} title={t("nav.lock")}><LogOut /></Button>
         </div>
       </div>
     </aside>

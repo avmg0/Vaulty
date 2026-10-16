@@ -6,12 +6,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input, NativeSelect } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CurrencyPicker } from "@/components/CurrencyPicker";
+import { useLocale } from "@/hooks/locale";
 import { InstitutionPicker } from "@/components/InstitutionPicker";
 import { CardVisual, type CardVisualData } from "@/components/cards/CardVisual";
 import { LookEditor } from "@/components/cards/LookEditor";
 import { KIND_LABEL, NETWORK_NAME, detectNetwork, expiryText, luhnOk, maskedNumber, monthsUntilExpiry, nextDay, ordinal } from "@/lib/cards";
 import { useTheme } from "@/hooks/theme";
-import { cn, formatMoney } from "@/lib/utils";
+import { cn, formatMoney, getNumberLocale } from "@/lib/utils";
 
 const KINDS: CardKind[] = ["credit", "debit", "prepaid", "gift", "other"];
 const KIND_HINT: Record<CardKind, string> = {
@@ -210,7 +212,7 @@ function CreditDetails({ card, money }: { card: WalletCard; money: (n: number | 
           <div className="flex-1">
             <div className="font-medium">{dueText}</div>
             <div className="text-muted-foreground text-sm">
-              {due ? due.date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "long" }) : "Edit the card to add its billing cycle."}
+              {due ? due.date.toLocaleDateString(getNumberLocale(), { weekday: "short", day: "numeric", month: "long" }) : "Edit the card to add its billing cycle."}
               {card.statement_day ? `. Next statement on the ${ordinal(card.statement_day)}` : ""}
             </div>
           </div>
@@ -326,7 +328,8 @@ function CardDialog({ initial, defaultKind, onClose, onSaved }: { initial: Walle
   const [issuerName, setIssuerName] = useState(initial?.issuer_name ?? "");
   const [number, setNumber] = useState("");
   const [networkOverride, setNetworkOverride] = useState<CardNetwork | "">(initial?.network ?? "");
-  const [currency, setCurrency] = useState(initial?.currency ?? "INR");
+  const { currency: mainCurrency } = useLocale();
+  const [currency, setCurrency] = useState(initial?.currency ?? mainCurrency);
   const [amount, setAmount] = useState("");
   const [limit, setLimit] = useState(initial?.credit_limit != null ? String(initial.credit_limit) : "");
   const [statementDay, setStatementDay] = useState(initial?.statement_day ? String(initial.statement_day) : "");
@@ -476,7 +479,7 @@ function CardDialog({ initial, defaultKind, onClose, onSaved }: { initial: Walle
                 {kind === "credit"
                   ? <Field label="Credit limit"><Input type="number" min="0" step="0.01" value={limit} onChange={(e) => setLimit(e.target.value)} /></Field>
                   : !editing ? <Field label={kind === "gift" ? "Value on the card" : "Balance"}><Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" /></Field> : <div />}
-                <Field label="Currency"><Input value={currency} maxLength={3} disabled={editing} onChange={(e) => setCurrency(e.target.value.toUpperCase())} /></Field>
+                <Field label="Currency"><CurrencyPicker value={currency} disabled={editing} onChange={setCurrency} /></Field>
               </div>
             )}
             {kind === "credit" && !editing && (

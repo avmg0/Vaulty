@@ -1,5 +1,8 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, Fingerprint, KeyRound, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Fingerprint, KeyRound, Languages, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
+import { LANGUAGES } from "@/i18n";
+import { useLocale } from "@/hooks/locale";
 import { Logo } from "@/components/Logo";
 import { api, biometricLabel, errorText, type User } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -17,7 +20,8 @@ type Step =
   | { kind: "claim"; user: User }
   | { kind: "totp"; user: User; backup: boolean };
 
-export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: User) => void; lastUserId?: string }) {
+/** `fresh` is true when the profile was created just now, so it can inherit the device language. */
+export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: User, fresh?: boolean) => void; lastUserId?: string }) {
   const [users, setUsers] = useState<User[] | null>(null);
   const [step, setStep] = useState<Step>({ kind: "pick" });
 
@@ -31,7 +35,7 @@ export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: User) => 
   }, [lastUserId]);
 
   if (!users) return <Centered><Loader2 className="text-muted-foreground size-6 animate-spin" /></Centered>;
-  if (users.length === 0) return <Centered><FirstRun onDone={onSignedIn} /></Centered>;
+  if (users.length === 0) return <Centered><FirstRun onDone={(u) => onSignedIn(u, true)} /></Centered>;
 
   const back = users.length > 1 || step.kind !== "password" ? () => setStep({ kind: "pick" }) : undefined;
   return (
@@ -40,7 +44,7 @@ export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: User) => 
       {step.kind === "password" && (
         <PasswordStep user={step.user} onBack={back} onSignedIn={onSignedIn} onNeedsCode={() => setStep({ kind: "totp", user: step.user, backup: false })} />
       )}
-      {step.kind === "claim" && <ClaimStep user={step.user} onBack={() => setStep({ kind: "pick" })} onDone={onSignedIn} />}
+      {step.kind === "claim" && <ClaimStep user={step.user} onBack={() => setStep({ kind: "pick" })} onDone={(u) => onSignedIn(u, true)} />}
       {step.kind === "totp" && (
         <SecondFactorStep user={step.user} backup={step.backup} onToggle={() => setStep({ ...step, backup: !step.backup })}
           onBack={() => setStep({ kind: "password", user: step.user })} onDone={onSignedIn} />
@@ -50,7 +54,26 @@ export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: User) => 
 }
 
 function Centered({ children }: { children: ReactNode }) {
-  return <div className="grid min-h-screen place-items-center p-4"><div className="page-enter w-full max-w-sm">{children}</div></div>;
+  return (
+    <div className="grid min-h-screen place-items-center p-4">
+      <div className="page-enter w-full max-w-sm">{children}<LanguageSwitch /></div>
+    </div>
+  );
+}
+
+/** Lets each family member read the sign-in screens in their own language. */
+function LanguageSwitch() {
+  const { t } = useTranslation();
+  const { language, country, setLocale } = useLocale();
+  return (
+    <label className="text-muted-foreground mt-4 flex items-center justify-center gap-1.5 text-xs">
+      <Languages className="size-3.5" /><span className="sr-only">{t("common.language")}</span>
+      <select value={language} onChange={(e) => setLocale(`${e.target.value}-${country}`)}
+        className="hover:text-foreground cursor-pointer rounded bg-transparent py-0.5 outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {LANGUAGES.map((l) => <option key={l.code} value={l.code}>{l.native}</option>)}
+      </select>
+    </label>
+  );
 }
 
 function Brand({ title, desc }: { title: string; desc: ReactNode }) {
@@ -64,8 +87,9 @@ function Brand({ title, desc }: { title: string; desc: ReactNode }) {
 }
 
 function BackButton({ onClick }: { onClick?: () => void }) {
+  const { t } = useTranslation();
   if (!onClick) return null;
-  return <Button variant="ghost" size="sm" className="text-muted-foreground mb-2 -ml-2" onClick={onClick}><ArrowLeft />Switch profile</Button>;
+  return <Button variant="ghost" size="sm" className="text-muted-foreground mb-2 -ml-2" onClick={onClick}><ArrowLeft />{t("auth.switchProfile")}</Button>;
 }
 
 function useSubmit() {
@@ -79,9 +103,10 @@ function useSubmit() {
 }
 
 function ProfilePicker({ users, onPick }: { users: User[]; onPick: (u: User) => void }) {
+  const { t } = useTranslation();
   return (
     <Card>
-      <Brand title="Who's using Vaulty?" desc="Each family member has their own private space." />
+      <Brand title={t("auth.whoTitle")} desc={t("auth.whoDesc")} />
       <CardContent className="grid gap-2">
         {users.map((u) => (
           <button key={u.id} onClick={() => onPick(u)}
@@ -89,19 +114,20 @@ function ProfilePicker({ users, onPick }: { users: User[]; onPick: (u: User) => 
             <UserAvatar name={u.name} color={u.color} />
             <div className="min-w-0 flex-1">
               <div className="truncate font-medium">{u.name}</div>
-              <div className="text-muted-foreground text-xs capitalize">{u.role}</div>
+              <div className="text-muted-foreground text-xs">{t(`role.${u.role}`)}</div>
             </div>
-            {!u.active && <Badge variant="secondary">Set up</Badge>}
+            {!u.active && <Badge variant="secondary">{t("auth.setUp")}</Badge>}
             {u.active && u.biometric_enabled && <Fingerprint className="text-muted-foreground size-4" />}
           </button>
         ))}
-        <p className="text-muted-foreground pt-2 text-center text-xs">New here? Ask an admin to add you from the Family page.</p>
+        <p className="text-muted-foreground pt-2 text-center text-xs">{t("auth.newHere")}</p>
       </CardContent>
     </Card>
   );
 }
 
 function PasswordStep({ user, onBack, onSignedIn, onNeedsCode }: { user: User; onBack?: () => void; onSignedIn: (u: User) => void; onNeedsCode: () => void }) {
+  const { t } = useTranslation();
   const [pw, setPw] = useState("");
   const { busy, error, run } = useSubmit();
 
@@ -125,17 +151,17 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode }: { user: User; o
       <Card>
         <CardHeader className="items-center text-center">
           <UserAvatar name={user.name} color={user.color} className="mb-2 size-14 text-lg" />
-          <CardTitle className="text-xl">Hi, {user.name.split(" ")[0]}</CardTitle>
-          <CardDescription>Enter your password to unlock.</CardDescription>
+          <CardTitle className="text-xl">{t("auth.hi", { name: user.name.split(" ")[0] })}</CardTitle>
+          <CardDescription>{t("auth.enterPassword")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
-            <Input type="password" autoFocus={!user.biometric_enabled} placeholder="Password" value={pw} onChange={(e) => setPw(e.target.value)} required />
+            <Input type="password" autoFocus={!user.biometric_enabled} placeholder={t("auth.password")} aria-label={t("auth.password")} value={pw} onChange={(e) => setPw(e.target.value)} required />
             {error && <p className="text-destructive text-sm">{error}</p>}
-            <Button className="w-full" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <KeyRound />}Unlock</Button>
+            <Button className="w-full" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <KeyRound />}{t("auth.unlock")}</Button>
             {user.biometric_enabled && (
               <Button type="button" variant="outline" className="w-full" onClick={biometric} disabled={busy}>
-                <Fingerprint />Use {biometricLabel()}
+                <Fingerprint />{t("auth.useBiometric", { method: biometricLabel() })}
               </Button>
             )}
           </form>
@@ -146,6 +172,7 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode }: { user: User; o
 }
 
 function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: User; backup: boolean; onToggle: () => void; onBack: () => void; onDone: (u: User) => void }) {
+  const { t } = useTranslation();
   const [code, setCode] = useState("");
   const { busy, error, run, setError } = useSubmit();
   const submit = (c = code) => run(async () => onDone(backup ? await api.auth.signInBackupCode(c) : await api.auth.signInTotp(c)));
@@ -153,13 +180,13 @@ function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: Us
 
   return (
     <>
-      <Button variant="ghost" size="sm" className="text-muted-foreground mb-2 -ml-2" onClick={onBack}><ArrowLeft />Back</Button>
+      <Button variant="ghost" size="sm" className="text-muted-foreground mb-2 -ml-2" onClick={onBack}><ArrowLeft />{t("common.back")}</Button>
       <Card>
         <CardHeader className="items-center text-center">
           <div className="bg-secondary mb-2 grid size-11 place-items-center rounded-xl"><ShieldCheck className="size-5" /></div>
-          <CardTitle className="text-xl">Two-step verification</CardTitle>
+          <CardTitle className="text-xl">{t("auth.twoStep")}</CardTitle>
           <CardDescription>
-            {backup ? "Enter one of your saved backup codes." : <>Enter the 6-digit code from your authenticator app for <b>{user.name}</b>.</>}
+            {backup ? t("auth.enterBackup") : <Trans i18nKey="auth.enterCode" values={{ name: user.name }} components={{ b: <b /> }} />}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -168,9 +195,9 @@ function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: Us
               ? <Input autoFocus placeholder="XXXX-XXXX" className="h-12 text-center font-mono text-lg tracking-widest uppercase" value={code} onChange={(e) => setCode(e.target.value)} />
               : <CodeInput value={code} onChange={(v) => { setCode(v); if (v.length === 6) submit(v); }} />}
             {error && <p className="text-destructive text-sm">{error}</p>}
-            <Button className="w-full" disabled={busy || (!backup && code.length < 6)}>{busy && <Loader2 className="animate-spin" />}Verify</Button>
+            <Button className="w-full" disabled={busy || (!backup && code.length < 6)}>{busy && <Loader2 className="animate-spin" />}{t("auth.verify")}</Button>
             <button type="button" onClick={onToggle} className="text-muted-foreground hover:text-foreground w-full text-center text-sm underline-offset-4 hover:underline">
-              {backup ? "Use authenticator app instead" : "Lost your phone? Use a backup code"}
+              {backup ? t("auth.useApp") : t("auth.lostPhone")}
             </button>
           </form>
         </CardContent>
@@ -180,21 +207,22 @@ function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: Us
 }
 
 function NewPasswordFields({ pw, setPw, confirm, setConfirm }: { pw: string; setPw: (v: string) => void; confirm: string; setConfirm: (v: string) => void }) {
+  const { t } = useTranslation();
   const strength = Math.min(4, Math.floor(pw.length / 4) + (/[^a-zA-Z0-9]/.test(pw) ? 1 : 0) + (/\d/.test(pw) && /[a-zA-Z]/.test(pw) ? 1 : 0) - 1);
   return (
     <>
       <div className="space-y-2">
-        <Label htmlFor="new-pw">Choose a password</Label>
+        <Label htmlFor="new-pw">{t("auth.choosePassword")}</Label>
         <Input id="new-pw" type="password" value={pw} onChange={(e) => setPw(e.target.value)} minLength={8} required />
         <div className="flex gap-1" aria-hidden>
           {[0, 1, 2, 3].map((i) => (
             <div key={i} className={cn("h-1 flex-1 rounded-full bg-muted", pw && i <= strength && (strength < 2 ? "bg-destructive" : strength < 3 ? "bg-orange-500" : "bg-success"))} />
           ))}
         </div>
-        <p className="text-muted-foreground text-xs">At least 8 characters. A short sentence is easy to remember and hard to guess.</p>
+        <p className="text-muted-foreground text-xs">{t("auth.passwordHint")}</p>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="new-pw2">Confirm password</Label>
+        <Label htmlFor="new-pw2">{t("auth.confirmPassword")}</Label>
         <Input id="new-pw2" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
       </div>
     </>
@@ -202,6 +230,7 @@ function NewPasswordFields({ pw, setPw, confirm, setConfirm }: { pw: string; set
 }
 
 function FirstRun({ onDone }: { onDone: (u: User) => void }) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [color, setColor] = useState(PROFILE_COLORS[0]);
   const [pw, setPw] = useState("");
@@ -210,21 +239,21 @@ function FirstRun({ onDone }: { onDone: (u: User) => void }) {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (pw !== confirm) return setError("Passwords don't match.");
+    if (pw !== confirm) return setError(t("auth.mismatch"));
     run(async () => onDone(await api.auth.setupFirstAdmin(name, color, pw)));
   };
 
   return (
     <Card>
-      <Brand title="Welcome to Vaulty" desc="Create the first profile. You'll be the admin and can add the rest of your family afterwards." />
+      <Brand title={t("auth.welcome")} desc={t("auth.welcomeDesc")} />
       <CardContent>
         <form onSubmit={submit} className="space-y-4">
-          <div className="space-y-2"><Label htmlFor="name">Your name</Label><Input id="name" autoFocus value={name} onChange={(e) => setName(e.target.value)} required maxLength={40} /></div>
-          <div className="space-y-2"><Label>Profile colour</Label><ColorPicker value={color} onChange={setColor} /></div>
+          <div className="space-y-2"><Label htmlFor="name">{t("auth.yourName")}</Label><Input id="name" autoFocus value={name} onChange={(e) => setName(e.target.value)} required maxLength={40} /></div>
+          <div className="space-y-2"><Label>{t("auth.profileColour")}</Label><ColorPicker value={color} onChange={setColor} /></div>
           <NewPasswordFields pw={pw} setPw={setPw} confirm={confirm} setConfirm={setConfirm} />
-          <p className="text-muted-foreground text-xs">Your password can't be recovered. You can turn on two-step verification and biometric unlock in Settings.</p>
+          <p className="text-muted-foreground text-xs">{t("auth.noRecovery")}</p>
           {error && <p className="text-destructive text-sm">{error}</p>}
-          <Button className="w-full" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Plus />}Create profile</Button>
+          <Button className="w-full" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Plus />}{t("auth.createProfile")}</Button>
         </form>
       </CardContent>
     </Card>
@@ -232,6 +261,7 @@ function FirstRun({ onDone }: { onDone: (u: User) => void }) {
 }
 
 function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; onDone: (u: User) => void }) {
+  const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -239,7 +269,7 @@ function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; o
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (pw !== confirm) return setError("Passwords don't match.");
+    if (pw !== confirm) return setError(t("auth.mismatch"));
     run(async () => onDone(await api.auth.claimProfile(user.id, code, pw)));
   };
 
@@ -249,18 +279,18 @@ function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; o
       <Card>
         <CardHeader className="items-center text-center">
           <UserAvatar name={user.name} color={user.color} className="mb-2 size-14 text-lg" />
-          <CardTitle className="text-xl">Set up {user.name}'s profile</CardTitle>
-          <CardDescription>Enter the setup code an admin gave you, then choose your own password.</CardDescription>
+          <CardTitle className="text-xl">{t("auth.setupTitle", { name: user.name })}</CardTitle>
+          <CardDescription>{t("auth.setupDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="code">Setup code</Label>
+              <Label htmlFor="code">{t("auth.setupCode")}</Label>
               <Input id="code" autoFocus placeholder="XXXX-XXXX" className="font-mono tracking-widest uppercase" value={code} onChange={(e) => setCode(e.target.value)} required />
             </div>
             <NewPasswordFields pw={pw} setPw={setPw} confirm={confirm} setConfirm={setConfirm} />
             {error && <p className="text-destructive text-sm">{error}</p>}
-            <Button className="w-full" disabled={busy}>{busy && <Loader2 className="animate-spin" />}Create my password</Button>
+            <Button className="w-full" disabled={busy}>{busy && <Loader2 className="animate-spin" />}{t("auth.createMyPassword")}</Button>
           </form>
         </CardContent>
       </Card>

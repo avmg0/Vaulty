@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, PiggyBank, Wallet } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { api, type Account, type Transaction } from "@/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatMoney } from "@/lib/utils";
+import { formatMoney, formatNumber } from "@/lib/utils";
 import { useTheme } from "@/hooks/theme";
 import { TransactionRow } from "./Transactions";
 
@@ -14,6 +15,7 @@ function monthRange() {
 
 export function Dashboard() {
   const { hideBalances } = useTheme();
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [month, setMonth] = useState<Transaction[]>([]);
   const [recent, setRecent] = useState<Transaction[]>([]);
@@ -30,10 +32,10 @@ export function Dashboard() {
   const money = (n: number) => formatMoney(n, accounts[0]?.currency ?? "USD", hideBalances);
 
   const stats = [
-    { label: "Net worth", value: money(netWorth), icon: Wallet, hint: `${accounts.length} accounts` },
-    { label: "Income this month", value: money(income), icon: ArrowUpRight, hint: "Cleared + pending" },
-    { label: "Spent this month", value: money(expense), icon: ArrowDownRight, hint: "Cleared + pending" },
-    { label: "Saved this month", value: money(income - expense), icon: PiggyBank, hint: income ? `${Math.round(((income - expense) / income) * 100)}% savings rate` : "—" },
+    { label: t("dashboard.netWorth"), value: money(netWorth), icon: Wallet, hint: t("dashboard.accountsCount", { count: accounts.length }) },
+    { label: t("dashboard.income"), value: money(income), icon: ArrowUpRight, hint: t("dashboard.clearedPending") },
+    { label: t("dashboard.spent"), value: money(expense), icon: ArrowDownRight, hint: t("dashboard.clearedPending") },
+    { label: t("dashboard.saved"), value: money(income - expense), icon: PiggyBank, hint: income ? t("dashboard.savingsRate", { rate: formatNumber(Math.round(((income - expense) / income) * 100)) }) : "—" },
   ];
 
   return (
@@ -53,9 +55,9 @@ export function Dashboard() {
         ))}
       </div>
       <Card>
-        <CardHeader><CardTitle>Recent transactions</CardTitle><CardDescription>Your latest activity across all accounts</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{t("dashboard.recent")}</CardTitle><CardDescription>{t("dashboard.recentHint")}</CardDescription></CardHeader>
         <CardContent className="divide-y">
-          {recent.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">No transactions yet. Add one from the Transactions page.</p>}
+          {recent.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t("dashboard.noTransactions")}</p>}
           {recent.map((t) => <TransactionRow key={t.id} t={t} hidden={hideBalances} />)}
         </CardContent>
       </Card>

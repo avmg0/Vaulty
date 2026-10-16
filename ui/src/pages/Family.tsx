@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { UserAvatar } from "@/components/UserAvatar";
 import { useSession } from "@/hooks/session";
 import { useTheme } from "@/hooks/theme";
-import { cn, formatMoney } from "@/lib/utils";
+import { cn, formatMoney, getNumberLocale } from "@/lib/utils";
 import { TransactionRow } from "./Transactions";
 import { FamilyMembers } from "./FamilyMembers";
 
@@ -40,7 +40,7 @@ function monthBounds(offset: number) {
   const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  return { startDate: iso(first), endDate: iso(last), label: first.toLocaleDateString(undefined, { month: "long", year: "numeric" }) };
+  return { startDate: iso(first), endDate: iso(last), label: first.toLocaleDateString(getNumberLocale(), { month: "long", year: "numeric" }) };
 }
 
 type Row = FamilyItem;

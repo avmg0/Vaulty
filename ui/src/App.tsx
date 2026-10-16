@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { useLocale } from "@/hooks/locale";
 import { api, type User } from "@/api";
 import { ALL_ITEMS, type PageId } from "@/nav";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -24,8 +26,13 @@ export function App() {
 
   useEffect(() => { api.auth.current().then(setUser).catch(() => setBackendMissing(true)); }, []);
 
-  const signedIn = (u: User) => {
+  const { locale, currency, setLocale, setCurrency } = useLocale();
+  const signedIn = (u: User, fresh?: boolean) => {
     setUser(u);
+    // A new profile starts in the language and currency chosen on this device; an existing one
+    // brings its own (which also becomes this device's default for the sign-in screens).
+    if (fresh) api.settings.update({ locale, currency }).catch(() => {});
+    else api.settings.get().then((s) => { if (s.locale) setLocale(s.locale); if (s.currency) setCurrency(s.currency); }).catch(() => {});
     setLastUserId(u.id);
     try { localStorage.setItem(LAST_USER_KEY, u.id); } catch { /* ignore */ }
   };
@@ -47,6 +54,7 @@ export function App() {
 }
 
 function Shell({ signOut }: { signOut: () => void }) {
+  const { t } = useTranslation();
   const [page, setPage] = useState<PageId>("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const { hideBalances, setHideBalances } = useTheme();
@@ -73,7 +81,7 @@ function Shell({ signOut }: { signOut: () => void }) {
     <div className="flex h-screen overflow-hidden">
       <Sidebar page={page} onNavigate={setPage} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Header title={item.label} />
+        <Header title={t(`nav.${item.id}`)} />
         <main className="flex-1 overflow-y-auto p-6">
           <div key={page} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
         </main>

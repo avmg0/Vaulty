@@ -1,0 +1,138 @@
+{
+  "nav": {
+    "group": {
+      "overview": "Overview",
+      "money": "Money",
+      "wealth": "Wealth",
+      "planner": "Planner",
+      "data": "Data",
+      "more": "More"
+    },
+    "dashboard": "Dashboard",
+    "reports": "Reports",
+    "transactions": "Transactions",
+    "accounts": "Accounts",
+    "cards": "Cards",
+    "recurring": "Recurring",
+    "investments": "Investments",
+    "goals": "Goals & planning",
+    "insurance": "Insurance",
+    "tax": "Tax planner",
+    "calendar": "Calendar",
+    "tasks": "To-do",
+    "journal": "Journal",
+    "import": "Import statements",
+    "documents": "Documents",
+    "business": "Business",
+    "family": "Family",
+    "settings": "Settings",
+    "collapse": "Collapse sidebar (Ctrl+B)",
+    "expand": "Expand sidebar (Ctrl+B)",
+    "lock": "Lock / switch profile (Ctrl+L)"
+  },
+  "role": {
+    "admin": "Admin",
+    "member": "Member",
+    "child": "Child"
+  },
+  "header": {
+    "offline": "Offline",
+    "online": "Online",
+    "hideBalances": "Hide balances (Ctrl+H)",
+    "theme": "Theme: {{theme}}"
+  },
+  "common": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "save": "Save",
+    "saved": "Saved",
+    "change": "Change",
+    "comingSoon": "Coming soon",
+    "language": "Language"
+  },
+  "comingSoon": {
+    "body": "This section is planned but not built yet.",
+    "phase": "Roadmap phase {{phase}}"
+  },
+  "dashboard": {
+    "netWorth": "Net worth",
+    "accountsCount_one": "{{count}} account",
+    "accountsCount_other": "{{count}} accounts",
+    "income": "Income this month",
+    "spent": "Spent this month",
+    "saved": "Saved this month",
+    "clearedPending": "Cleared + pending",
+    "savingsRate": "{{rate}}% savings rate",
+    "recent": "Recent transactions",
+    "recentHint": "Your latest activity across all accounts",
+    "noTransactions": "No transactions yet. Add one from the Transactions page."
+  },
+  "auth": {
+    "whoTitle": "Who's using Vaulty?",
+    "whoDesc": "Each family member has their own private space.",
+    "setUp": "Set up",
+    "newHere": "New here? Ask an admin to add you from the Family page.",
+    "switchProfile": "Switch profile",
+    "hi": "Hi, {{name}}",
+    "enterPassword": "Enter your password to unlock.",
+    "password": "Password",
+    "unlock": "Unlock",
+    "useBiometric": "Use {{method}}",
+    "twoStep": "Two-step verification",
+    "enterBackup": "Enter one of your saved backup codes.",
+    "enterCode": "Enter the 6-digit code from your authenticator app for <b>{{name}}</b>.",
+    "verify": "Verify",
+    "useApp": "Use authenticator app instead",
+    "lostPhone": "Lost your phone? Use a backup code",
+    "choosePassword": "Choose a password",
+    "passwordHint": "At least 8 characters. A short sentence is easy to remember and hard to guess.",
+    "confirmPassword": "Confirm password",
+    "mismatch": "Passwords don't match.",
+    "welcome": "Welcome to Vaulty",
+    "welcomeDesc": "Create the first profile. You'll be the admin and can add the rest of your family afterwards.",
+    "yourName": "Your name",
+    "profileColour": "Profile colour",
+    "noRecovery": "Your password can't be recovered. You can turn on two-step verification and biometric unlock in Settings.",
+    "createProfile": "Create profile",
+    "setupTitle": "Set up {{name}}'s profile",
+    "setupDesc": "Enter the setup code an admin gave you, then choose your own password.",
+    "setupCode": "Setup code",
+    "createMyPassword": "Create my password"
+  },
+  "settings": {
+    "language": {
+      "title": "Language and region",
+      "desc": "How Vaulty speaks to you and shows numbers, dates and money.",
+      "language": "Language",
+      "country": "Country or region",
+      "currency": "Main currency",
+      "currencyHint": "Used for new accounts and totals. Each account keeps its own currency.",
+      "preview": "Example: {{amount}} on {{date}}",
+      "partial": "Some screens are still in English while translation continues.",
+      "contribute": "Help translate Vaulty: see ui/src/i18n/README.md."
+    },
+    "profile": {
+      "title": "Your profile",
+      "desc": "Only you can see your accounts and transactions.",
+      "name": "Name",
+      "colour": "Colour",
+      "role": "Role: {{role}}"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "desc": "Theme and accent colour for this device",
+      "theme": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "accent": "Accent colour",
+      "logoFollows": "The logo follows your accent",
+      "hide": "Hide balances (incognito)",
+      "hideDesc": "Mask amounts everywhere until toggled off (Ctrl/Cmd+H)"
+    }
+  },
+  "currencyPicker": {
+    "suggested": "Suggested",
+    "all": "All currencies"
+  }
+}
