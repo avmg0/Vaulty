@@ -118,3 +118,16 @@
 @keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .page-enter { animation: page-in 180ms ease-out; }
 @media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } }
+
+/* Market ticker: two copies of the list scroll by half their width for a seamless loop. */
+@keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes ticker-rtl { from { transform: translateX(0); } to { transform: translateX(50%); } }
+.ticker-track { animation: ticker linear infinite; }
+[dir="rtl"] .ticker-track { animation-name: ticker-rtl; }
+.ticker-mask:hover .ticker-track, .ticker-mask:focus-within .ticker-track { animation-play-state: paused; }
+.ticker-mask { mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; }
+  .ticker-track > ul + ul { display: none; }
+  .ticker-mask { overflow-x: auto; mask-image: none; }
+}

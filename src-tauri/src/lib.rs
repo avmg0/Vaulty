@@ -1,4 +1,5 @@
 mod biometric;
+mod market;
 
 use rusqlite::Connection;
 use serde::Serialize;
@@ -409,6 +410,37 @@ fn import_json(s: S, path: String) -> Result<Value> {
 #[tauri::command] fn cards_update(s: S, id: String, card: Value) -> Result<Value> { s.data(|c| vaulty_core::cards::update(c, &id, &card)) }
 #[tauri::command] fn cards_delete(s: S, id: String) -> Result<()> { s.data(|c| vaulty_core::cards::delete(c, &id)) }
 
+#[tauri::command] fn market_get(s: S) -> Result<Value> { s.data(vaulty_core::market::prefs_view) }
+#[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
+/// `which` is `stock` or `crypto`; an empty key removes it.
+#[tauri::command] fn market_set_key(s: S, which: String, key: Option<String>) -> Result<Value> {
+    s.data(|c| { vaulty_core::market::set_key(c, &which, key.as_deref())?; vaulty_core::market::prefs_view(c) })
+}
+#[tauri::command] fn market_quotes(s: S) -> Result<Vec<vaulty_core::market::Quote>> { s.data(vaulty_core::market::cached) }
+
+/// Fetches fresh prices, caches them and returns the ticker. The profile stays unlocked for other
+/// commands while the request is in flight.
+#[tauri::command]
+async fn market_refresh(s: S<'_>) -> Result<Value> {
+    let job = s.data(|c| {
+        let p = vaulty_core::market::prefs(c)?;
+        if !p.enabled { return Err(Error::Invalid("the market ticker is turned off".into())); }
+        let plan = vaulty_core::market::plan(&p);
+        // Free stock plans allow 8 symbols a minute; long lists are covered over several refreshes.
+        let stock_batch = vaulty_core::market::next_stocks(c, &plan.stocks, 8)?;
+        Ok(market::Job {
+            provider: p.stock_provider.clone(),
+            plan,
+            stock_batch,
+            stock_key: vaulty_core::market::key(c, "stock")?,
+            crypto_key: vaulty_core::market::key(c, "crypto")?,
+        })
+    })?;
+    let (quotes, problems) = market::fetch(job).await?;
+    let ticker = s.data(|c| { vaulty_core::market::save_quotes(c, &quotes)?; vaulty_core::market::cached(c) })?;
+    Ok(json!({ "quotes": ticker, "problems": problems }))
+}
+
 /// Countries with tax rules, the rules themselves, and an estimate comparing every regime.
 #[tauri::command] fn tax_countries() -> Result<Vec<String>> { vaulty_core::tax::countries() }
 #[tauri::command] fn tax_describe(country: String) -> Result<Value> { vaulty_core::tax::describe(&country) }
@@ -463,7 +495,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, cards_list, cards_create, cards_update, cards_delete, db_all, db_get, db_run,
+            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete, db_all, db_get, db_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");

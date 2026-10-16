@@ -39,7 +39,8 @@
     "offline": "Offline",
     "online": "Online",
     "hideBalances": "Hide balances (Ctrl+H)",
-    "theme": "Theme: {{theme}}"
+    "theme": "Theme: {{theme}}",
+    "pricesOnline": "Online for prices"
   },
   "common": {
     "back": "Back",
@@ -169,5 +170,48 @@
     "bandsLabel": "Income in each tax band",
     "disclaimer": "An estimate for planning, not tax advice. Rules last checked {{date}}.",
     "sources": "Sources:"
+  },
+  "ticker": {
+    "label": "Market prices",
+    "loading": "Fetching prices…",
+    "empty": "No prices yet. Choose what to show in Settings.",
+    "asOf": "As of {{time}}",
+    "refresh": "Refresh prices"
+  },
+  "market": {
+    "title": "Market ticker",
+    "desc": "A strip of live prices under the header.",
+    "enable": "Show the market ticker",
+    "privacy": "Vaulty goes online only to fetch these prices. It sends the symbols you choose and nothing about your money.",
+    "show": "What to show",
+    "regional": "Popular in",
+    "region": "Region",
+    "crypto": "Crypto",
+    "addCoin": "Add a coin",
+    "coinId": "Any CoinGecko id",
+    "add": "Add",
+    "remove": "Remove",
+    "cryptoCurrency": "Prices in",
+    "watchlist": "My watchlist",
+    "symbol": "Symbol",
+    "symbolPlaceholder": "AAPL or TCS:NSE",
+    "stockSource": "Stock prices from",
+    "providerNone": "Off (crypto only)",
+    "providerNoneHint": "Stock prices need a free key from a market data provider. Crypto prices work without one.",
+    "twelveHint": "Get a free key at twelvedata.com. Free plans cover fewer exchanges and 8 symbols a minute, so long lists fill in over a few refreshes.",
+    "cryptoKey": "CoinGecko key (optional)",
+    "cryptoKeyHint": "Prices work without a key; a free demo key from coingecko.com avoids busy-hour limits.",
+    "apiKey": "Paste API key",
+    "keySaved": "Key saved on this device",
+    "removeKey": "Remove key",
+    "refresh": "Refresh every",
+    "minutes_one": "{{count}} minute",
+    "minutes_other": "{{count}} minutes",
+    "speed": "Scroll speed",
+    "speeds": {
+      "slow": "Slow",
+      "normal": "Normal",
+      "fast": "Fast"
+    }
   }
 }

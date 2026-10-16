@@ -10,6 +10,7 @@ pub mod export;
 pub mod household;
 pub mod institutions;
 pub mod ledger;
+pub mod market;
 pub mod money;
 pub mod profiles;
 pub mod rows;

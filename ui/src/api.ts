@@ -21,6 +21,16 @@ export type TaxComparison = {
   country: string; currency: string; year: { id: string; label: string }; estimates: TaxEstimate[];
   recommended: string | null; saving: number; sources: string[]; last_checked: string; notes?: string;
 };
+export type MarketItem = { symbol: string; label: string };
+export type MarketPrefs = {
+  enabled: boolean; show: { regional: boolean; crypto: boolean; watchlist: boolean }; region: string; crypto: string[];
+  crypto_currency: string; watchlist: MarketItem[]; stock_provider: "none" | "twelvedata"; refresh_minutes: number; speed: "slow" | "normal" | "fast";
+};
+export type MarketView = {
+  prefs: MarketPrefs; has_stock_key: boolean; has_crypto_key: boolean; regional: MarketItem[]; regional_countries: string[]; known_crypto: MarketItem[];
+};
+/** Display-only prices; never part of the ledger. */
+export type Quote = { kind: "stock" | "crypto"; symbol: string; label: string; price: number; change_pct: number | null; currency: string | null; source: string; as_of: string };
 export type SecurityStatus = { totp_enabled: boolean; backup_codes_remaining: number; biometric_enabled: boolean; biometric_available: boolean };
 
 /**
@@ -145,6 +155,13 @@ export const api = {
     create: (card: CardInput) => invoke<WalletCard>("cards_create", { card }),
     update: (id: string, card: CardInput) => invoke<WalletCard>("cards_update", { id, card }),
     delete: (id: string) => invoke<void>("cards_delete", { id }),
+  },
+  market: {
+    get: () => invoke<MarketView>("market_get"),
+    update: (prefs: Partial<Omit<MarketPrefs, "show">> & { show?: Partial<MarketPrefs["show"]> }) => invoke<MarketView>("market_update", { prefs }),
+    setKey: (which: "stock" | "crypto", key: string) => invoke<MarketView>("market_set_key", { which, key }),
+    quotes: () => invoke<Quote[]>("market_quotes"),
+    refresh: () => invoke<{ quotes: Quote[]; problems: { source: string; symbol?: string; message: string }[] }>("market_refresh"),
   },
   tax: {
     countries: () => invoke<string[]>("tax_countries"),

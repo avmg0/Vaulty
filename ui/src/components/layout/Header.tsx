@@ -1,4 +1,5 @@
-import { Eye, EyeOff, Monitor, Moon, Sun, WifiOff } from "lucide-react";
+import { Eye, EyeOff, LineChart, Monitor, Moon, Sun, WifiOff } from "lucide-react";
+import { useMarketEnabled } from "@/components/TickerBar";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,11 +12,12 @@ export function Header({ title }: { title: string }) {
   const { theme, setTheme, hideBalances, setHideBalances } = useTheme();
   const ThemeIcon = ICON[theme];
   const { t } = useTranslation();
+  const online = useMarketEnabled();
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b px-6">
       <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
       <div className="ml-auto flex items-center gap-1">
-        <Badge variant="outline" className="text-muted-foreground mr-2 gap-1"><WifiOff className="size-3" />{t("header.offline")}</Badge>
+        <Badge variant="outline" className="text-muted-foreground me-2 gap-1">{online ? <><LineChart className="size-3" />{t("header.pricesOnline")}</> : <><WifiOff className="size-3" />{t("header.offline")}</>}</Badge>
         <Button variant="ghost" size="icon" onClick={() => setHideBalances(!hideBalances)} title={t("header.hideBalances")}>
           {hideBalances ? <EyeOff /> : <Eye />}
         </Button>

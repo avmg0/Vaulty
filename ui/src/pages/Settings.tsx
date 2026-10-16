@@ -5,6 +5,7 @@ import { LANGUAGES } from "@/i18n";
 import { COUNTRIES } from "@/i18n/regions";
 import { currencyFor, useDisplayNames, useLocale } from "@/hooks/locale";
 import { CurrencyPicker } from "@/components/CurrencyPicker";
+import { MarketCard } from "@/components/MarketCard";
 import { api, biometricLabel, errorText, type SecurityStatus } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,6 +42,7 @@ export function Settings() {
       <SecurityCard />
       <FamilySharingCard />
       <AppearanceCard />
+      <MarketCard />
     </div>
   );
 }

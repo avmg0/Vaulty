@@ -39,7 +39,8 @@
     "offline": "ऑफ़लाइन",
     "online": "ऑनलाइन",
     "hideBalances": "बैलेंस छिपाएँ (Ctrl+H)",
-    "theme": "थीम: {{theme}}"
+    "theme": "थीम: {{theme}}",
+    "pricesOnline": "भावों के लिए ऑनलाइन"
   },
   "common": {
     "back": "वापस",
@@ -169,5 +170,48 @@
     "bandsLabel": "हर कर स्लैब में आय",
     "disclaimer": "यह योजना के लिए अनुमान है, कर सलाह नहीं। नियम आख़िरी बार {{date}} को जाँचे गए।",
     "sources": "स्रोत:"
+  },
+  "ticker": {
+    "label": "बाज़ार भाव",
+    "loading": "भाव लाए जा रहे हैं…",
+    "empty": "अभी कोई भाव नहीं। सेटिंग्स में चुनें कि क्या दिखाना है।",
+    "asOf": "{{time}} तक",
+    "refresh": "भाव ताज़ा करें"
+  },
+  "market": {
+    "title": "मार्केट टिकर",
+    "desc": "हेडर के नीचे लाइव भावों की पट्टी।",
+    "enable": "मार्केट टिकर दिखाएँ",
+    "privacy": "Vaulty सिर्फ़ ये भाव लाने के लिए ऑनलाइन जाता है। यह आपके चुने हुए सिंबल भेजता है, आपके पैसों की कोई जानकारी नहीं।",
+    "show": "क्या दिखाना है",
+    "regional": "लोकप्रिय:",
+    "region": "क्षेत्र",
+    "crypto": "क्रिप्टो",
+    "addCoin": "कॉइन जोड़ें",
+    "coinId": "कोई भी CoinGecko id",
+    "add": "जोड़ें",
+    "remove": "हटाएँ",
+    "cryptoCurrency": "भाव इसमें",
+    "watchlist": "मेरी वॉचलिस्ट",
+    "symbol": "सिंबल",
+    "symbolPlaceholder": "AAPL या TCS:NSE",
+    "stockSource": "शेयर भाव का स्रोत",
+    "providerNone": "बंद (सिर्फ़ क्रिप्टो)",
+    "providerNoneHint": "शेयर भावों के लिए किसी मार्केट डेटा प्रदाता की मुफ़्त key चाहिए। क्रिप्टो भाव बिना key के चलते हैं।",
+    "twelveHint": "twelvedata.com से मुफ़्त key लें। मुफ़्त प्लान में कम एक्सचेंज और एक मिनट में 8 सिंबल मिलते हैं, इसलिए लंबी सूची कुछ बार ताज़ा करने पर पूरी होती है।",
+    "cryptoKey": "CoinGecko key (वैकल्पिक)",
+    "cryptoKeyHint": "भाव बिना key के चलते हैं; coingecko.com की मुफ़्त demo key से व्यस्त समय की सीमा नहीं लगती।",
+    "apiKey": "API key चिपकाएँ",
+    "keySaved": "Key इस डिवाइस पर सहेजी गई",
+    "removeKey": "Key हटाएँ",
+    "refresh": "हर बार ताज़ा करें",
+    "minutes_one": "{{count}} मिनट",
+    "minutes_other": "{{count}} मिनट",
+    "speed": "चलने की गति",
+    "speeds": {
+      "slow": "धीमी",
+      "normal": "सामान्य",
+      "fast": "तेज़"
+    }
   }
 }

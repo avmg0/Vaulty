@@ -19,6 +19,8 @@ serde_json = "1"
 vaulty-core = { path = "../crates/vaulty-core" }
 rusqlite = "0.32"
 tokio = { version = "1", features = ["sync"] }
+# Market ticker only (opt-in). rustls keeps builds free of OpenSSL on every platform.
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # Biometric prompt (Touch ID / Face ID, Windows Hello, Android BiometricPrompt, Linux polkit)
 # and OS keychain (macOS/iOS Keychain, Windows Credential Manager, Linux Secret Service).

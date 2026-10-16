@@ -22,6 +22,22 @@ Privacy-first, offline-first family finance planner. Tauri v2 + Rust (SQLite, Ar
 - Optional logo files go in `ui/public/institutions/` (see the README there). Without one, the app shows a monogram badge; users can also attach their own image to an account.
 - Names and logos belong to their owners and are not covered by the MIT licence; see `TRADEMARKS.md`.
 
+## Languages, countries and taxes
+
+- **Languages:** English and Hindi. Each family member picks their own; the sign-in screen has a
+  language switch too. Adding a language is one JSON file: see `ui/src/i18n/README.md`.
+- **Countries and currencies:** any country and every ISO 4217 currency. Numbers, money and dates
+  follow the chosen region (₹12,34,567.50 in India, $1,234,567.50 in the US).
+- **Tax planner:** tax rules are data files in `crates/vaulty-core/data/tax/`. India (old and new
+  regime) ships first; see that folder's README to add a country. Results are estimates, not advice.
+
+## Market ticker (optional, off by default)
+
+Turning it on is the only thing that makes Vaulty go online. It sends the symbols you choose and
+nothing about your money. Crypto prices come from CoinGecko (no key needed). Stock prices need a
+free key from Twelve Data, which you add in Settings; it's stored in your profile's database and
+never shown again. The last prices are kept so the ticker still shows something offline.
+
 ## Where data lives
 ```
 <app data dir>/

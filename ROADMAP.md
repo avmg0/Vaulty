@@ -145,9 +145,18 @@ A member can run a small business inside Vaulty without mixing it with personal 
 - [x] Money as integer minor units (decision 2)
 - [x] Double-entry ledger core (decision 8): entries and balanced postings, balances derived from postings, existing data converted by migration 0004, backup format v2 (v1 still imports)
 - [ ] Business workspaces on top of the ledger: create and switch workspace, owner capital and drawings (decision 8)
-- [ ] Region pack format and loader, plus the India pack as the first one (decision 7)
+- [x] Tax region packs: format, loader, validation and the India pack (FY 2026-27, old and new regime) with worked-example tests (decision 7)
+- [x] Tax planner page: compares regimes with your numbers and recommends the lower one
+- [x] Interface languages: English and Hindi (sign-in, navigation, dashboard, settings, tax planner); other screens fall back to English
+- [x] Language and region per profile: any country, every ISO 4217 currency, regional number and date formats
+- [x] Opt-in market ticker: regional lists (India, US, UK), crypto via CoinGecko, custom watchlist via Twelve Data with the user's own key; cached for offline
+- [ ] Translate the remaining screens (Accounts, Transactions, Cards, Family, security settings) and move all dates to the shared formatter
+- [ ] Tax packs translated (regime and deduction names follow the interface language)
+- [ ] More tax packs: US, UK, Canada, Australia, Singapore, UAE; GST/VAT rates; capital gains at special rates
+- [ ] More languages: Tamil, Bengali, Marathi, Telugu, Gujarati, Kannada, Malayalam, Punjabi, Urdu (RTL), Arabic (RTL), Spanish, French, German
+- [ ] Ticker: more providers, more regional lists, and live prices for holdings on the Investments page
 - [ ] SQLCipher encryption at rest (decision 1)
-- [ ] Settings persisted in DB: currency, date and time format, first day of week, fiscal year start, decimals, negative format
+- [ ] Settings persisted in DB: date and time format, first day of week, fiscal year start, decimals, negative format (language, country and currency done)
 - [ ] CI: `cargo test`, `tsc`, and Tauri builds for all three desktop OSes (GitHub Actions)
 
 ### Phase 1: Core tracking (MVP you'd actually use daily)
@@ -289,7 +298,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 
 ### India-specific
 - Tax-saving tracker: 80C, 80D and HRA progress against limits (Phase 3).
-- Old vs new tax regime comparison using your actual numbers (Phase 3).
+- Old vs new tax regime comparison: done as the Tax planner (enter numbers by hand); next, fill it from your actual transactions (Phase 3).
 - EPF, PPF, NPS, sovereign gold bonds, FDs and RDs, with maturity dates on the calendar (Phase 3).
 - Budgets for festivals and occasions (Diwali, weddings, school admissions), with year-on-year comparison (Phase 2).
 - UPI SMS reading on Android: bank alert SMS become draft transactions on the phone itself (Phase 5).
@@ -312,7 +321,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - Multi-country money: accounts in several countries, NRE/NRO accounts, remittance tracking, currency gains and losses (Phase 3).
 - Tax residency day counter for people who split time between countries; the 183-day rule (Phase 3).
 - Accountant access: a read-only profile or year-end export bundle for your CA or accountant (Phase 4).
-- Languages: Hindi and other Indian languages; right-to-left languages such as Arabic (Phase 4).
+- Languages: Hindi ships; other Indian languages and right-to-left languages such as Arabic next (translation files in `ui/src/i18n/locales`).
 - Bank holidays per country: due dates that fall on a holiday move to the next working day (Phase 2).
 
 ### Banks and institutions

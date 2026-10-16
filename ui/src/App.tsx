@@ -17,6 +17,7 @@ import { Family } from "@/pages/Family";
 import { Cards } from "@/pages/Cards";
 import { ComingSoon } from "@/pages/ComingSoon";
 import { TaxPlanner } from "@/pages/TaxPlanner";
+import { TickerBar } from "@/components/TickerBar";
 
 const LAST_USER_KEY = "vaulty.lastUser";
 
@@ -83,6 +84,7 @@ function Shell({ signOut }: { signOut: () => void }) {
       <Sidebar page={page} onNavigate={setPage} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header title={t(`nav.${item.id}`)} />
+        <TickerBar />
         <main className="flex-1 overflow-y-auto p-6">
           <div key={page} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
         </main>
