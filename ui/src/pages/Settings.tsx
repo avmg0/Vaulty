@@ -16,6 +16,7 @@ import { BackupCodes } from "@/components/security/BackupCodes";
 import { FamilySharingCard } from "@/components/FamilySharingCard";
 import { useTheme, type Accent, type Theme } from "@/hooks/theme";
 import { useSession } from "@/hooks/session";
+import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
 const THEMES: { id: Theme; label: string; icon: typeof Sun }[] = [
@@ -188,13 +189,17 @@ function AppearanceCard() {
           </div>
         </div>
         <div className="space-y-2"><Label>Accent colour</Label>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {ACCENTS.map((a) => (
               <button key={a.id} onClick={() => setAccent(a.id)} title={a.id}
                 className={cn("grid size-8 place-items-center rounded-full text-white ring-offset-2 ring-offset-background", a.swatch, accent === a.id && "ring-2 ring-ring")}>
                 {accent === a.id && <Check className="size-4 mix-blend-difference" />}
               </button>
             ))}
+            <div className="ml-auto flex items-center gap-3">
+              <span className="text-muted-foreground text-right text-xs">The logo follows<br />your accent</span>
+              <Logo className="w-11" />
+            </div>
           </div>
         </div>
         <Row label="Hide balances (incognito)" desc="Mask amounts everywhere until toggled off (Ctrl/Cmd+H)">

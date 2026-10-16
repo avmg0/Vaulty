@@ -12,7 +12,8 @@ Privacy-first, offline-first family finance planner. Tauri v2 + Rust (SQLite, Ar
   Add shadcn components with `npx shadcn@latest add <name>` from `ui/`.
 
 ## Brand
-- `assets/brand/logo.svg`: master logo. `ui/public/logo.svg` is a copy used in the app and as the favicon.
+- `assets/brand/logo.svg`: master logo (brand blue `#235BAA`). `ui/public/logo.svg` is a copy used as the favicon.
+- In the app the logo is drawn inline by `ui/src/components/Logo.tsx` and follows the accent colour chosen in Settings (CSS variables `--logo` / `--logo-detail` in `ui/src/index.css`). On the neutral accent it stays brand blue. If you change the master SVG, regenerate `Logo.tsx` from it.
 - `assets/brand/app-icon-1024.png` (macOS/Linux tile) and `app-icon-small-1024.png` (tight crop for small sizes and Windows) are the sources for `src-tauri/icons/`.
   To regenerate after a logo change: `npx @tauri-apps/cli icon assets/brand/app-icon-1024.png -o src-tauri/icons`, then re-export the small sizes and `icon.ico` from the tight crop.
 

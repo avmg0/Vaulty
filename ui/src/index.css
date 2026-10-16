@@ -5,6 +5,9 @@
 
 :root {
   --radius: 0.625rem;
+  /* Logo colours: brand blue by default; follows the chosen accent (see [data-accent] below). */
+  --logo: #235BAA;
+  --logo-detail: #F9F9FA;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -60,6 +63,8 @@
 [data-accent="violet"] { --primary: oklch(0.541 0.281 293.009); --primary-foreground: oklch(0.985 0 0); }
 [data-accent="orange"] { --primary: oklch(0.646 0.222 41.116);  --primary-foreground: oklch(0.985 0 0); }
 [data-accent="rose"]   { --primary: oklch(0.586 0.253 17.585);  --primary-foreground: oklch(0.985 0 0); }
+/* Any non-neutral accent recolours the logo to match. */
+[data-accent] { --logo: var(--primary); }
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
