@@ -117,7 +117,7 @@ export type Transaction = {
   id: string; account_id: string; to_account_id?: string; category_id?: string; type: "income" | "expense" | "transfer";
   /** Positive decimal for display; `amount_minor` is exact. */
   amount: number; amount_minor: number; date: string; to_account_name?: string;
-  merchant?: string; description?: string; account_name?: string; category_name?: string; category_icon?: string; currency?: string;
+  merchant?: string; description?: string; account_name?: string; category_name?: string; category_icon?: string; category_color?: string | null; currency?: string;
   visibility: Visibility;
 };
 

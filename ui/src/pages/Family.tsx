@@ -11,7 +11,7 @@ import { Segmented } from "@/components/Segmented";
 import { AnimatedMoney } from "@/components/AnimatedMoney";
 import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
 import { motion } from "motion/react";
-import { useMotion } from "@/lib/motion";
+import { useGrowIn, useMotion } from "@/lib/motion";
 import { cn, formatMoney, getNumberLocale } from "@/lib/utils";
 import { TransactionRow } from "./Transactions";
 import { FamilyMembers } from "./FamilyMembers";
@@ -118,11 +118,7 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
           {rows === null ? <Skeleton className="h-9 w-40" /> : <AnimatedMoney value={grand} currency={currency} hidden={hideBalances} className="text-3xl font-semibold tabular-nums" />}
           {totals.length > 0 && (
             <>
-              <div className="flex h-2 overflow-hidden rounded-full">
-                {totals.map(([id, v]) => (
-                  <div key={id} className="transition-[width] duration-500 ease-out" style={{ width: `${(v / grand) * 100}%`, backgroundColor: byId[id]?.color ?? "#71717a" }} title={byId[id]?.name} />
-                ))}
-              </div>
+              <SplitBar parts={totals.map(([id, v]) => ({ key: id, value: v, color: byId[id]?.color ?? "#71717a", label: byId[id]?.name }))} total={grand} />
               <div className="flex flex-wrap gap-2">
                 <Chip active={!owner} onClick={() => setOwner(null)}>Everyone</Chip>
                 {totals.map(([id, v]) => {
@@ -208,5 +204,18 @@ function NewDot() {
     <motion.span className="bg-primary size-1.5 shrink-0 rounded-full" title="New" aria-label="New"
       initial={{ opacity: 0, scale: 0 }} animate={{ opacity: [0, 1, 1, 0], scale: [0, 1.4, 1, 1] }}
       transition={{ ...fade({ duration: 6, times: [0, 0.05, 0.85, 1] }) }} />
+  );
+}
+
+/** Who spent what, as one bar split by member colour. Grows in when it appears. */
+function SplitBar({ parts, total }: { parts: { key: string; value: number; color: string; label?: string }[]; total: number }) {
+  const grown = useGrowIn();
+  return (
+    <div className="flex h-2 overflow-hidden rounded-full">
+      {parts.map((p) => (
+        <div key={p.key} className="transition-[width] duration-700 ease-out" title={p.label}
+          style={{ width: grown && total ? `${(p.value / total) * 100}%` : "0%", backgroundColor: p.color }} />
+      ))}
+    </div>
   );
 }

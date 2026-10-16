@@ -190,7 +190,10 @@ A member can run a small business inside Vaulty without mixing it with personal 
 - [x] Change history, undo, trash and encrypted safety copies (decision 1b)
 - [x] Motion: rolling amounts, list enter/exit and undo, sliding sidebar highlight, card lift and staggered details; Motion setting (Full / Reduced / Off, following the system)
 - [x] More motion: sign-in (avatar glide, code boxes, shake, recovery key reveal, lock blur, unlock moment), sliding segmented controls, change arrows and progress bars, card look cross-fade and removal, tax totals and badge, family fan-out and "new" dots, history strike-through, ticker price flash, theme cross-fade, skeleton loaders, success ticks
-- [ ] Motion for pages not built yet (Reports charts drawing in, goal rings, calendar) as they arrive
+- [x] Animated chart kit (`ui/src/components/charts`): grouped bars grow in, donut slices draw in, sparklines draw left to right; all ease to new values and follow the Motion setting
+- [x] Dashboard charts: income vs spending (6 months), spending by category (this month), net worth trend
+- [x] Indian short amounts on charts (₹92.5K, ₹4.1L, ₹1.2Cr)
+- [ ] Reports page built on the chart kit; goal rings and calendar motion as those pages arrive
 - [ ] Settings persisted in DB: date and time format, first day of week, fiscal year start, decimals, negative format (language, country and currency done)
 - [ ] CI: `cargo test`, `tsc`, and Tauri builds for all three desktop OSes (GitHub Actions)
 

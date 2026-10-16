@@ -12,7 +12,7 @@ import { useTheme } from "@/hooks/theme";
 import { cn, formatDate, formatMoney, formatNumber } from "@/lib/utils";
 import { motion } from "motion/react";
 import { AnimatedMoney } from "@/components/AnimatedMoney";
-import { SPRING, useMotion } from "@/lib/motion";
+import { SPRING, useGrowIn, useMotion } from "@/lib/motion";
 
 /** Tax is assessed in whole units; paise/cents only add noise here. */
 const WHOLE: Intl.NumberFormatOptions = { maximumFractionDigits: 0, minimumFractionDigits: 0 };
@@ -247,6 +247,7 @@ function RegimeCard({ e, best, money, cur }: { e: TaxEstimate; best: boolean; mo
 /** Taxable income split by band: width is the income in the band, shade is its rate. */
 function SlabBar({ e }: { e: TaxEstimate }) {
   const { t } = useTranslation();
+  const grown = useGrowIn();
   const used = e.bands.filter((b) => b.taxed > 0);
   const max = Math.max(...e.bands.map((b) => b.rate), 1);
   // Every band is always rendered (empty ones at zero width) so bands grow and shrink as you type.
@@ -254,7 +255,7 @@ function SlabBar({ e }: { e: TaxEstimate }) {
     <div className="space-y-1.5">
       <div className="bg-muted flex h-2 overflow-hidden rounded-full" role="img" aria-label={t("tax.bandsLabel")}>
         {e.bands.map((b) => (
-          <div key={b.from} style={{ flexGrow: b.taxed, flexBasis: 0, opacity: b.rate === 0 ? 0.18 : 0.3 + (0.7 * b.rate) / max }}
+          <div key={b.from} style={{ flexGrow: grown ? b.taxed : 0, flexBasis: 0, opacity: b.rate === 0 ? 0.18 : 0.3 + (0.7 * b.rate) / max }}
             className={cn("bg-primary transition-[flex-grow,opacity] duration-500 ease-out", b.taxed > 0 && "border-background border-e last:border-e-0")}
             title={`${formatNumber(b.rate)}%`} />
         ))}

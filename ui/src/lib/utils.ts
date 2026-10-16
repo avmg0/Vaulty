@@ -28,3 +28,22 @@ export function formatDate(d: Date | string, opts: Intl.DateTimeFormatOptions = 
   const date = typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(`${d}T00:00:00`) : new Date(d);
   return new Intl.DateTimeFormat(numberLocale, opts).format(date);
 }
+
+/**
+ * Short amounts for chart axes and labels. Indian rupee amounts use thousand, lakh and crore
+ * (₹92.5K, ₹4.1L, ₹1.2Cr), since Intl's en-IN "T" reads like trillion. Others use the region's
+ * own compact form ($92.5K, €1.2M).
+ */
+export function formatCompactMoney(amount: number, currency = "USD", hidden = false) {
+  if (hidden) return "••••";
+  const abs = Math.abs(amount), sign = amount < 0 ? "-" : "";
+  if (currency === "INR") {
+    const sym = formatMoney(0, "INR").replace(/[\d.,\s]/g, "") || "₹";
+    const n = (v: number) => new Intl.NumberFormat(numberLocale, { maximumFractionDigits: 1 }).format(v);
+    if (abs >= 1e7) return `${sign}${sym}${n(abs / 1e7)}Cr`;
+    if (abs >= 1e5) return `${sign}${sym}${n(abs / 1e5)}L`;
+    if (abs >= 1e3) return `${sign}${sym}${n(abs / 1e3)}K`;
+    return `${sign}${sym}${n(abs)}`;
+  }
+  return formatMoney(amount, currency, false, { notation: "compact", maximumFractionDigits: 1 });
+}

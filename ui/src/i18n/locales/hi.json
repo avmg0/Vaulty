@@ -67,7 +67,17 @@
     "savingsRate": "{{rate}}% बचत दर",
     "recent": "हाल के लेन-देन",
     "recentHint": "आपके सभी खातों की ताज़ा गतिविधि",
-    "noTransactions": "अभी कोई लेन-देन नहीं है। लेन-देन पेज से जोड़ें।"
+    "noTransactions": "अभी कोई लेन-देन नहीं है। लेन-देन पेज से जोड़ें।",
+    "flowTitle": "आय और खर्च",
+    "flowDesc": "पिछले छह महीने",
+    "seriesIncome": "आय",
+    "seriesSpending": "खर्च",
+    "categoriesTitle": "श्रेणी के अनुसार खर्च",
+    "categoriesDesc": "इस महीने",
+    "noSpending": "इस महीने अभी कोई खर्च नहीं।",
+    "other": "अन्य",
+    "uncategorised": "बिना श्रेणी",
+    "trend": "पिछले छह महीनों में कुल संपत्ति"
   },
   "auth": {
     "whoTitle": "Vaulty कौन इस्तेमाल कर रहा है?",

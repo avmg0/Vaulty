@@ -67,7 +67,17 @@
     "savingsRate": "{{rate}}% savings rate",
     "recent": "Recent transactions",
     "recentHint": "Your latest activity across all accounts",
-    "noTransactions": "No transactions yet. Add one from the Transactions page."
+    "noTransactions": "No transactions yet. Add one from the Transactions page.",
+    "flowTitle": "Income and spending",
+    "flowDesc": "The last six months",
+    "seriesIncome": "Income",
+    "seriesSpending": "Spending",
+    "categoriesTitle": "Spending by category",
+    "categoriesDesc": "This month",
+    "noSpending": "No spending this month yet.",
+    "other": "Other",
+    "uncategorised": "Uncategorised",
+    "trend": "Net worth over the last six months"
   },
   "auth": {
     "whoTitle": "Who's using Vaulty?",

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Transition } from "motion/react";
 import { useTheme } from "@/hooks/theme";
 
@@ -21,4 +22,14 @@ export function useMotion() {
     /** Use for fades; kept in "reduced", dropped in "off". */
     fade: (t: Transition = EASE_OUT): Transition => (motion === "off" ? instant : t),
   };
+}
+
+/**
+ * False on the first frame, true from the next one. Bars and fills driven by CSS transitions use
+ * it to grow in from empty on first view instead of appearing already drawn.
+ */
+export function useGrowIn() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => { const f = requestAnimationFrame(() => setReady(true)); return () => cancelAnimationFrame(f); }, []);
+  return ready;
 }
