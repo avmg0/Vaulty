@@ -31,9 +31,31 @@ pub const REGISTRY_MIGRATIONS: Migrations = &[
 
 /// Opens (creating if needed) a member's encrypted finance database.
 pub fn open(path: &Path, key: &Key) -> Result<Connection> {
+    open_with_snapshots(path, key, None)
+}
+
+/// As `open`, taking a `before-update` snapshot into `snapshots` when migrations are pending.
+pub fn open_with_snapshots(path: &Path, key: &Key, snapshots: Option<&Path>) -> Result<Connection> {
     let conn = open_encrypted(path, key, &[])?;
+    if let Some(dir) = snapshots {
+        if pending(&conn, DATA_MIGRATIONS)? > 0 && pending(&conn, DATA_MIGRATIONS)? < DATA_MIGRATIONS.len() {
+            crate::snapshots::take(&conn, key, dir, "before-update")?;
+        }
+    }
     with_history(&conn)?;
     Ok(conn)
+}
+
+/// Number of migrations not yet applied.
+pub fn pending(conn: &Connection, migrations: Migrations) -> Result<usize> {
+    let has: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_migrations')", [], |r| r.get(0))?;
+    if !has { return Ok(migrations.len()); }
+    let mut n = 0;
+    for (name, _) in migrations {
+        let done: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM _migrations WHERE name = ?)", [name], |r| r.get(0))?;
+        if !done { n += 1; }
+    }
+    Ok(n)
 }
 
 /// Data migrations wrapped by the change-history triggers: drop them, migrate, reinstall from

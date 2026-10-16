@@ -57,6 +57,10 @@ impl AppState {
         self.data_dir.join("users").join(format!("{user_id}.db"))
     }
 
+    fn snapshot_dir(&self, user_id: &str) -> PathBuf {
+        self.data_dir.join("snapshots").join(user_id)
+    }
+
     fn registry<T>(&self, f: impl FnOnce(&Registry) -> Result<T>) -> Result<T> {
         f(&*self.registry.lock().map_err(poisoned)?)
     }
@@ -109,7 +113,12 @@ impl AppState {
         let user = self.registry(|r| r.get(&user_id))?;
         let path = self.user_db_path(&user_id);
         std::fs::create_dir_all(path.parent().expect("users dir"))?;
-        let conn = db::open(&path, &keys.data_key)?;
+        let snaps = self.snapshot_dir(&user_id);
+        let conn = db::open_with_snapshots(&path, &keys.data_key, Some(&snaps))?;
+        // Daily safety copy. A failure here must not block signing in.
+        if vaulty_core::snapshots::age_of_latest(&snaps)?.is_none_or(|age| age > vaulty_core::snapshots::DAILY_INTERVAL_SECS) {
+            let _ = vaulty_core::snapshots::take(&conn, &keys.data_key, &snaps, "daily");
+        }
         let (household, household_ready) = match &keys.household_key {
             Some(hk) => (Household::open(&self.data_dir.join("household.db"), hk)?, true),
             None => (Household::open_in_memory()?, false),
@@ -125,6 +134,7 @@ impl AppState {
         for suffix in ["", "-wal", "-shm"] {
             db::shred(std::path::Path::new(&format!("{}{suffix}", path.display())));
         }
+        vaulty_core::snapshots::delete_all(&self.snapshot_dir(user_id));
     }
 
     fn take_pending(&self) -> Result<SecondFactor> {
@@ -472,6 +482,8 @@ fn export_csv(s: S, path: String) -> Result<usize> {
 #[tauri::command]
 fn import_json(s: S, path: String) -> Result<Value> {
     let data: Value = serde_json::from_slice(&std::fs::read(path)?)?;
+    let me = s.current_user()?;
+    s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "before-import")))?;
     let counts = s.act_and_share("import", |c, me, h| {
         let counts = export::from_json(c, &data)?;
         h.republish_all(me, &transactions::shareable(c)?)?;
@@ -542,6 +554,44 @@ fn history_undo_last(s: S) -> Result<Option<Value>> {
     })
 }
 
+// ============================================================ snapshots
+
+#[tauri::command]
+fn snapshots_list(s: S) -> Result<Vec<vaulty_core::snapshots::Snapshot>> {
+    let me = s.current_user()?;
+    vaulty_core::snapshots::list(&s.snapshot_dir(&me.id))
+}
+
+#[tauri::command]
+fn snapshots_create(s: S) -> Result<vaulty_core::snapshots::Snapshot> {
+    let me = s.current_user()?;
+    s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "manual")))
+}
+
+/// Replaces the member's data with a snapshot. The current data is snapshotted first, so a
+/// restore can itself be reversed.
+#[tauri::command]
+fn snapshots_restore(s: S, name: String) -> Result<()> {
+    let mut guard = s.session.lock().map_err(poisoned)?;
+    let sess = guard.take().ok_or_else(|| Error::Auth("locked".into()))?;
+    let Session { user, conn, keys, household, household_ready } = sess;
+    let dir = s.snapshot_dir(&user.id);
+    let path = s.user_db_path(&user.id);
+    let result = (|| {
+        vaulty_core::snapshots::path_of(&dir, &name)?;
+        vaulty_core::snapshots::take(&conn, &keys.data_key, &dir, "before-restore")?;
+        drop(conn);
+        vaulty_core::snapshots::restore(&dir, &name, &path, &keys.data_key)
+    })();
+    // Reopen whatever is on disk now (the snapshot, or the untouched original on failure).
+    let conn = db::open(&path, &keys.data_key)?;
+    if result.is_ok() {
+        household.republish_all(&user.id, &transactions::shareable(&conn)?)?;
+    }
+    *guard = Some(Session { user, conn, keys, household, household_ready });
+    result
+}
+
 /// Countries with tax rules, the rules themselves, and an estimate comparing every regime.
 #[tauri::command] fn tax_countries() -> Result<Vec<String>> { vaulty_core::tax::countries() }
 #[tauri::command] fn tax_describe(country: String) -> Result<Value> { vaulty_core::tax::describe(&country) }
@@ -588,7 +638,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, history_recent, history_trash, history_item, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");

@@ -6,7 +6,7 @@ description = "Vaulty backend logic: SQLite storage, auth, import/export. No UI/
 license = "MIT"
 
 [dependencies]
-rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl", "backup"] }
+rusqlite = { version = "0.32", features = ["bundled-sqlcipher-vendored-openssl"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"

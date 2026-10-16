@@ -46,6 +46,7 @@ export type MarketView = {
 };
 /** Display-only prices; never part of the ledger. */
 export type Quote = { kind: "stock" | "crypto"; symbol: string; label: string; price: number; change_pct: number | null; currency: string | null; source: string; as_of: string };
+export type Snapshot = { name: string; at: string; reason: "daily" | "manual" | "before-import" | "before-update" | "before-restore"; size: number };
 /** One undoable action from the member's change history. */
 export type HistoryItem = {
   id: number; at: string; action: string; kind: string; op: "insert" | "update" | "delete" | ""; title: string;
@@ -189,6 +190,11 @@ export const api = {
     setKey: (which: "stock" | "crypto", key: string) => invoke<MarketView>("market_set_key", { which, key }),
     quotes: () => invoke<Quote[]>("market_quotes"),
     refresh: () => invoke<{ quotes: Quote[]; problems: { source: string; symbol?: string; message: string }[] }>("market_refresh"),
+  },
+  snapshots: {
+    list: () => invoke<Snapshot[]>("snapshots_list"),
+    create: () => invoke<Snapshot>("snapshots_create"),
+    restore: async (name: string) => { await invoke<void>("snapshots_restore", { name }); window.dispatchEvent(new Event(DATA_RESTORED)); },
   },
   history: {
     recent: (limit = 100) => invoke<HistoryItem[]>("history_recent", { limit }),

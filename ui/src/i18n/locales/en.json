@@ -277,5 +277,24 @@
       "import": "Imported a backup",
       "undo": "Undid a change"
     }
+  },
+  "snapshots": {
+    "title": "Safety copies",
+    "desc": "Encrypted copies of your data on this device: one a day, and one before every import, update and restore.",
+    "now": "Make a copy now",
+    "restore": "Restore",
+    "empty": "No copies yet. One is made when you sign in each day.",
+    "reasons": {
+      "daily": "Daily",
+      "manual": "Made by you",
+      "before-import": "Before an import",
+      "before-update": "Before an app update",
+      "before-restore": "Before a restore"
+    },
+    "confirmTitle": "Restore this copy?",
+    "confirmBody": "Your data goes back to how it was on {{date}}. Your current data is saved as a copy first, so you can switch back.",
+    "restored": "Restored",
+    "note": "These protect against mistakes, not against losing this device. For that, export a backup and keep it somewhere else.",
+    "keep": "Up to 7 daily and 4 weekly copies are kept."
   }
 }
