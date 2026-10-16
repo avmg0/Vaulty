@@ -38,6 +38,50 @@ SHA-256 and SHA-512 are hash functions; they can't encrypt. What Vaulty does ins
 - Encrypted safety copies: daily, before imports, app updates and restores; 7 daily and 4 weekly kept; restore from Settings.
 - Removing or erasing a member requires typing their name.
 
+### 1c. Security programme (planned)
+Vaulty is open source and will hold business records, so security comes from the design, never from hiding the code. In order of priority:
+
+1. **Threat model** (`docs/THREAT_MODEL.md`)
+   - [ ] What's worth stealing: finances, GSTINs, client lists, saved email passwords
+   - [ ] Who might try: someone with the laptop, malware on the same computer, a family member or employee, a booby-trapped import file, a compromised dependency or update
+   - [ ] What Vaulty promises against each, and what it doesn't (e.g. an already-infected computer)
+2. **Automatic checks on every change** (GitHub Actions)
+   - [ ] Tests, clippy, TypeScript check and translation check on macOS, Windows and Linux
+   - [ ] `cargo audit` and `cargo deny` (vulnerable or badly licensed crates); `npm audit`; CodeQL (enabled)
+   - [ ] Fuzz testing for everything that reads outside files: statement import (CSV/XLSX/PDF), backup import, tax packs, GSTR-2B
+   - [ ] Property tests: every ledger entry balances; wrapped keys unwrap only with the right secret
+   - [ ] Pinned dependencies; review each new one; prefer fewer, well-known crates
+3. **Harden the app shell**
+   - [ ] Tighten the content security policy (drop inline styles)
+   - [ ] Tauri isolation pattern: check every message from the UI before Rust acts on it
+   - [ ] Never load internet content into the app window
+   - [ ] Size and rate limits on every command that takes files or large input
+4. **Close known gaps**
+   - [ ] Password-protected export files (exports are plain JSON/CSV today)
+   - [ ] Bind the biometric keychain item to biometrics at the OS level
+   - [ ] Email passwords and e-invoice credentials in the OS keychain where possible
+   - [ ] Revisit setup-code length (8 characters, 7-day expiry)
+   - [ ] Note in the threat model: names and colours are visible before sign-in (needed for the picker); no finances are
+5. **Protect the release chain**
+   - [ ] GitHub account on a hardware key or passkey; signed commits
+   - [ ] Actions pinned by commit, least-privilege tokens, no secrets in workflows run for outside pull requests
+   - [ ] Signed releases and updates; update-signing key kept offline (ideally on a hardware key)
+   - [ ] Reproducible builds and a published SBOM
+6. **Pentesting**
+   - [ ] Before the first release that asks people to trust it with real data, and again before each online feature (email sending, e-invoicing, sync)
+   - [ ] Scope: installed app, every UI-to-Rust command, file importers, encryption and recovery (biometric, keychain), update mechanism, data left on disk or in memory; mobile against OWASP MASVS later
+   - [ ] Run the OWASP ASVS checklist ourselves first, so the paid review finds deeper issues
+   - [ ] Auditors to approach: OSTIF (arranges and often funds open-source audits), non-profit firms such as Radically Open Security, a CERT-In empanelled auditor (weight with Indian businesses); Trail of Bits, Cure53, NCC Group if budget allows
+7. **Reports and incidents**
+   - [ ] `SECURITY.md` with private reporting and response times we can keep
+   - [ ] GitHub security advisories and CVEs for fixes
+   - [ ] Opt-in in-app notice when a security update is available
+   - [ ] Bug bounty or hall of fame once there are users
+8. **Legal and compliance**
+   - [ ] Never claim "GST compliant" or "audit ready"; say Vaulty helps prepare invoices and returns and that a CA should review filings (MIT "as is" plus in-app disclaimers)
+   - [ ] India's DPDP Act 2023 mainly binds whoever collects and holds people's data; a local, offline app keeps the project largely outside that role. Revisit before any cloud sync or hosted service
+   - [ ] Business record-keeping (unalterable edit log, 6–8 year retention) designed into business workspaces from the start (see Business below)
+
 ### 2. Store money as integers (minor units), not floats ✅ (done)
 The schema currently uses `REAL`, which causes rounding drift (0.1 + 0.2 ≠ 0.3).
 
@@ -403,6 +447,43 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - [ ] Demo mode with John Doe sample data, so screenshots, testing and new contributors never touch real data (Phase 1).
 - [ ] Import from other apps: Money Manager, Walnut, YNAB and similar (Phase 2).
 - [ ] Accessibility check: screen readers and keyboard-only use, with older family members in mind (Phase 2).
+
+## Business: invoicing and beyond (added 16 October 2026)
+Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. Suggested order: workspace → GST invoices with PDF and email → payments and receivables → bills and GST returns → stock, payroll and the rest.
+
+### Invoicing in detail
+- [ ] GST-ready invoices: both GSTINs, place of supply with CGST + SGST or IGST chosen from the two states, HSN/SAC codes, reverse charge
+- [ ] One numbering series per financial year (e.g. INV/2026-27/0001), with no gaps or duplicates
+- [ ] Document types: quote, proforma, tax invoice, bill of supply (composition dealers), export invoice under LUT, delivery challan, credit and debit notes
+- [ ] Templates: logo, brand colour, signature, terms, bank details, UPI QR; PDF made on the device
+- [ ] Getting paid: part payments, advances, write-offs, TDS deducted by the client recorded against the invoice; statement of account per client
+- [ ] E-invoicing (IRN and QR from the government portal, mandatory above ₹5 crore turnover) and e-way bills: optional online add-on through a registered intermediary
+
+### Sending invoices
+- [ ] From your own email account (Gmail, Outlook or your domain) with an app password or sign-in; sent from your address; credentials encrypted (OS keychain where possible)
+- [ ] Through your mail app: a new email opens with the PDF attached and the client filled in
+- [ ] WhatsApp, or any app via the system Share sheet
+- [ ] Every send recorded on the invoice (to whom, when, how)
+- [ ] Overdue reminders the same way (e.g. gentle at 3 days, firmer at 15)
+- [ ] Sending is opt-in and the only time Vaulty goes online for this; no "opened" tracking (needs a server and invades the client's privacy)
+
+### More business features
+- [ ] Purchases and bills: vendor bills, purchase orders, due dates; GSTR-2B matching (import the portal file to see which suppliers' invoices give input tax credit and which are missing)
+- [ ] GST returns: GSTR-1 file ready to upload to the GST portal; GSTR-3B summary of tax to pay after credit
+- [ ] TDS you deduct: calculated on contractor and professional payments, deposit reminder by the 7th, certificates issued
+- [ ] Stock: items, stock levels, low-stock alerts, cost of goods sold; invoices reduce stock
+- [ ] Payroll for small teams (up to about 20): salaries, PDF payslips, advances, PF, ESI and professional tax
+- [ ] Petty cash and daily sales: cash book and quick daily-sales entry for shops
+- [ ] Expense claims: staff or partners submit expenses with receipts and get reimbursed
+- [ ] Partners: capital, drawings and profit share per partner
+- [ ] Roles inside a business: staff can invoice but not see bank balances; accountant can view everything but change nothing
+- [ ] Compliance calendar: GST (11th and 20th), TDS (7th), advance tax, PF and ESI, yearly company filings
+- [ ] Cash-flow forecast from unpaid invoices, bills, salaries and taxes
+- [ ] Budget vs actual per business
+
+### Compliance built in
+- [ ] Edit log that can't be turned off for business workspaces (Indian companies using accounting software must keep one since April 2023); builds on the existing change history
+- [ ] Record retention: GST records 6 years, company books 8 years; business history and safety copies kept that long instead of the personal 90 days
 
 ## Further ideas (added 16 October 2026, evening)
 
