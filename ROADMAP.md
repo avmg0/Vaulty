@@ -38,6 +38,60 @@ SHA-256 and SHA-512 are hash functions; they can't encrypt. What Vaulty does ins
 - Encrypted safety copies: daily, before imports, app updates and restores; 7 daily and 4 weekly kept; restore from Settings.
 - Removing or erasing a member requires typing their name.
 
+### 1c. Security programme (planned)
+Vaulty is open source and will hold business records, so security comes from the design, never from hiding the code. In order of priority:
+
+1. **Threat model** (`docs/THREAT_MODEL.md`)
+   - [ ] What's worth stealing: finances, GSTINs, client lists, saved email passwords
+   - [ ] Who might try: someone with the laptop, malware on the same computer, a family member or employee, a booby-trapped import file, a compromised dependency or update
+   - [ ] What Vaulty promises against each, and what it doesn't (e.g. an already-infected computer)
+2. **Automatic checks on every change** (GitHub Actions)
+   - [ ] Tests, clippy, TypeScript check and translation check on macOS, Windows and Linux
+   - [ ] `cargo audit` and `cargo deny` (vulnerable or badly licensed crates); `npm audit`; CodeQL (enabled)
+   - [ ] Fuzz testing for everything that reads outside files: statement import (CSV/XLSX/PDF), backup import, tax packs, GSTR-2B
+   - [ ] Property tests: every ledger entry balances; wrapped keys unwrap only with the right secret
+   - [ ] Pinned dependencies; review each new one; prefer fewer, well-known crates
+3. **Harden the app shell**
+   - [ ] Tighten the content security policy (drop inline styles)
+   - [ ] Tauri isolation pattern: check every message from the UI before Rust acts on it
+   - [ ] Never load internet content into the app window
+   - [ ] Size and rate limits on every command that takes files or large input
+4. **Close known gaps**
+   - [ ] Password-protected export files (exports are plain JSON/CSV today)
+   - [ ] Bind the biometric keychain item to biometrics at the OS level
+   - [ ] Email passwords and e-invoice credentials in the OS keychain where possible
+   - [ ] Revisit setup-code length (8 characters, 7-day expiry)
+   - [ ] Note in the threat model: names and colours are visible before sign-in (needed for the picker); no finances are
+5. **Protect the release chain**
+   - [ ] GitHub account on a hardware key or passkey; signed commits
+   - [ ] Actions pinned by commit, least-privilege tokens, no secrets in workflows run for outside pull requests
+   - [ ] Signed releases and updates; update-signing key kept offline (ideally on a hardware key)
+   - [ ] Reproducible builds and a published SBOM
+6. **Pentesting**
+   - [ ] Before the first release that asks people to trust it with real data, and again before each online feature (email sending, e-invoicing, sync)
+   - [ ] Scope: installed app, every UI-to-Rust command, file importers, encryption and recovery (biometric, keychain), update mechanism, data left on disk or in memory; mobile against OWASP MASVS later
+   - [ ] Run the OWASP ASVS checklist ourselves first, so the paid review finds deeper issues
+   - [ ] Auditors to approach: OSTIF (arranges and often funds open-source audits), non-profit firms such as Radically Open Security, a CERT-In empanelled auditor (weight with Indian businesses); Trail of Bits, Cure53, NCC Group if budget allows
+7. **Reports and incidents**
+   - [ ] `SECURITY.md` with private reporting and response times we can keep
+   - [ ] GitHub security advisories and CVEs for fixes
+   - [ ] Opt-in in-app notice when a security update is available
+   - [ ] Bug bounty or hall of fame once there are users
+8. **Tamper-evident history** (no blockchain: a private, offline hash chain)
+   - [x] Every recorded action carries a SHA-256 fingerprint of the one before it plus everything it changed; altering, removing or reordering any action breaks every fingerprint after it
+   - [x] The 90-day clean-up keeps a checkpoint so the remaining chain still verifies
+   - [x] "Verify history" on the History page: checks the chain, shows the current fingerprint, and flags items changed outside Vaulty (compared with their last recorded state)
+   - [x] App updates that reshape data are recorded as "Vaulty updated your data" (and can't be undone) instead of being flagged
+   - [ ] Business workspaces: always on (part of the unalterable edit log) and kept for the retention period
+   - [ ] Signed checkpoints: each business workspace gets its own signing key; periodic checkpoints are signed so an accountant or auditor can verify the books without trusting the owner or Vaulty
+   - [ ] Fingerprints kept outside the database (someone with full control and the keys could otherwise rebuild the whole chain): in safety copies, on each exported invoice, and in a monthly fingerprint sent to the accountant
+   - [ ] Invoices record their place in the chain, so edits after issue and gaps in numbering are detectable
+   - [ ] Optional public timestamp with OpenTimestamps: only a fingerprint leaves the device, never data; opt-in, needs the internet
+9. **Legal and compliance**
+   - [ ] Never claim "GST compliant" or "audit ready"; say Vaulty helps prepare invoices and returns and that a CA should review filings (MIT "as is" plus in-app disclaimers)
+   - [ ] India's DPDP Act 2023 mainly binds whoever collects and holds people's data; a local, offline app keeps the project largely outside that role. Revisit before any cloud sync or hosted service
+   - [ ] Business record-keeping (unalterable edit log, 6–8 year retention) designed into business workspaces from the start (see Business below)
+
 ### 2. Store money as integers (minor units), not floats ✅ (done)
 The schema currently uses `REAL`, which causes rounding drift (0.1 + 0.2 ≠ 0.3).
 
@@ -99,9 +153,28 @@ Members can let others in the family see chosen expenses. They never have to giv
   - a shared household budget
 - **With encryption (decision 1):** `household.db` gets its own key, wrapped once per member who has sharing on. Withdrawing re-keys it.
 
-### 4. Online mode = encrypted backup first, true sync later
-- **Phase 1 of online mode:** an encrypted snapshot backup to Google Drive's private `appDataFolder`, with restore and "merge newer" on restore.
-- **Real multi-device sync** needs every change recorded as an event (an append-only change log or CRDT) so it can be merged safely. Design the tables with `updated_at` and soft deletes now, so sync can be added later without a rewrite.
+### 4. Device sync: local network first, no server (planned)
+Phones, iPads and computers sync directly with each other. Data never goes to a Vaulty server; there isn't one.
+
+- **Pairing, once per device**
+  - [ ] The desktop shows a QR code; the phone scans it; both screens show the same 6-digit code and the member confirms it matches (stops a "man in the middle" on the same network)
+  - [ ] Each device creates its own key pair at pairing; every sync after that is mutually authenticated and end-to-end encrypted (TLS 1.3 or the Noise protocol); no passwords travel over the network
+  - [ ] Per member: each person pairs their own phone and receives only their own data plus the shared family store; a child's phone gets only the child's profile
+  - [ ] Device list in Settings with "Remove this device": a lost phone stops syncing at once and keys are rotated
+- **Sync the change history, not database files**
+  - [ ] Devices exchange "changes since we last spoke" using the existing change batches, so edits made on both sides while apart are all kept
+  - [ ] Real conflicts (the same item edited differently on two devices) are shown with both versions for the member to choose; never resolved silently
+  - [ ] Each device verifies the other's tamper-evident chain before accepting changes
+- **Networks**
+  - [ ] Default: same Wi-Fi only, with devices finding each other on the local network (mDNS/Bonjour)
+  - [ ] Optional, off by default: sync across networks with Iroh (Rust peer-to-peer; direct where possible, otherwise through a relay that only sees encrypted data; the relay can be self-hosted)
+  - [ ] Optional, off by default: the member's own storage as an encrypted postbox (iCloud Drive, Google Drive, Dropbox, home NAS); changes are encrypted on the device before upload
+- **Mobile realities**
+  - [ ] iPhone and iPad don't allow free background syncing: sync when the app is open (fast, because only changes travel)
+  - [ ] Clear explanations for the iOS "Local Network" prompt and Android's local-discovery permission
+  - [ ] Data on the phone encrypted with the member's key and unlocked with Face ID or fingerprint, as on desktop
+- **Build order:** pairing plus local Wi-Fi sync with the desktop as hub → change-history sync with conflict handling → device list and removal → optional cross-network sync → phone-to-phone sync without the desktop
+- **Encrypted backups** (separate from sync): password-protected export files first; an optional encrypted backup to the member's own cloud drive later
 
 ### 5. Never store full card numbers
 - Detect the card network (Visa, Mastercard, AmEx, Discover, RuPay) and run a Luhn check **on the input only**.
@@ -188,6 +261,12 @@ A member can run a small business inside Vaulty without mixing it with personal 
 - [ ] Ticker: more providers, more regional lists, and live prices for holdings on the Investments page
 - [x] SQLCipher encryption at rest, recovery keys, parent recovery for children (decision 1)
 - [x] Change history, undo, trash and encrypted safety copies (decision 1b)
+- [x] Motion: rolling amounts, list enter/exit and undo, sliding sidebar highlight, card lift and staggered details; Motion setting (Full / Reduced / Off, following the system)
+- [x] More motion: sign-in (avatar glide, code boxes, shake, recovery key reveal, lock blur, unlock moment), sliding segmented controls, change arrows and progress bars, card look cross-fade and removal, tax totals and badge, family fan-out and "new" dots, history strike-through, ticker price flash, theme cross-fade, skeleton loaders, success ticks
+- [x] Animated chart kit (`ui/src/components/charts`): grouped bars grow in, donut slices draw in, sparklines draw left to right; all ease to new values and follow the Motion setting
+- [x] Dashboard charts: income vs spending (6 months), spending by category (this month), net worth trend
+- [x] Indian short amounts on charts (₹92.5K, ₹4.1L, ₹1.2Cr)
+- [ ] Reports page built on the chart kit; goal rings and calendar motion as those pages arrive
 - [ ] Settings persisted in DB: date and time format, first day of week, fiscal year start, decimals, negative format (language, country and currency done)
 - [ ] CI: `cargo test`, `tsc`, and Tauri builds for all three desktop OSes (GitHub Actions)
 
@@ -279,14 +358,15 @@ A member can run a small business inside Vaulty without mixing it with personal 
   - a shared household budget DB that members can opt into
   - kids' allowance accounts (virtual balances that a parent tops up)
   - finer permissions on shared data (view or edit)
-- **Online mode:**
-  - Google Drive encrypted backup and auto-backup
+- **Online mode** (all opt-in; device sync is decision 4):
+  - optional encrypted backup to the member's own cloud drive
   - FX rates for multi-currency
   - update checker (`tauri-plugin-updater`)
   - calendar sync (Google, Apple, Outlook) last
 
 ### Phase 5: Mobile
 - iOS and Android builds from the same codebase (Tauri v2 mobile)
+- Pairing and sync with the desktop over local Wi-Fi (decision 4)
 - Responsive layout: the sidebar becomes a bottom tab bar
 - Biometric unlock and quick-add widget
 
@@ -397,6 +477,64 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - [ ] Demo mode with John Doe sample data, so screenshots, testing and new contributors never touch real data (Phase 1).
 - [ ] Import from other apps: Money Manager, Walnut, YNAB and similar (Phase 2).
 - [ ] Accessibility check: screen readers and keyboard-only use, with older family members in mind (Phase 2).
+
+## Business: invoicing and beyond (added 16 October 2026)
+Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. Suggested order: workspace → GST invoices with PDF and email → payments and receivables → bills and GST returns → stock, payroll and the rest.
+
+### Invoicing in detail
+- [ ] GST-ready invoices: both GSTINs, place of supply with CGST + SGST or IGST chosen from the two states, HSN/SAC codes, reverse charge
+- [ ] One numbering series per financial year (e.g. INV/2026-27/0001), with no gaps or duplicates
+- [ ] Document types: quote, proforma, tax invoice, bill of supply (composition dealers), export invoice under LUT, delivery challan, credit and debit notes
+- [ ] Templates: logo, brand colour, signature, terms, bank details, UPI QR; PDF made on the device
+- [ ] Getting paid: part payments, advances, write-offs, TDS deducted by the client recorded against the invoice; statement of account per client
+- [ ] E-invoicing (IRN and QR from the government portal, mandatory above ₹5 crore turnover) and e-way bills: optional online add-on through a registered intermediary
+
+### Sending invoices
+- [ ] From your own email account (Gmail, Outlook or your domain) with an app password or sign-in; sent from your address; credentials encrypted (OS keychain where possible)
+- [ ] Through your mail app: a new email opens with the PDF attached and the client filled in
+- [ ] WhatsApp, or any app via the system Share sheet
+- [ ] Every send recorded on the invoice (to whom, when, how)
+- [ ] Overdue reminders the same way (e.g. gentle at 3 days, firmer at 15)
+- [ ] Sending is opt-in and the only time Vaulty goes online for this; no "opened" tracking (needs a server and invades the client's privacy)
+
+### More business features
+- [ ] Purchases and bills: vendor bills, purchase orders, due dates; GSTR-2B matching (import the portal file to see which suppliers' invoices give input tax credit and which are missing)
+- [ ] GST returns: GSTR-1 file ready to upload to the GST portal; GSTR-3B summary of tax to pay after credit
+- [ ] TDS you deduct: calculated on contractor and professional payments, deposit reminder by the 7th, certificates issued
+- [ ] Stock: items, stock levels, low-stock alerts, cost of goods sold; invoices reduce stock
+- [ ] Payroll for small teams (up to about 20): salaries, PDF payslips, advances, PF, ESI and professional tax
+- [ ] Petty cash and daily sales: cash book and quick daily-sales entry for shops
+- [ ] Expense claims: staff or partners submit expenses with receipts and get reimbursed
+- [ ] Partners: capital, drawings and profit share per partner
+- [ ] Roles inside a business: staff can invoice but not see bank balances; accountant can view everything but change nothing
+- [ ] Compliance calendar: GST (11th and 20th), TDS (7th), advance tax, PF and ESI, yearly company filings
+- [ ] Cash-flow forecast from unpaid invoices, bills, salaries and taxes
+- [ ] Budget vs actual per business
+
+### Compliance built in
+- [ ] Edit log that can't be turned off for business workspaces (Indian companies using accounting software must keep one since April 2023); builds on the existing tamper-evident change history (decision 1c, part 8)
+- [ ] Record retention: GST records 6 years, company books 8 years; business history and safety copies kept that long instead of the personal 90 days
+
+## Further ideas (added 16 October 2026, evening)
+
+### Tax and salary (India first, via region packs)
+- [ ] Rent receipts for HRA: monthly rent receipts as PDFs with the landlord's name and PAN; rent paid fills the tax planner's HRA field (Phase 3, top pick).
+- [ ] Form 16 and payslip import: read salary, TDS and deductions so the tax planner fills itself in (Phase 3).
+- [ ] Landlord mode: rent received, tenant details, security deposit, maintenance and property tax, with "rent not received" reminders (Phase 4).
+
+### Planning
+- [ ] What-if scenarios: prepay a loan or invest, afford a purchase by a date, salary growth; outcomes side by side (Phase 3).
+- [ ] Retirement and early-retirement planner: inflation-adjusted target, progress and the monthly amount needed (Phase 3).
+- [ ] Inflation-adjusted view: optionally show spending and net worth in today's money (Phase 3).
+- [ ] Cash-flow diagram: salary into accounts, out to bills, investments and savings, built on the chart kit (Phase 2).
+
+### Family life
+- [ ] Senior mode: large text, fewer menus, bigger buttons; a family member can help set it up (Phase 2, top pick).
+- [ ] Document expiry reminders: passport, driving licence, vehicle insurance, PUC, health policy, FD maturity; on the calendar with advance reminders (Phase 2, top pick).
+- [ ] Medical expenses and insurance claims: bills, claim status, reimbursements, remaining tax-saving health cover (Phase 3).
+
+### Security
+- [ ] Shared recovery key: split a recovery key into parts held by trusted family members (e.g. any 2 of 3 rebuild it, Shamir's secret sharing); no single person can unlock the data, and losing one part isn't fatal (Phase 2, top pick).
 
 ## Keyboard shortcuts (current)
 | Keys | Action |

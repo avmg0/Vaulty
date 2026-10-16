@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Check, Copy, KeyRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { motion } from "motion/react";
+import { useMotion } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -10,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
  */
 export function RecoveryKeyDialog({ recoveryKey, child, isNew, onDone }: { recoveryKey: string | null; child?: boolean; isNew?: boolean; onDone: () => void }) {
   const { t } = useTranslation();
+  const { move, fade } = useMotion();
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const clearTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -37,7 +40,12 @@ export function RecoveryKeyDialog({ recoveryKey, child, isNew, onDone }: { recov
           <DialogDescription>{child ? t("recovery.bodyChild") : t("recovery.body")}</DialogDescription>
         </DialogHeader>
         <div className="bg-muted rounded-lg p-4 text-center font-mono text-lg leading-relaxed tracking-wider select-all" aria-label={t("recovery.recoveryKey")}>
-          {recoveryKey.split("-").map((g, i) => <span key={i} className="inline-block px-1.5">{g}</span>)}
+          {recoveryKey.split("-").map((g, i) => (
+            // Groups appear one by one, which invites reading the key rather than skimming past it.
+            <motion.span key={`${recoveryKey}-${i}`} className="inline-block px-1.5"
+              initial={{ opacity: 0, y: 6, filter: "blur(4px)" }} animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+              transition={{ ...fade({ duration: 0.3 }), delay: 0.15 + i * 0.12 }}>{g}</motion.span>
+          ))}
         </div>
         <div className="flex items-center justify-between gap-2">
           <p className="text-muted-foreground text-xs">{t("recovery.where")} {t("recovery.clipboardNote")}</p>
@@ -47,7 +55,11 @@ export function RecoveryKeyDialog({ recoveryKey, child, isNew, onDone }: { recov
           <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={saved} onChange={(e) => setSaved(e.target.checked)} />
           {t("recovery.confirm")}
         </label>
-        <DialogFooter><Button className="w-full" disabled={!saved} onClick={onDone}>{t("recovery.continue")}</Button></DialogFooter>
+        <DialogFooter>
+          <motion.div className="w-full" animate={saved ? { scale: [1, 1.03, 1] } : { scale: 1 }} transition={move({ duration: 0.3 })}>
+            <Button className="w-full" disabled={!saved} onClick={onDone}>{t("recovery.continue")}</Button>
+          </motion.div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

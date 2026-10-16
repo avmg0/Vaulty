@@ -45,6 +45,9 @@ CREATE TABLE IF NOT EXISTS change_log (
 );
 CREATE INDEX IF NOT EXISTS idx_change_log_row ON change_log(tbl, row_id);
 CREATE INDEX IF NOT EXISTS idx_change_log_batch ON change_log(batch_id);
+-- Chain state: the fingerprint of the last batch removed by the 90-day clean-up, so the chain
+-- still verifies from there.
+CREATE TABLE IF NOT EXISTS history_meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
 -- The open batch, if any. One row; triggers read it.
 CREATE TABLE IF NOT EXISTS change_context (only INTEGER PRIMARY KEY CHECK (only = 1), batch_id INTEGER);
 INSERT OR IGNORE INTO change_context (only, batch_id) VALUES (1, NULL);
@@ -69,6 +72,11 @@ pub fn drop_triggers(conn: &Connection) -> Result<()> {
 /// Creates the log tables and (re)creates triggers from the current columns. Run on every open.
 pub fn install(conn: &Connection) -> Result<()> {
     conn.execute_batch(SCHEMA)?;
+    // Tamper-evident chain (added later): each batch stores its predecessor's fingerprint and its own.
+    let cols = columns(conn, "change_batches")?;
+    if !cols.iter().any(|c| c == "hash") {
+        conn.execute_batch("ALTER TABLE change_batches ADD COLUMN prev_hash TEXT; ALTER TABLE change_batches ADD COLUMN hash TEXT;")?;
+    }
     drop_triggers(conn)?;
     // A batch left open by a crash must not capture unrelated changes.
     conn.execute("UPDATE change_context SET batch_id = NULL", [])?;
@@ -100,9 +108,186 @@ pub fn install(conn: &Connection) -> Result<()> {
 }
 
 fn purge(conn: &Connection) -> Result<()> {
-    conn.execute(&format!("DELETE FROM change_batches WHERE at < strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-{KEEP_DAYS} days')"), [])?;
+    let cutoff: String = conn.query_row(&format!("SELECT strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-{KEEP_DAYS} days')"), [], |r| r.get(0))?;
+    purge_before(conn, &cutoff)
+}
+
+/// Removes batches older than `cutoff` (RFC 3339), keeping the newest removed fingerprint as the
+/// chain's checkpoint so what remains still verifies.
+pub fn purge_before(conn: &Connection, cutoff: &str) -> Result<()> {
+    atomic(conn, |c| {
+        let last: Option<(i64, String)> = c.query_row(
+            "SELECT id, hash FROM change_batches WHERE at < ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", [cutoff],
+            |r| Ok((r.get(0)?, r.get(1)?))).optional()?;
+        if let Some((id, hash)) = last {
+            // Everything up to and including the checkpoint goes, so no unchained gap is left.
+            c.execute("INSERT OR REPLACE INTO history_meta (k, v) VALUES ('anchor', ?)", [&hash])?;
+            c.execute("DELETE FROM change_batches WHERE id <= ?", [id])?;
+        }
+        c.execute("DELETE FROM change_batches WHERE at < ? AND hash IS NULL", [cutoff])?;
+        Ok(())
+    })
+}
+
+// ------------------------------------------------------------------ tamper evidence
+
+/// Where the chain starts when nothing has been cleaned up yet.
+const GENESIS: &str = "0000000000000000000000000000000000000000000000000000000000000000";
+
+fn field(buf: &mut Vec<u8>, v: &str) {
+    // Length-prefixed, so no choice of values can make two different batches hash alike.
+    buf.extend_from_slice(v.len().to_string().as_bytes());
+    buf.push(b':');
+    buf.extend_from_slice(v.as_bytes());
+    buf.push(b'\n');
+}
+
+/// SHA-256 over the previous fingerprint and everything the batch recorded. `undone_by` is left
+/// out on purpose: it changes later, and the undo itself is its own chained batch.
+fn batch_hash(conn: &Connection, id: i64, prev: &str) -> Result<String> {
+    let (at, action, undo_of): (String, String, Option<i64>) = conn.query_row(
+        "SELECT at, action, undo_of FROM change_batches WHERE id = ?", [id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?;
+    let mut buf = Vec::with_capacity(512);
+    for v in ["vaulty-history-v1", prev, &id.to_string(), &at, &action, &undo_of.map(|u| u.to_string()).unwrap_or_default()] { field(&mut buf, v); }
+    let mut stmt = conn.prepare("SELECT seq, tbl, row_id, op, before, after FROM change_log WHERE batch_id = ? ORDER BY seq")?;
+    let rows = stmt.query_map([id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?, r.get::<_, String>(2)?, r.get::<_, String>(3)?,
+        r.get::<_, Option<String>>(4)?, r.get::<_, Option<String>>(5)?)))?;
+    for row in rows {
+        let (seq, tbl, rid, op, before, after) = row?;
+        for v in [seq.to_string(), tbl, rid, op, before.unwrap_or_default(), after.unwrap_or_default()] { field(&mut buf, &v); }
+    }
+    Ok(crate::crypto::sha256_hex(&buf))
+}
+
+fn anchor(conn: &Connection) -> Result<String> {
+    Ok(conn.query_row("SELECT v FROM history_meta WHERE k = 'anchor'", [], |r| r.get(0)).optional()?.unwrap_or_else(|| GENESIS.to_string()))
+}
+
+/// Seals a closed batch onto the end of the chain.
+fn seal(conn: &Connection, id: i64) -> Result<()> {
+    let prev: Option<String> = conn.query_row(
+        "SELECT hash FROM change_batches WHERE id < ? AND hash IS NOT NULL ORDER BY id DESC LIMIT 1", [id], |r| r.get(0)).optional()?;
+    let prev = match prev { Some(p) => p, None => anchor(conn)? };
+    let hash = batch_hash(conn, id, &prev)?;
+    conn.execute("UPDATE change_batches SET prev_hash = ?, hash = ? WHERE id = ?", params![prev, hash, id])?;
     Ok(())
 }
+
+/// Result of checking the history.
+#[derive(Debug, serde::Serialize)]
+pub struct Verification {
+    /// True when the chain is unbroken and nothing was changed outside Vaulty.
+    pub ok: bool,
+    /// Actions checked.
+    pub checked: i64,
+    /// Time of the oldest checked action.
+    pub since: Option<String>,
+    /// Fingerprint of the latest action; write it down or give it to an accountant to detect
+    /// later rewriting of the whole chain.
+    pub head: String,
+    /// First action that doesn't match, if any.
+    pub broken_at: Option<i64>,
+    pub reason: Option<String>,
+    /// Items whose current contents differ from their last recorded state (changed outside Vaulty).
+    pub changed_outside: Vec<Value>,
+    /// Older actions recorded before the chain existed (not covered).
+    pub unchained: i64,
+}
+
+/// Re-checks every fingerprint in order, then compares each item with its last recorded state.
+pub fn verify(conn: &Connection) -> Result<Verification> {
+    let mut prev = anchor(conn)?;
+    let rows: Vec<(i64, String, Option<String>, Option<String>)> = conn.prepare(
+        "SELECT id, at, prev_hash, hash FROM change_batches ORDER BY id")?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?.collect::<std::result::Result<_, _>>()?;
+    let (mut checked, mut unchained, mut since) = (0i64, 0i64, None);
+    let mut broken: Option<(i64, String)> = None;
+    let mut seen_chain = false;
+    for (id, at, p, h) in rows {
+        let Some(h) = h else {
+            if seen_chain { broken = Some((id, "an action lost its fingerprint".into())); break; }
+            unchained += 1;
+            continue;
+        };
+        seen_chain = true;
+        if p.as_deref() != Some(prev.as_str()) {
+            broken = Some((id, "an earlier action is missing or out of order".into()));
+            break;
+        }
+        if batch_hash(conn, id, &prev)? != h {
+            broken = Some((id, "this action's details were altered".into()));
+            break;
+        }
+        since.get_or_insert(at);
+        prev = h;
+        checked += 1;
+    }
+    let changed_outside = if broken.is_none() { drift(conn)? } else { vec![] };
+    Ok(Verification {
+        ok: broken.is_none() && changed_outside.is_empty(),
+        checked, since, head: prev, unchained,
+        broken_at: broken.as_ref().map(|b| b.0), reason: broken.map(|b| b.1),
+        changed_outside,
+    })
+}
+
+/// After an app update changes stored data (migrations run without recording), write those
+/// changes into the history as one "app.update" action, so verification doesn't flag them as
+/// edits made outside Vaulty.
+pub fn record_app_update(conn: &Connection) -> Result<usize> {
+    let changed = drift(conn)?;
+    if changed.is_empty() { return Ok(0); }
+    record(conn, "app.update", |c| {
+        let batch: i64 = c.query_row("SELECT batch_id FROM change_context WHERE only = 1", [], |r| r.get(0))?;
+        for item in &changed {
+            let (t, rid) = (item["table"].as_str().unwrap_or_default(), item["id"].as_str().unwrap_or_default());
+            let cols = columns(c, t)?;
+            let obj = cols.iter().map(|col| format!("'{}', {}", col.replace('\'', "''"), ident(col))).collect::<Vec<_>>().join(", ");
+            let before: Option<String> = c.query_row(
+                "SELECT after FROM change_log WHERE tbl = ? AND row_id = ? ORDER BY seq DESC LIMIT 1", [t, rid], |r| r.get(0)).optional()?.flatten();
+            let after: Option<String> = c.query_row(&format!("SELECT json_object({obj}) FROM {} WHERE id = ?", ident(t)), [rid], |r| r.get(0)).optional()?;
+            let op = if after.is_some() { "update" } else { "delete" };
+            c.execute("INSERT INTO change_log (batch_id, tbl, row_id, op, before, after) VALUES (?, ?, ?, ?, ?, ?)",
+                params![batch, t, rid, op, before, after])?;
+        }
+        Ok(changed.len())
+    })
+}
+
+/// Items whose current row differs from the last state the history recorded for them.
+fn drift(conn: &Connection) -> Result<Vec<Value>> {
+    let mut out = vec![];
+    for t in TRACKED {
+        let cols = columns(conn, t)?;
+        if !cols.iter().any(|c| c == "id") { continue; }
+        // Same row shape as the triggers write, minus updated_at (maintained by its own trigger).
+        let obj = cols.iter().filter(|c| c.as_str() != "updated_at")
+            .map(|c| format!("'{}', {}", c.replace('\'', "''"), ident(c))).collect::<Vec<_>>().join(", ");
+        let mut last = conn.prepare(
+            "SELECT l.row_id, l.op, l.after FROM change_log l
+              WHERE l.tbl = ?1 AND l.seq = (SELECT MAX(seq) FROM change_log m WHERE m.tbl = ?1 AND m.row_id = l.row_id)")?;
+        let logged: Vec<(String, String, Option<String>)> = last.query_map([t], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<std::result::Result<_, _>>()?;
+        for (rid, op, after) in logged {
+            let current: Option<String> = conn.query_row(&format!("SELECT json_object({obj}) FROM {} WHERE id = ?", ident(t)), [&rid], |r| r.get(0)).optional()?;
+            let strip = |s: &str| -> Option<Value> {
+                let mut v: Value = serde_json::from_str(s).ok()?;
+                if let Some(o) = v.as_object_mut() { o.remove("updated_at"); }
+                Some(v)
+            };
+            let differs = match (op.as_str(), current.as_deref(), after.as_deref()) {
+                ("delete", Some(_), _) => true,
+                ("delete", None, _) => false,
+                (_, None, _) => true,
+                (_, Some(cur), Some(a)) => strip(cur) != strip(a),
+                _ => false,
+            };
+            if differs { out.push(json!({ "table": t, "id": rid })); }
+        }
+    }
+    Ok(out)
+}
+
 
 /// Runs `f` as one undoable action. Nested calls join the outer batch.
 pub fn record<T>(conn: &Connection, action: &str, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
@@ -116,7 +301,7 @@ pub fn record<T>(conn: &Connection, action: &str, f: impl FnOnce(&Connection) ->
         c.execute("UPDATE change_context SET batch_id = NULL WHERE only = 1", [])?;
         let out = out?;
         let n: i64 = c.query_row("SELECT COUNT(*) FROM change_log WHERE batch_id = ?", [id], |r| r.get(0))?;
-        if n == 0 { c.execute("DELETE FROM change_batches WHERE id = ?", [id])?; }
+        if n == 0 { c.execute("DELETE FROM change_batches WHERE id = ?", [id])?; } else { seal(c, id)?; }
         Ok(out)
     })
 }
@@ -134,9 +319,11 @@ fn changes(conn: &Connection, batch: i64) -> Result<Vec<Change>> {
 
 /// Why a batch can't be undone, if it can't.
 fn blocker(conn: &Connection, batch: i64) -> Result<Option<String>> {
-    let (undone, _): (Option<i64>, String) = conn.query_row("SELECT undone_by, action FROM change_batches WHERE id = ?", [batch], |r| Ok((r.get(0)?, r.get(1)?)))
+    let (undone, action): (Option<i64>, String) = conn.query_row("SELECT undone_by, action FROM change_batches WHERE id = ?", [batch], |r| Ok((r.get(0)?, r.get(1)?)))
         .optional()?.ok_or_else(|| Error::Invalid("that change is no longer in the history".into()))?;
     if undone.is_some() { return Ok(Some("already undone".into())); }
+    // Reversing a data-format update could leave data the app no longer understands.
+    if action == "app.update" { return Ok(Some("app updates can't be undone; restore a safety copy instead".into())); }
     let later: i64 = conn.query_row(
         "SELECT COUNT(*) FROM change_log l JOIN change_batches b ON b.id = l.batch_id
           WHERE l.batch_id > ?1 AND b.undone_by IS NULL
@@ -187,7 +374,7 @@ pub fn undo(conn: &Connection, batch: i64) -> Result<i64> {
 /// Undoes the most recent action that hasn't been undone (Ctrl+Z). `None` if there's nothing.
 pub fn undo_last(conn: &Connection) -> Result<Option<Value>> {
     let last: Option<i64> = conn.query_row(
-        "SELECT id FROM change_batches WHERE undone_by IS NULL AND undo_of IS NULL ORDER BY id DESC LIMIT 1", [], |r| r.get(0)).optional()?;
+        "SELECT id FROM change_batches WHERE undone_by IS NULL AND undo_of IS NULL AND action <> 'app.update' ORDER BY id DESC LIMIT 1", [], |r| r.get(0)).optional()?;
     let Some(batch) = last else { return Ok(None) };
     let summary = describe(conn, batch)?;
     undo(conn, batch)?;

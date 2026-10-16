@@ -1,6 +1,9 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowLeft, Fingerprint, KeyRound, Languages, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
+import { motion } from "motion/react";
+import { useMotion } from "@/lib/motion";
+import { Shake } from "@/components/Shake";
 import { LANGUAGES } from "@/i18n";
 import { useLocale } from "@/hooks/locale";
 import { Logo } from "@/components/Logo";
@@ -98,30 +101,35 @@ function BackButton({ onClick }: { onClick?: () => void }) {
 function useSubmit() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  /** Counts failures, so the same error twice still shakes the field. */
+  const [fails, setFails] = useState(0);
   const run = async (fn: () => Promise<void>) => {
     setBusy(true); setError("");
-    try { await fn(); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+    try { await fn(); } catch (e) { setError(errorText(e)); setFails((n) => n + 1); } finally { setBusy(false); }
   };
-  return { busy, error, setError, run };
+  return { busy, error, setError, run, fails };
 }
 
 function ProfilePicker({ users, onPick }: { users: User[]; onPick: (u: User) => void }) {
   const { t } = useTranslation();
+  const { move, fade } = useMotion();
   return (
     <Card>
       <Brand title={t("auth.whoTitle")} desc={t("auth.whoDesc")} />
       <CardContent className="grid gap-2">
-        {users.map((u) => (
-          <button key={u.id} onClick={() => onPick(u)}
+        {users.map((u, i) => (
+          <motion.button key={u.id} onClick={() => onPick(u)}
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ opacity: fade(), y: move(), delay: 0.04 + i * 0.05 }}
             className="hover:bg-accent flex items-center gap-3 rounded-lg border p-3 text-left transition-colors">
-            <UserAvatar name={u.name} color={u.color} />
+            <UserAvatar name={u.name} color={u.color} layoutId={`avatar-${u.id}`} />
             <div className="min-w-0 flex-1">
               <div className="truncate font-medium">{u.name}</div>
               <div className="text-muted-foreground text-xs">{t(`role.${u.role}`)}</div>
             </div>
             {!u.active && <Badge variant="secondary">{t("auth.setUp")}</Badge>}
             {u.active && u.biometric_enabled && <Fingerprint className="text-muted-foreground size-4" />}
-          </button>
+          </motion.button>
         ))}
         <p className="text-muted-foreground pt-2 text-center text-xs">{t("auth.newHere")}</p>
       </CardContent>
@@ -132,7 +140,8 @@ function ProfilePicker({ users, onPick }: { users: User[]; onPick: (u: User) => 
 function PasswordStep({ user, onBack, onSignedIn, onNeedsCode, onForgot }: { user: User; onBack?: () => void; onSignedIn: (u: SignedInUser) => void; onNeedsCode: () => void; onForgot: () => void }) {
   const { t } = useTranslation();
   const [pw, setPw] = useState("");
-  const { busy, error, run } = useSubmit();
+  const { busy, error, run, fails } = useSubmit();
+  useEffect(() => { if (fails) setPw(""); }, [fails]);
 
   const biometric = () => run(async () => onSignedIn(await api.auth.signInBiometric(user.id)));
   // Offer biometrics straight away; if that prompt is dismissed, quietly fall back to the password field.
@@ -153,13 +162,15 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode, onForgot }: { use
       <BackButton onClick={onBack} />
       <Card>
         <CardHeader className="items-center text-center">
-          <UserAvatar name={user.name} color={user.color} className="mb-2 size-14 text-lg" />
+          <UserAvatar name={user.name} color={user.color} className="mb-2 size-14 text-lg" layoutId={`avatar-${user.id}`} />
           <CardTitle className="text-xl">{t("auth.hi", { name: user.name.split(" ")[0] })}</CardTitle>
           <CardDescription>{t("auth.enterPassword")}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
-            <Input type="password" autoFocus={!user.biometric_enabled} placeholder={t("auth.password")} aria-label={t("auth.password")} value={pw} onChange={(e) => setPw(e.target.value)} required />
+            <Shake trigger={fails}>
+              <Input type="password" autoFocus={!user.biometric_enabled} placeholder={t("auth.password")} aria-label={t("auth.password")} value={pw} onChange={(e) => setPw(e.target.value)} required />
+            </Shake>
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button className="w-full" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <KeyRound />}{t("auth.unlock")}</Button>
             {user.biometric_enabled && (
@@ -180,7 +191,8 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode, onForgot }: { use
 function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: User; backup: boolean; onToggle: () => void; onBack: () => void; onDone: (u: SignedInUser) => void }) {
   const { t } = useTranslation();
   const [code, setCode] = useState("");
-  const { busy, error, run, setError } = useSubmit();
+  const { busy, error, run, setError, fails } = useSubmit();
+  useEffect(() => { if (fails) setCode(""); }, [fails]);
   const submit = (c = code) => run(async () => onDone(backup ? await api.auth.signInBackupCode(c) : await api.auth.signInTotp(c)));
   useEffect(() => { setCode(""); setError(""); }, [backup]);
 
@@ -197,9 +209,11 @@ function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: Us
         </CardHeader>
         <CardContent>
           <form onSubmit={(e) => { e.preventDefault(); submit(); }} className="space-y-4">
-            {backup
-              ? <Input autoFocus placeholder="XXXX-XXXX" className="h-12 text-center font-mono text-lg tracking-widest uppercase" value={code} onChange={(e) => setCode(e.target.value)} />
-              : <CodeInput value={code} onChange={(v) => { setCode(v); if (v.length === 6) submit(v); }} />}
+            <Shake trigger={fails}>
+              {backup
+                ? <Input autoFocus placeholder="XXXX-XXXX" className="h-12 text-center font-mono text-lg tracking-widest uppercase" value={code} onChange={(e) => setCode(e.target.value)} />
+                : <CodeInput value={code} onChange={(v) => { setCode(v); if (v.length === 6) submit(v); }} />}
+            </Shake>
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button className="w-full" disabled={busy || (!backup && code.length < 6)}>{busy && <Loader2 className="animate-spin" />}{t("auth.verify")}</Button>
             <button type="button" onClick={onToggle} className="text-muted-foreground hover:text-foreground w-full text-center text-sm underline-offset-4 hover:underline">
@@ -284,7 +298,7 @@ function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; o
       <BackButton onClick={onBack} />
       <Card>
         <CardHeader className="items-center text-center">
-          <UserAvatar name={user.name} color={user.color} className="mb-2 size-14 text-lg" />
+          <UserAvatar name={user.name} color={user.color} className="mb-2 size-14 text-lg" layoutId={`avatar-${user.id}`} />
           <CardTitle className="text-xl">{t("auth.setupTitle", { name: user.name })}</CardTitle>
           <CardDescription>{t("auth.setupDesc")}</CardDescription>
         </CardHeader>
@@ -310,7 +324,7 @@ function RecoverStep({ user, onBack, onDone }: { user: User; onBack: () => void;
   const [key, setKey] = useState("");
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
-  const { busy, error, setError, run } = useSubmit();
+  const { busy, error, setError, run, fails } = useSubmit();
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (pw !== confirm) return setError(t("auth.mismatch"));
@@ -327,11 +341,11 @@ function RecoverStep({ user, onBack, onDone }: { user: User; onBack: () => void;
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-2">
+            <Shake trigger={fails} className="space-y-2">
               <Label htmlFor="rk">{t("recovery.recoveryKey")}</Label>
               <Input id="rk" autoFocus autoComplete="off" spellCheck={false} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
                 className="font-mono tracking-wider uppercase" value={key} onChange={(e) => setKey(e.target.value)} required />
-            </div>
+            </Shake>
             <NewPasswordFields pw={pw} setPw={setPw} confirm={confirm} setConfirm={setConfirm} />
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button className="w-full" disabled={busy}>{busy && <Loader2 className="animate-spin" />}{t("recovery.recover")}</Button>

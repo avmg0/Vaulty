@@ -10,6 +10,9 @@ import { Separator } from "@/components/ui/separator";
 import { useDisplayNames, useLocale } from "@/hooks/locale";
 import { useTheme } from "@/hooks/theme";
 import { cn, formatDate, formatMoney, formatNumber } from "@/lib/utils";
+import { motion } from "motion/react";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
+import { SPRING, useGrowIn, useMotion } from "@/lib/motion";
 
 /** Tax is assessed in whole units; paise/cents only add noise here. */
 const WHOLE: Intl.NumberFormatOptions = { maximumFractionDigits: 0, minimumFractionDigits: 0 };
@@ -179,7 +182,7 @@ function Results({ result }: { result: TaxComparison }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {result.estimates.map((e) => <RegimeCard key={e.regime} e={e} best={anyIncome && e.regime === result.recommended && result.saving > 0} money={money} />)}
+        {result.estimates.map((e) => <RegimeCard key={e.regime} e={e} best={anyIncome && e.regime === result.recommended && result.saving > 0} money={money} cur={cur} />)}
       </div>
 
       <div className="text-muted-foreground flex gap-2 text-xs leading-relaxed">
@@ -194,8 +197,10 @@ function Results({ result }: { result: TaxComparison }) {
   );
 }
 
-function RegimeCard({ e, best, money }: { e: TaxEstimate; best: boolean; money: (n: number) => string }) {
+function RegimeCard({ e, best, money, cur }: { e: TaxEstimate; best: boolean; money: (n: number) => string; cur: string }) {
   const { t } = useTranslation();
+  const { hideBalances } = useTheme();
+  const { move } = useMotion();
   const deducted = e.deductions.reduce((s, d) => s + d.allowed, 0);
   const capped = e.deductions.filter((d) => d.claimed > d.allowed);
   const rows: [string, number, boolean?][] = [
@@ -209,14 +214,15 @@ function RegimeCard({ e, best, money }: { e: TaxEstimate; best: boolean; money: 
     [t("tax.cess"), e.cess],
   ];
   return (
-    <Card className={cn("gap-4", best && "ring-primary ring-2")}>
+    <Card className={cn("gap-4 transition-shadow duration-300", best && "ring-primary ring-2")}>
       <CardHeader>
         <div className="flex items-center justify-between gap-2">
           <CardTitle>{e.name}</CardTitle>
-          {best && <Badge>{t("tax.lower")}</Badge>}
+          {/* One badge that hops to whichever regime is cheaper. */}
+          {best && <motion.div layoutId="tax-lower" transition={move(SPRING)}><Badge>{t("tax.lower")}</Badge></motion.div>}
         </div>
         <div className="pt-2">
-          <div className="text-3xl font-semibold tracking-tight tabular-nums">{money(e.total)}</div>
+          <AnimatedMoney value={e.total} currency={cur} hidden={hideBalances} formatOptions={WHOLE} className="text-3xl font-semibold tracking-tight tabular-nums" />
           <div className="text-muted-foreground text-xs">{t("tax.effective", { rate: formatNumber(e.effective_rate, { maximumFractionDigits: 1 }) })}</div>
         </div>
       </CardHeader>
@@ -241,19 +247,21 @@ function RegimeCard({ e, best, money }: { e: TaxEstimate; best: boolean; money: 
 /** Taxable income split by band: width is the income in the band, shade is its rate. */
 function SlabBar({ e }: { e: TaxEstimate }) {
   const { t } = useTranslation();
+  const grown = useGrowIn();
   const used = e.bands.filter((b) => b.taxed > 0);
-  if (!used.length) return <div className="bg-muted h-2 rounded-full" />;
   const max = Math.max(...e.bands.map((b) => b.rate), 1);
+  // Every band is always rendered (empty ones at zero width) so bands grow and shrink as you type.
   return (
     <div className="space-y-1.5">
-      <div className="flex h-2 overflow-hidden rounded-full" role="img" aria-label={t("tax.bandsLabel")}>
-        {used.map((b) => (
-          <div key={b.from} style={{ flexGrow: b.taxed, opacity: b.rate === 0 ? 0.18 : 0.3 + (0.7 * b.rate) / max }}
-            className="bg-primary border-background border-e last:border-e-0" title={`${formatNumber(b.rate)}%`} />
+      <div className="bg-muted flex h-2 overflow-hidden rounded-full" role="img" aria-label={t("tax.bandsLabel")}>
+        {e.bands.map((b) => (
+          <div key={b.from} style={{ flexGrow: grown ? b.taxed : 0, flexBasis: 0, opacity: b.rate === 0 ? 0.18 : 0.3 + (0.7 * b.rate) / max }}
+            className={cn("bg-primary transition-[flex-grow,opacity] duration-500 ease-out", b.taxed > 0 && "border-background border-e last:border-e-0")}
+            title={`${formatNumber(b.rate)}%`} />
         ))}
       </div>
       <div className="text-muted-foreground flex justify-between text-[11px] tabular-nums">
-        <span>{formatNumber(used[0].rate)}%</span><span>{formatNumber(used.at(-1)!.rate)}%</span>
+        <span>{used.length ? `${formatNumber(used[0].rate)}%` : ""}</span><span>{used.length ? `${formatNumber(used.at(-1)!.rate)}%` : ""}</span>
       </div>
     </div>
   );

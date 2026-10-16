@@ -67,7 +67,17 @@
     "savingsRate": "{{rate}}% savings rate",
     "recent": "Recent transactions",
     "recentHint": "Your latest activity across all accounts",
-    "noTransactions": "No transactions yet. Add one from the Transactions page."
+    "noTransactions": "No transactions yet. Add one from the Transactions page.",
+    "flowTitle": "Income and spending",
+    "flowDesc": "The last six months",
+    "seriesIncome": "Income",
+    "seriesSpending": "Spending",
+    "categoriesTitle": "Spending by category",
+    "categoriesDesc": "This month",
+    "noSpending": "No spending this month yet.",
+    "other": "Other",
+    "uncategorised": "Uncategorised",
+    "trend": "Net worth over the last six months"
   },
   "auth": {
     "whoTitle": "Who's using Vaulty?",
@@ -130,7 +140,13 @@
       "accent": "Accent colour",
       "logoFollows": "The logo follows your accent",
       "hide": "Hide balances (incognito)",
-      "hideDesc": "Mask amounts everywhere until toggled off (Ctrl/Cmd+H)"
+      "hideDesc": "Mask amounts everywhere until toggled off (Ctrl/Cmd+H)",
+      "motion": "Motion",
+      "motionDesc": "How much the interface moves. Reduced keeps gentle fades and is used automatically when your system asks for less motion.",
+      "motionFull": "Full",
+      "motionReduced": "Reduced",
+      "motionOff": "Off",
+      "motionSystem": "Your system is set to reduce motion, so Vaulty uses Reduced."
     }
   },
   "currencyPicker": {
@@ -275,7 +291,29 @@
         "update": "Changed settings"
       },
       "import": "Imported a backup",
-      "undo": "Undid a change"
+      "undo": "Undid a change",
+      "app": {
+        "update": "Vaulty updated your data"
+      }
+    },
+    "check": {
+      "verify": "Verify history",
+      "verifying": "Checking…",
+      "intactTitle": "History intact",
+      "intactBody_one": "{{count}} change checked since {{date}}. Nothing was altered or removed, and nothing was changed outside Vaulty.",
+      "intactBody_other": "{{count}} changes checked since {{date}}. Nothing was altered or removed, and nothing was changed outside Vaulty.",
+      "intactEmpty": "No changes recorded yet.",
+      "brokenTitle": "History doesn't match",
+      "brokenBody": "Change {{id}}: {{reason}}. Someone may have edited Vaulty's data directly. Restore a safety copy from Settings if you didn't expect this.",
+      "outsideTitle": "Changed outside Vaulty",
+      "outsideBody_one": "{{count}} item was changed without going through Vaulty, so it has no history entry.",
+      "outsideBody_other": "{{count}} items were changed without going through Vaulty, so they have no history entry.",
+      "fingerprint": "Fingerprint",
+      "fingerprintHint": "Each change carries a fingerprint of the one before it, so altering or removing any change breaks every fingerprint after it. Note this one down (or give it to your accountant) to prove later that history wasn't rewritten.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "unchained_one": "{{count}} older change from before fingerprints were added isn't covered.",
+      "unchained_other": "{{count}} older changes from before fingerprints were added aren't covered."
     }
   },
   "snapshots": {

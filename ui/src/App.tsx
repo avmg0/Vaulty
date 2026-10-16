@@ -23,8 +23,11 @@ import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
 import { History } from "@/pages/History";
 import { DATA_RESTORED } from "@/api";
+import { VaultSplash } from "@/components/UnlockSplash";
 
 const LAST_USER_KEY = "vaulty.lastUser";
+/** Pages that reload themselves after an undo (so changes animate in place instead of the page re-mounting). */
+const SELF_RELOADING = new Set<PageId>(["history", "transactions", "dashboard", "cards"]);
 
 export function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -35,8 +38,12 @@ export function App() {
 
   const { locale, currency, setLocale, setCurrency } = useLocale();
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const [unlocking, setUnlocking] = useState(false);
+  const [locking, setLocking] = useState(false);
+  const { motion } = useTheme();
   const signedIn = (u: SignedInUser, fresh?: boolean) => {
     setUser(u);
+    setUnlocking(true);
     if (u.recovery_key) setRecoveryKey(u.recovery_key);
     // A new profile starts in the language and currency chosen on this device; an existing one
     // brings its own (which also becomes this device's default for the sign-in screens).
@@ -45,7 +52,16 @@ export function App() {
     setLastUserId(u.id);
     try { localStorage.setItem(LAST_USER_KEY, u.id); } catch { /* ignore */ }
   };
-  const signOut = useCallback(() => { api.auth.signOut().finally(() => setUser(null)); }, []);
+  // Locking closes the vault: the app blurs away and the logo's dial turns clockwise before the
+  // sign-in screen appears. The data is closed straight away; only the picture lingers.
+  const signOut = useCallback(() => {
+    const done = api.auth.signOut();
+    if (motion === "off") { void done.finally(() => setUser(null)); return; }
+    setLocking(true);
+    void done.catch(() => {});
+  }, [motion]);
+  const lockFinished = useCallback(() => { setUser(null); setLocking(false); }, []);
+  const unlockFinished = useCallback(() => setUnlocking(false), []);
 
   if (backendMissing) return (
     <div className="text-muted-foreground grid min-h-screen place-items-center p-6 text-center text-sm">
@@ -57,7 +73,11 @@ export function App() {
 
   return (
     <SessionProvider value={{ user, setUser, signOut }}>
-      <Shell key={user.id} signOut={signOut} />
+      <div className={locking ? "pointer-events-none opacity-0 blur-md transition-[opacity,filter] duration-300" : "transition-[opacity,filter] duration-300"}>
+        <Shell key={user.id} signOut={signOut} />
+      </div>
+      {unlocking && !locking && <VaultSplash mode="open" onDone={unlockFinished} />}
+      {locking && <VaultSplash mode="close" onDone={lockFinished} />}
       <RecoveryKeyDialog recoveryKey={recoveryKey} child={user.role === "child"} onDone={() => setRecoveryKey(null)} />
     </SessionProvider>
   );
@@ -102,7 +122,7 @@ function Shell({ signOut }: { signOut: () => void }) {
         <Header title={t(`nav.${item.id}`)} />
         <TickerBar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div key={page === "history" ? page : `${page}:${version}`} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
+          <div key={SELF_RELOADING.has(page) ? page : `${page}:${version}`} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
         </main>
       </div>
       <UndoToaster />

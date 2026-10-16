@@ -46,6 +46,11 @@ export type MarketView = {
 };
 /** Display-only prices; never part of the ledger. */
 export type Quote = { kind: "stock" | "crypto"; symbol: string; label: string; price: number; change_pct: number | null; currency: string | null; source: string; as_of: string };
+/** Result of checking the tamper-evident history. */
+export type HistoryCheck = {
+  ok: boolean; checked: number; since: string | null; head: string; broken_at: number | null; reason: string | null;
+  changed_outside: { table: string; id: string }[]; unchained: number;
+};
 export type Snapshot = { name: string; at: string; reason: "daily" | "manual" | "before-import" | "before-update" | "before-restore"; size: number };
 /** One undoable action from the member's change history. */
 export type HistoryItem = {
@@ -117,7 +122,7 @@ export type Transaction = {
   id: string; account_id: string; to_account_id?: string; category_id?: string; type: "income" | "expense" | "transfer";
   /** Positive decimal for display; `amount_minor` is exact. */
   amount: number; amount_minor: number; date: string; to_account_name?: string;
-  merchant?: string; description?: string; account_name?: string; category_name?: string; category_icon?: string; currency?: string;
+  merchant?: string; description?: string; account_name?: string; category_name?: string; category_icon?: string; category_color?: string | null; currency?: string;
   visibility: Visibility;
 };
 
@@ -200,6 +205,7 @@ export const api = {
     recent: (limit = 100) => invoke<HistoryItem[]>("history_recent", { limit }),
     trash: () => invoke<HistoryItem[]>("history_trash"),
     item: (table: string, id: string) => invoke<HistoryItem[]>("history_item", { table, id }),
+    verify: () => invoke<HistoryCheck>("history_verify"),
     undo: async (batchId: number) => { await invoke<void>("history_undo", { batchId }); window.dispatchEvent(new Event(DATA_RESTORED)); },
     undoLast: async () => {
       const done = await invoke<HistoryItem | null>("history_undo_last");
