@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { motion } from "motion/react";
+import { useMotion, SPRING } from "@/lib/motion";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { NAV, SETTINGS_ITEM, type NavItem, type PageId } from "@/nav";
@@ -12,18 +14,8 @@ type Props = { page: PageId; onNavigate: (p: PageId) => void; collapsed: boolean
 export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
   const { user, signOut } = useSession();
   const { t } = useTranslation();
-  const Item = ({ item }: { item: NavItem }) => (
-    <button
-      onClick={() => onNavigate(item.id)}
-      title={collapsed ? t(`nav.${item.id}`) : undefined}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors",
-        page === item.id ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-        collapsed && "justify-center px-0",
-      )}>
-      <item.icon className="size-4 shrink-0" />
-      {!collapsed && <span className="truncate">{t(`nav.${item.id}`)}</span>}
-    </button>
+  const item = (i: NavItem) => (
+    <NavButton key={i.id} item={i} active={page === i.id} collapsed={collapsed} label={t(`nav.${i.id}`)} onClick={() => onNavigate(i.id)} />
   );
 
   return (
@@ -35,17 +27,17 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
           <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title={t("nav.collapse")}><PanelLeftClose /></Button>
         )}
       </div>
-      <nav className="flex-1 space-y-4 overflow-y-auto px-2 py-2">
+      <nav className="isolate flex-1 space-y-4 overflow-y-auto px-2 py-2">
         {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title={t("nav.expand")}><PanelLeftOpen /></Button>}
         {NAV.map((g) => (
           <div key={g.group} className="space-y-0.5">
             {!collapsed && <div className="text-muted-foreground px-2.5 pb-1 text-xs font-medium">{t(`nav.group.${g.group}`)}</div>}
-            {g.items.map((i) => <Item key={i.id} item={i} />)}
+            {g.items.map(item)}
           </div>
         ))}
       </nav>
-      <div className="space-y-1 border-t border-sidebar-border p-2">
-        <Item item={SETTINGS_ITEM} />
+      <div className="isolate space-y-1 border-t border-sidebar-border p-2">
+        {item(SETTINGS_ITEM)}
         <div className={cn("flex items-center gap-2 rounded-md px-1.5 py-1", collapsed && "flex-col px-0")}>
           <UserAvatar name={user.name} color={user.color} className="size-7 text-xs" />
           {!collapsed && (
@@ -58,5 +50,22 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
         </div>
       </div>
     </aside>
+  );
+}
+
+/** Nav item. The active highlight is one shared element that springs from item to item. */
+function NavButton({ item, active, collapsed, label, onClick }: { item: NavItem; active: boolean; collapsed: boolean; label: string; onClick: () => void }) {
+  const { move } = useMotion();
+  return (
+    <button onClick={onClick} title={collapsed ? label : undefined} aria-current={active ? "page" : undefined}
+      className={cn(
+        "relative flex w-full items-center gap-3 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+        active ? "text-accent-foreground font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+        collapsed && "justify-center px-0",
+      )}>
+      {active && <motion.span layoutId="nav-active" transition={move(SPRING)} className="bg-accent absolute inset-0 -z-10 rounded-md" aria-hidden />}
+      <item.icon className="relative size-4 shrink-0" />
+      {!collapsed && <span className="relative truncate">{label}</span>}
+    </button>
   );
 }

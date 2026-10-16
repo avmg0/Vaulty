@@ -25,6 +25,8 @@ import { History } from "@/pages/History";
 import { DATA_RESTORED } from "@/api";
 
 const LAST_USER_KEY = "vaulty.lastUser";
+/** Pages that reload themselves after an undo (so changes animate in place instead of the page re-mounting). */
+const SELF_RELOADING = new Set<PageId>(["history", "transactions", "dashboard", "cards"]);
 
 export function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -102,7 +104,7 @@ function Shell({ signOut }: { signOut: () => void }) {
         <Header title={t(`nav.${item.id}`)} />
         <TickerBar />
         <main className="flex-1 overflow-y-auto p-6">
-          <div key={page === "history" ? page : `${page}:${version}`} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
+          <div key={SELF_RELOADING.has(page) ? page : `${page}:${version}`} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
         </main>
       </div>
       <UndoToaster />

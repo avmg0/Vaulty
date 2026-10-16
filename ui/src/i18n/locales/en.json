@@ -130,7 +130,13 @@
       "accent": "Accent colour",
       "logoFollows": "The logo follows your accent",
       "hide": "Hide balances (incognito)",
-      "hideDesc": "Mask amounts everywhere until toggled off (Ctrl/Cmd+H)"
+      "hideDesc": "Mask amounts everywhere until toggled off (Ctrl/Cmd+H)",
+      "motion": "Motion",
+      "motionDesc": "How much the interface moves. Reduced keeps gentle fades and is used automatically when your system asks for less motion.",
+      "motionFull": "Full",
+      "motionReduced": "Reduced",
+      "motionOff": "Off",
+      "motionSystem": "Your system is set to reduce motion, so Vaulty uses Reduced."
     }
   },
   "currencyPicker": {

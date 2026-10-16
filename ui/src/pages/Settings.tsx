@@ -263,7 +263,7 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 }
 
 function AppearanceCard() {
-  const { theme, setTheme, accent, setAccent, hideBalances, setHideBalances } = useTheme();
+  const { theme, setTheme, accent, setAccent, hideBalances, setHideBalances, motionPref, setMotionPref, motion } = useTheme();
   const { t } = useTranslation();
   return (
     <Card>
@@ -278,6 +278,18 @@ function AppearanceCard() {
               </button>
             ))}
           </div>
+        </div>
+        <div className="space-y-2"><Label>{t("settings.appearance.motion")}</Label>
+          <p className="text-muted-foreground text-xs">{t("settings.appearance.motionDesc")}</p>
+          <div className="bg-muted inline-flex rounded-lg p-1" role="radiogroup" aria-label={t("settings.appearance.motion")}>
+            {(["full", "reduced", "off"] as const).map((m) => (
+              <button key={m} role="radio" aria-checked={motionPref === m} onClick={() => setMotionPref(m)}
+                className={cn("rounded-md px-3 py-1 text-sm transition-colors", motionPref === m ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                {t(`settings.appearance.motion${m[0].toUpperCase()}${m.slice(1)}`)}
+              </button>
+            ))}
+          </div>
+          {motionPref === "full" && motion === "reduced" && <p className="text-muted-foreground text-xs">{t("settings.appearance.motionSystem")}</p>}
         </div>
         <div className="space-y-2"><Label>{t("settings.appearance.accent")}</Label>
           <div className="flex items-center gap-2">

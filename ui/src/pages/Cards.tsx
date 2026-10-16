@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { CalendarClock, ChevronLeft, ChevronRight, CreditCard as CardIcon, Info, Landmark, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
-import { api, errorText, type Account, type CardInput, type CardKind, type CardLook, type CardNetwork, type Institution, type WalletCard } from "@/api";
+import { api, DATA_RESTORED, errorText, type Account, type CardInput, type CardKind, type CardLook, type CardNetwork, type Institution, type WalletCard } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,7 +13,10 @@ import { CardVisual, type CardVisualData } from "@/components/cards/CardVisual";
 import { LookEditor } from "@/components/cards/LookEditor";
 import { KIND_LABEL, NETWORK_NAME, detectNetwork, expiryText, luhnOk, maskedNumber, monthsUntilExpiry, nextDay, ordinal } from "@/lib/cards";
 import { useTheme } from "@/hooks/theme";
-import { cn, formatMoney, getNumberLocale } from "@/lib/utils";
+import { cn, getNumberLocale } from "@/lib/utils";
+import { motion } from "motion/react";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
+import { EASE_OUT, SOFT_SPRING, useMotion } from "@/lib/motion";
 
 const KINDS: CardKind[] = ["credit", "debit", "prepaid", "gift", "other"];
 const KIND_HINT: Record<CardKind, string> = {
@@ -40,14 +43,18 @@ export function Cards() {
   const [dialog, setDialog] = useState<{ mode: "add" } | { mode: "edit"; card: WalletCard } | null>(null);
   const [removing, setRemoving] = useState<WalletCard | null>(null);
 
-  const load = useCallback(() => api.cards.list().then(setCards), []);
-  useEffect(() => { load(); }, [load]);
+  const load = useCallback(() => api.cards.list().then((list) => { setCards(list); return list; }), []);
+  useEffect(() => {
+    load();
+    window.addEventListener(DATA_RESTORED, load);
+    return () => window.removeEventListener(DATA_RESTORED, load);
+  }, [load]);
 
   const shown = useMemo(() => (cards ?? []).filter((c) => filter === "all" || c.kind === filter), [cards, filter]);
   const counts = useMemo(() => Object.fromEntries(KINDS.map((k) => [k, (cards ?? []).filter((c) => c.kind === k).length])) as Record<CardKind, number>, [cards]);
   useEffect(() => { setIndex((i) => Math.min(i, Math.max(0, shown.length - 1))); }, [shown.length]);
-  // One orchestrated entrance: cards are dealt into the stack after first paint.
-  useEffect(() => { if (shown.length) { const t = requestAnimationFrame(() => setDealt(true)); return () => cancelAnimationFrame(t); } }, [shown.length]);
+  // One orchestrated entrance: on first view the cards are dealt into the stack one by one.
+  useEffect(() => { const t = setTimeout(() => setDealt(true), 500); return () => clearTimeout(t); }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -108,40 +115,63 @@ export function Cards() {
         <CardDialog key={dialog.mode === "edit" ? dialog.card.id : "add"} initial={dialog.mode === "edit" ? dialog.card : null}
           defaultKind={filter === "all" ? "credit" : filter}
           onClose={() => setDialog(null)}
-          onSaved={(saved) => { setDialog(null); load().then(() => { setFilter((f) => (f === "all" || f === saved.kind ? f : "all")); }); }} />
+          onSaved={(saved) => {
+            const isNew = dialog.mode === "add";
+            setDialog(null);
+            load().then((list) => {
+              const f2 = filter === "all" || filter === saved.kind ? filter : "all";
+              setFilter(f2);
+              // A new card rises into the wallet and comes to the front.
+              if (isNew) setIndex(Math.max(0, list.filter((c) => f2 === "all" || c.kind === f2).findIndex((c) => c.id === saved.id)));
+            });
+          }} />
       )}
       <RemoveDialog card={removing} onClose={() => setRemoving(null)} onRemoved={() => { setRemoving(null); load(); }} />
     </div>
   );
 }
 
-/** Selected card in front; up to two more peek out behind it. */
+/**
+ * Selected card in front; up to two more peek out behind it. Picking a card behind lifts it up
+ * out of the stack and drops it in front; a card that wasn't showing rises in from below.
+ */
 function Stack({ cards, index, dealt, hideBalances, onSelect }: { cards: WalletCard[]; index: number; dealt: boolean; hideBalances: boolean; onSelect: (i: number) => void }) {
   const order = useMemo(() => cards.map((_, i) => (i - index + cards.length) % cards.length), [cards, index]);
   const peek = Math.min(cards.length - 1, 2);
+  const { full, move } = useMotion();
+  // Depth of each card in the previous render, to tell a card being lifted to the front.
+  const prev = useRef<Record<string, number>>({});
+  useEffect(() => { prev.current = Object.fromEntries(cards.map((c, i) => [c.id, order[i]])); });
   return (
     <div className="relative mx-auto w-full max-w-[460px]" style={{ paddingTop: `${peek * 22}px` }}>
       {cards.map((c, i) => {
         const depth = order[i];
         if (depth > 2) return null;
         const front = depth === 0;
+        const was = prev.current[c.id];
+        const lifting = full && front && was !== undefined && was > 0;
+        const rest = { y: -depth * 22, scale: 1 - depth * 0.06, opacity: 1, rotate: 0 };
         return (
-          <div key={c.id}
-            className={cn("w-full transition-[transform,opacity,filter] duration-500 ease-[cubic-bezier(.2,.7,.2,1)] motion-reduce:transition-none", front ? "relative" : "absolute inset-x-0 cursor-pointer")}
+          <motion.div key={c.id}
+            className={cn("w-full transition-[filter] duration-500", front ? "relative" : "absolute inset-x-0 cursor-pointer")}
             style={{
               top: front ? undefined : `${peek * 22}px`,
-              transform: `translateY(${dealt ? -depth * 22 : 40}px) scale(${1 - depth * 0.06})`,
               transformOrigin: "50% 0%",
               zIndex: 10 - depth,
-              opacity: dealt ? 1 : 0,
               filter: depth ? `brightness(${1 - depth * 0.14}) saturate(${1 - depth * 0.15})` : undefined,
-              transitionDelay: dealt ? `${(2 - depth) * 70}ms` : "0ms",
             }}
+            initial={{ y: 70, scale: 0.97, opacity: 0, rotate: 0 }}
+            animate={lifting
+              ? { y: [-was * 22, -was * 22 - 96, 0], scale: [1 - was * 0.06, 1.03, 1], rotate: [0, -2.5, 0], opacity: 1 }
+              : rest}
+            transition={lifting
+              ? move({ duration: 0.6, times: [0, 0.42, 1], ease: [0.2, 0.7, 0.2, 1] })
+              : { ...move(SOFT_SPRING), delay: dealt ? 0 : (2 - depth) * 0.08 }}
             onClick={front ? undefined : () => onSelect(i)}
             aria-hidden={!front}
           >
             <CardVisual card={toVisual(c)} interactive={front} hideAmounts={hideBalances} />
-          </div>
+          </motion.div>
         );
       })}
     </div>
@@ -149,12 +179,16 @@ function Stack({ cards, index, dealt, hideBalances, onSelect }: { cards: WalletC
 }
 
 function Details({ card, hideBalances, onEdit, onRemove }: { card: WalletCard; hideBalances: boolean; onEdit: () => void; onRemove: () => void }) {
-  const money = (n: number | null | undefined) => (n == null ? "—" : formatMoney(n, card.currency, hideBalances));
+  const money = (n: number | null | undefined) => <AnimatedMoney value={n} currency={card.currency} hidden={hideBalances} />;
+  const { move, fade } = useMotion();
+  // The panel settles in row by row, just after the card lands in front.
+  const list = { hidden: {}, show: { transition: { staggerChildren: 0.05, delayChildren: 0.08 } } };
+  const row = { hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { y: move(EASE_OUT), opacity: fade(EASE_OUT) } } };
   const subtitle = [KIND_LABEL[card.kind], card.institution ?? card.issuer_name, card.network && NETWORK_NAME[card.network], card.last4 && `ending ${card.last4}`]
     .filter(Boolean).join(", ");
   return (
-    <div className="page-enter space-y-4">
-      <div className="flex items-start justify-between gap-3">
+    <motion.div className="space-y-4" variants={list} initial="hidden" animate="show">
+      <motion.div variants={row} className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 className="truncate text-xl font-semibold tracking-tight">{card.name}</h2>
           <p className="text-muted-foreground text-sm">{subtitle}</p>
@@ -163,7 +197,8 @@ function Details({ card, hideBalances, onEdit, onRemove }: { card: WalletCard; h
           <Button variant="outline" size="sm" onClick={onEdit}><Pencil />Edit</Button>
           <Button variant="ghost" size="icon" className="size-8" aria-label="Remove card" title="Remove card" onClick={onRemove}><Trash2 /></Button>
         </div>
-      </div>
+      </motion.div>
+      <motion.div variants={row} className="space-y-4">
       {card.kind === "credit" && <CreditDetails card={card} money={money} />}
       {card.kind === "debit" && (
         <Card><CardContent className="flex items-center gap-4">
@@ -183,12 +218,13 @@ function Details({ card, hideBalances, onEdit, onRemove }: { card: WalletCard; h
       {card.kind === "other" && (
         <Card><CardContent className="text-sm">{card.notes ? <p className="whitespace-pre-wrap">{card.notes}</p> : <p className="text-muted-foreground">Add notes like a membership number or renewal date.</p>}</CardContent></Card>
       )}
-      <ExpiryRow card={card} />
-    </div>
+      </motion.div>
+      <motion.div variants={row}><ExpiryRow card={card} /></motion.div>
+    </motion.div>
   );
 }
 
-function CreditDetails({ card, money }: { card: WalletCard; money: (n: number | null | undefined) => string }) {
+function CreditDetails({ card, money }: { card: WalletCard; money: (n: number | null | undefined) => ReactNode }) {
   const u = card.utilization ?? null;
   const tone = u == null ? "text-muted-foreground" : u < 0.3 ? "text-success" : u < 0.7 ? "text-orange-500" : "text-destructive";
   const due = card.due_day ? nextDay(card.due_day) : null;
@@ -237,7 +273,7 @@ function ExpiryRow({ card }: { card: WalletCard }) {
   );
 }
 
-function Stat({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
+function Stat({ label, value, strong }: { label: string; value: ReactNode; strong?: boolean }) {
   return (
     <div className="min-w-0">
       <div className="text-muted-foreground">{label}</div>
@@ -257,7 +293,7 @@ function UtilizationRing({ value, className }: { value: number | null; className
       <svg viewBox="0 0 80 80" className="absolute inset-0 -rotate-90">
         <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" className="stroke-muted" />
         <circle cx="40" cy="40" r={r} fill="none" strokeWidth="7" stroke="currentColor" strokeLinecap="round"
-          strokeDasharray={c} strokeDashoffset={c * (1 - shown)} className="transition-[stroke-dashoffset] duration-1000 ease-out motion-reduce:transition-none" />
+          strokeDasharray={c} strokeDashoffset={c * (1 - shown)} className="transition-[stroke-dashoffset] duration-1000 ease-out" />
       </svg>
       <div className="text-center">
         <div className="text-foreground text-lg font-semibold tabular-nums">{value == null ? "—" : `${Math.round(value * 100)}%`}</div>

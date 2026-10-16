@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { ArrowDownRight, ArrowUpRight, Info, Plus, Search, Trash2 } from "lucide-react";
-import { api, errorText, type Account, type Category, type SharingPrefs, type Transaction, type Visibility } from "@/api";
+import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
+import { api, DATA_RESTORED, errorText, type Account, type Category, type SharingPrefs, type Transaction, type Visibility } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -34,7 +36,7 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange }
         </div>
       </div>
       <div className={cn("text-sm font-medium tabular-nums", income && "text-success")}>
-        {income ? "+" : "−"}{formatMoney(t.amount, t.currency || "INR", hidden)}
+        {income ? "+" : "−"}<AnimatedMoney value={t.amount} currency={t.currency || "INR"} hidden={hidden} />
       </div>
       <VisibilityBadge value={t.visibility ?? "private"} onChange={onVisibilityChange} />
       {onDelete && <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100" onClick={onDelete} title="Delete"><Trash2 /></Button>}
@@ -59,7 +61,12 @@ export function Transactions() {
 
   const load = () =>
     api.transactions.getAll({ type: type || undefined, accountId: accountId || undefined, visibility: visibility || undefined }).then(setRows);
-  useEffect(() => { load(); }, [type, accountId, visibility]);
+  useEffect(() => {
+    load();
+    // After an undo or restore, reload in place so the restored row slides back in.
+    window.addEventListener(DATA_RESTORED, load);
+    return () => window.removeEventListener(DATA_RESTORED, load);
+  }, [type, accountId, visibility]);
   useEffect(() => {
     api.accounts.getAll().then(setAccounts);
     api.categories.getAll().then(setCategories);
@@ -149,11 +156,15 @@ export function Transactions() {
       <Card className="py-2">
         <CardContent className="divide-y">
           {filtered.length === 0 && <p className="text-muted-foreground py-10 text-center text-sm">No transactions match.</p>}
-          {filtered.map((t) => (
-            <TransactionRow key={t.id} t={t} hidden={hideBalances}
-              onVisibilityChange={(v) => changeVisibility(t.id, v)}
-              onDelete={() => api.transactions.delete(t.id).then(load)} />
-          ))}
+          <AnimatedList>
+            {filtered.map((t) => (
+              <AnimatedItem key={t.id}>
+                <TransactionRow t={t} hidden={hideBalances}
+                  onVisibilityChange={(v) => changeVisibility(t.id, v)}
+                  onDelete={() => api.transactions.delete(t.id).then(load)} />
+              </AnimatedItem>
+            ))}
+          </AnimatedList>
         </CardContent>
       </Card>
     </div>

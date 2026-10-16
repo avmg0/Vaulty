@@ -117,7 +117,7 @@
 /* Subtle page transition (spec: fade + slide, 150-220ms) */
 @keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .page-enter { animation: page-in 180ms ease-out; }
-@media (prefers-reduced-motion: reduce) { .page-enter { animation: none; } }
+[data-motion="reduced"] .page-enter { animation: none; }
 
 /* Market ticker: two copies of the list scroll by half their width for a seamless loop. */
 @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-50%); } }
@@ -126,13 +126,19 @@
 [dir="rtl"] .ticker-track { animation-name: ticker-rtl; }
 .ticker-mask:hover .ticker-track, .ticker-mask:focus-within .ticker-track { animation-play-state: paused; }
 .ticker-mask { mask-image: linear-gradient(to right, transparent, #000 24px, #000 calc(100% - 24px), transparent); }
-@media (prefers-reduced-motion: reduce) {
-  .ticker-track { animation: none; }
-  .ticker-track > ul + ul { display: none; }
-  .ticker-mask { overflow-x: auto; mask-image: none; }
-}
+[data-motion="reduced"] .ticker-track, [data-motion="off"] .ticker-track { animation: none; }
+[data-motion="reduced"] .ticker-track > ul + ul, [data-motion="off"] .ticker-track > ul + ul { display: none; }
+[data-motion="reduced"] .ticker-mask, [data-motion="off"] .ticker-mask { overflow-x: auto; mask-image: none; }
 
 /* Undo toast: rises in once; nothing animates for reduced motion. */
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .toast-in { animation: toast-in 160ms ease-out; }
-@media (prefers-reduced-motion: reduce) { .toast-in { animation: none; } }
+[data-motion="reduced"] .toast-in { animation: none; }
+
+/* Motion setting. "reduced" (also chosen automatically when the system asks for less motion)
+   keeps fades but drops movement; "off" stops every CSS animation and transition. */
+[data-motion="reduced"] .motion-reduce-hide { animation: none !important; }
+[data-motion="off"] *, [data-motion="off"] *::before, [data-motion="off"] *::after {
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important; transition-delay: 0ms !important;
+}

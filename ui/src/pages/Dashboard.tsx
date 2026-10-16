@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, PiggyBank, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, type Account, type Transaction } from "@/api";
+import { api, DATA_RESTORED, type Account, type Transaction } from "@/api";
+import { AnimatedMoney } from "@/components/AnimatedMoney";
+import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatMoney, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 import { useTheme } from "@/hooks/theme";
 import { useLocale } from "@/hooks/locale";
 import { TransactionRow } from "./Transactions";
@@ -22,16 +24,22 @@ export function Dashboard() {
   const [recent, setRecent] = useState<Transaction[]>([]);
 
   useEffect(() => {
-    api.accounts.getAll().then(setAccounts);
-    api.transactions.getAll(monthRange()).then(setMonth);
-    api.transactions.getAll({ limit: 8 }).then(setRecent);
+    const load = () => {
+      api.accounts.getAll().then(setAccounts);
+      api.transactions.getAll(monthRange()).then(setMonth);
+      api.transactions.getAll({ limit: 8 }).then(setRecent);
+    };
+    load();
+    window.addEventListener(DATA_RESTORED, load);
+    return () => window.removeEventListener(DATA_RESTORED, load);
   }, []);
 
   const sum = (t: string) => month.filter((x) => x.type === t).reduce((s, x) => s + x.amount, 0);
   const income = sum("income"), expense = sum("expense");
   const netWorth = accounts.reduce((s, a) => s + a.current_balance, 0);
   const { currency: mainCurrency } = useLocale();
-  const money = (n: number) => formatMoney(n, accounts[0]?.currency ?? mainCurrency, hideBalances);
+  const cur = accounts[0]?.currency ?? mainCurrency;
+  const money = (n: number) => <AnimatedMoney value={n} currency={cur} hidden={hideBalances} />;
 
   const stats = [
     { label: t("dashboard.netWorth"), value: money(netWorth), icon: Wallet, hint: t("dashboard.accountsCount", { count: accounts.length }) },
@@ -60,7 +68,9 @@ export function Dashboard() {
         <CardHeader><CardTitle>{t("dashboard.recent")}</CardTitle><CardDescription>{t("dashboard.recentHint")}</CardDescription></CardHeader>
         <CardContent className="divide-y">
           {recent.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t("dashboard.noTransactions")}</p>}
-          {recent.map((t) => <TransactionRow key={t.id} t={t} hidden={hideBalances} />)}
+          <AnimatedList>
+            {recent.map((t) => <AnimatedItem key={t.id}><TransactionRow t={t} hidden={hideBalances} /></AnimatedItem>)}
+          </AnimatedList>
         </CardContent>
       </Card>
     </div>

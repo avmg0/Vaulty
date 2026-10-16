@@ -1,3 +1,4 @@
+import { useTheme } from "@/hooks/theme";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { Nfc } from "lucide-react";
 import type { CardDesign, CardKind, CardLook, CardNetwork } from "@/api";
@@ -60,15 +61,9 @@ export type CardVisualData = {
   notes?: string | null;
 };
 
+/** Tilt and flip only with full motion (the in-app setting, which also follows the system). */
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const on = () => setReduced(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return reduced;
+  return useTheme().motion !== "full";
 }
 
 /** Engraved security-print lines (like banknote guilloche). */
