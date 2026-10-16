@@ -14,6 +14,7 @@ pub mod money;
 pub mod profiles;
 pub mod rows;
 pub mod settings;
+pub mod tax;
 pub mod transactions;
 
 pub use error::{Error, Result};

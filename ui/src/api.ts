@@ -5,6 +5,22 @@ export type User = { id: string; name: string; color: string; role: Role; active
 export type Invite = { user: User; setup_code: string };
 export type SignIn = { status: "signed_in"; user: User } | { status: "needs_second_factor" };
 export type TotpEnrollment = { secret_base32: string; otpauth_url: string; qr_png_base64: string };
+export type TaxDeduction = { id: string; label: string; hint?: string; cap?: number; cap_senior?: number; cap_alt?: number; alt_label?: string };
+export type TaxRegime = { id: string; name: string; default?: boolean; description?: string; deductions: TaxDeduction[]; cess?: { name: string; rate: number } };
+export type TaxYear = { id: string; label: string; start: string; end: string; regimes: TaxRegime[] };
+export type TaxPack = { country: string; currency: string; last_checked: string; notes?: string; sources: string[]; years: TaxYear[] };
+/** Amounts are decimal strings in the pack's currency. */
+export type TaxInput = { age: number; salary: string; other_income: string; deductions: Record<string, string>; alt: string[] };
+export type TaxEstimate = {
+  regime: string; name: string; gross: number; standard_deduction: number; taxable: number; slab_tax: number; rebate: number;
+  surcharge: number; surcharge_rate: number; cess: number; total: number; effective_rate: number;
+  deductions: { id: string; label: string; claimed: number; allowed: number; cap: number | null }[];
+  bands: { from: number; upto: number | null; rate: number; taxed: number; tax: number }[];
+};
+export type TaxComparison = {
+  country: string; currency: string; year: { id: string; label: string }; estimates: TaxEstimate[];
+  recommended: string | null; saving: number; sources: string[]; last_checked: string; notes?: string;
+};
 export type SecurityStatus = { totp_enabled: boolean; backup_codes_remaining: number; biometric_enabled: boolean; biometric_available: boolean };
 
 /**
@@ -129,6 +145,11 @@ export const api = {
     create: (card: CardInput) => invoke<WalletCard>("cards_create", { card }),
     update: (id: string, card: CardInput) => invoke<WalletCard>("cards_update", { id, card }),
     delete: (id: string) => invoke<void>("cards_delete", { id }),
+  },
+  tax: {
+    countries: () => invoke<string[]>("tax_countries"),
+    describe: (country: string) => invoke<TaxPack>("tax_describe", { country }),
+    compare: (country: string, input: TaxInput, year?: string) => invoke<TaxComparison>("tax_compare", { country, year, input }),
   },
   institutions: {
     search: (query: string, currency?: string, limit = 20) => invoke<Institution[]>("institutions_search", { query, currency, limit }),

@@ -10,10 +10,10 @@ let numberLocale: string | undefined;
 export function setNumberLocale(locale: string | undefined) { numberLocale = locale; }
 export function getNumberLocale() { return numberLocale; }
 
-export function formatMoney(amount: number, currency = "USD", hidden = false) {
+export function formatMoney(amount: number, currency = "USD", hidden = false, opts?: Intl.NumberFormatOptions) {
   if (hidden) return "••••";
   try {
-    return new Intl.NumberFormat(numberLocale, { style: "currency", currency }).format(amount);
+    return new Intl.NumberFormat(numberLocale, { style: "currency", currency, ...opts }).format(amount);
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
   }

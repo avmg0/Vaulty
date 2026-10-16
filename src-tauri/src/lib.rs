@@ -409,6 +409,13 @@ fn import_json(s: S, path: String) -> Result<Value> {
 #[tauri::command] fn cards_update(s: S, id: String, card: Value) -> Result<Value> { s.data(|c| vaulty_core::cards::update(c, &id, &card)) }
 #[tauri::command] fn cards_delete(s: S, id: String) -> Result<()> { s.data(|c| vaulty_core::cards::delete(c, &id)) }
 
+/// Countries with tax rules, the rules themselves, and an estimate comparing every regime.
+#[tauri::command] fn tax_countries() -> Result<Vec<String>> { vaulty_core::tax::countries() }
+#[tauri::command] fn tax_describe(country: String) -> Result<Value> { vaulty_core::tax::describe(&country) }
+#[tauri::command] fn tax_compare(country: String, year: Option<String>, input: Value) -> Result<Value> {
+    vaulty_core::tax::compare(&country, year.as_deref(), &input)
+}
+
 /// Bank / card / broker directory search. `currency` ranks that country's institutions first.
 #[tauri::command]
 fn institutions_search(query: String, currency: Option<String>, limit: Option<usize>) -> Vec<vaulty_core::institutions::Institution> {
@@ -456,7 +463,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, db_size, institutions_search, cards_list, cards_create, cards_update, cards_delete, db_all, db_get, db_run,
+            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, cards_list, cards_create, cards_update, cards_delete, db_all, db_get, db_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");

@@ -1,0 +1,260 @@
+import { useEffect, useMemo, useState } from "react";
+import { Calculator, Info, Sparkles } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { api, errorText, type TaxComparison, type TaxEstimate, type TaxInput, type TaxPack } from "@/api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useDisplayNames, useLocale } from "@/hooks/locale";
+import { useTheme } from "@/hooks/theme";
+import { cn, formatDate, formatMoney, formatNumber } from "@/lib/utils";
+
+/** Tax is assessed in whole units; paise/cents only add noise here. */
+const WHOLE: Intl.NumberFormatOptions = { maximumFractionDigits: 0, minimumFractionDigits: 0 };
+const EMPTY: TaxInput = { age: 35, salary: "", other_income: "", deductions: {}, alt: [] };
+const SELECT = "border-input dark:bg-input/30 h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
+
+/** Compares a country's tax regimes for the figures the person enters. Nothing here is saved. */
+export function TaxPlanner() {
+  const { t } = useTranslation();
+  const { country: myCountry } = useLocale();
+  const names = useDisplayNames();
+  const [countries, setCountries] = useState<string[] | null>(null);
+  const [country, setCountry] = useState(myCountry);
+  const [pack, setPack] = useState<TaxPack | null>(null);
+  const [year, setYear] = useState<string>();
+  const [input, setInput] = useState<TaxInput>(EMPTY);
+  const [result, setResult] = useState<TaxComparison | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => { api.tax.countries().then(setCountries).catch((e) => setError(errorText(e))); }, []);
+  const supported = countries?.includes(country) ?? false;
+
+  useEffect(() => {
+    if (!supported) { setPack(null); return; }
+    api.tax.describe(country).then((p) => { setPack(p); setYear(p.years.at(-1)?.id); setInput(EMPTY); }).catch((e) => setError(errorText(e)));
+  }, [country, supported]);
+
+  // Recalculate shortly after the person stops typing.
+  useEffect(() => {
+    if (!pack || !year) return;
+    const id = setTimeout(() => {
+      api.tax.compare(pack.country, input, year).then((r) => { setResult(r); setError(""); }).catch((e) => setError(errorText(e)));
+    }, 250);
+    return () => clearTimeout(id);
+  }, [pack, year, input]);
+
+  if (countries === null) return null;
+  if (!supported) return (
+    <Card className="mx-auto mt-6 max-w-lg">
+      <CardContent className="space-y-4 py-8 text-center">
+        <div className="bg-secondary mx-auto grid size-12 place-items-center rounded-xl"><Calculator className="size-5" /></div>
+        <div className="font-semibold">{t("tax.unsupported", { country: names.region(country) })}</div>
+        <p className="text-muted-foreground text-sm">{t("tax.unsupportedBody")}</p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {countries.map((c) => <button key={c} onClick={() => setCountry(c)} className="hover:bg-accent rounded-md border px-3 py-1.5 text-sm">{t("tax.tryCountry", { country: names.region(c) })}</button>)}
+        </div>
+      </CardContent>
+    </Card>
+  );
+  if (!pack) return null;
+
+  const yr = pack.years.find((y) => y.id === year) ?? pack.years[0];
+  return (
+    <div className="mx-auto max-w-6xl space-y-6">
+      <div className="flex flex-wrap items-end gap-4">
+        <div className="space-y-1.5"><Label htmlFor="tax-country">{t("tax.country")}</Label>
+          <select id="tax-country" className={SELECT} value={country} onChange={(e) => setCountry(e.target.value)}>
+            {[...new Set([...countries, myCountry])].map((c) => <option key={c} value={c}>{names.region(c)}</option>)}
+          </select>
+        </div>
+        <div className="space-y-1.5"><Label htmlFor="tax-year">{t("tax.year")}</Label>
+          <select id="tax-year" className={SELECT} value={yr.id} onChange={(e) => setYear(e.target.value)}>
+            {pack.years.map((y) => <option key={y.id} value={y.id}>{y.label}</option>)}
+          </select>
+        </div>
+        <p className="text-muted-foreground ms-auto max-w-sm text-xs">{t("tax.private")}</p>
+      </div>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+        <InputsCard pack={pack} regimes={yr.regimes} input={input} onChange={setInput} />
+        <div className="space-y-6 lg:sticky lg:top-0">
+          {error && <p className="text-destructive text-sm">{error}</p>}
+          {result && <Results result={result} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function InputsCard({ pack, regimes, input, onChange }: { pack: TaxPack; regimes: TaxPack["years"][number]["regimes"]; input: TaxInput; onChange: (i: TaxInput) => void }) {
+  const { t } = useTranslation();
+  const cur = pack.currency;
+  const senior = input.age >= 60;
+  // Each deduction once, noting which regimes allow it.
+  const deductions = useMemo(() => {
+    const seen = new Map<string, { d: (typeof regimes)[number]["deductions"][number]; in: string[] }>();
+    for (const r of regimes) for (const d of r.deductions) {
+      const e = seen.get(d.id);
+      if (e) e.in.push(r.name); else seen.set(d.id, { d, in: [r.name] });
+    }
+    return [...seen.values()].sort((a, b) => b.in.length - a.in.length);
+  }, [regimes]);
+  const set = (patch: Partial<TaxInput>) => onChange({ ...input, ...patch });
+  const amount = (v: string) => v.replace(/[^\d.]/g, "");
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>{t("tax.yourYear")}</CardTitle><CardDescription>{t("tax.yourYearDesc")}</CardDescription></CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid grid-cols-[5rem_1fr] gap-3">
+          <div className="space-y-1.5"><Label htmlFor="age">{t("tax.age")}</Label>
+            <Input id="age" type="number" min={18} max={120} value={input.age} onChange={(e) => set({ age: Math.max(0, Number(e.target.value) || 0) })} />
+          </div>
+          <div className="space-y-1.5"><Label htmlFor="salary">{t("tax.salary")}</Label>
+            <Input id="salary" inputMode="decimal" placeholder="0" value={input.salary} onChange={(e) => set({ salary: amount(e.target.value) })} />
+          </div>
+        </div>
+        <div className="space-y-1.5"><Label htmlFor="other">{t("tax.other")}</Label>
+          <Input id="other" inputMode="decimal" placeholder="0" value={input.other_income} onChange={(e) => set({ other_income: amount(e.target.value) })} />
+          <p className="text-muted-foreground text-xs">{t("tax.otherHint")}</p>
+        </div>
+        <Separator />
+        <div className="space-y-4">
+          <div className="text-sm font-medium">{t("tax.deductions")}</div>
+          {deductions.map(({ d, in: allowedIn }) => {
+            const alt = input.alt.includes(d.id);
+            const cap = alt ? d.cap_alt ?? d.cap : senior ? d.cap_senior ?? d.cap : d.cap;
+            return (
+              <div key={d.id} className="space-y-1.5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <Label htmlFor={`d-${d.id}`} className="leading-snug">{d.label}</Label>
+                  {allowedIn.length < regimes.length && <span className="text-muted-foreground shrink-0 text-[11px]">{t("tax.onlyIn", { regime: allowedIn.join(", ") })}</span>}
+                </div>
+                <Input id={`d-${d.id}`} inputMode="decimal" placeholder="0" value={input.deductions[d.id] ?? ""}
+                  onChange={(e) => set({ deductions: { ...input.deductions, [d.id]: amount(e.target.value) } })} />
+                <div className="text-muted-foreground text-xs">
+                  {cap != null && <span>{t("tax.upTo", { amount: formatMoney(cap, cur, false, WHOLE) })}{d.hint ? ". " : ""}</span>}{d.hint}
+                </div>
+                {d.alt_label && (
+                  <label className="flex items-center gap-2 text-xs">
+                    <input type="checkbox" checked={alt} className="accent-[var(--primary)]"
+                      onChange={(e) => set({ alt: e.target.checked ? [...input.alt, d.id] : input.alt.filter((x) => x !== d.id) })} />
+                    {d.alt_label}
+                  </label>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Results({ result }: { result: TaxComparison }) {
+  const { t } = useTranslation();
+  const { hideBalances } = useTheme();
+  const cur = result.currency;
+  const money = (n: number) => formatMoney(n, cur, hideBalances, WHOLE);
+  const best = result.estimates.find((e) => e.regime === result.recommended);
+  const anyIncome = result.estimates.some((e) => e.gross > 0);
+
+  return (
+    <>
+      <div className={cn("rounded-xl border p-5", anyIncome && "border-primary/40 bg-primary/5")}>
+        <div className="flex items-start gap-3">
+          <Sparkles className="text-primary mt-0.5 size-5 shrink-0" />
+          <div className="space-y-1">
+            <div className="text-lg font-semibold tracking-tight">
+              {!anyIncome ? t("tax.enterIncome")
+                : result.saving > 0 && best ? t("tax.saves", { regime: best.name, amount: money(result.saving) })
+                : t("tax.same")}
+            </div>
+            {anyIncome && best && <p className="text-muted-foreground text-sm">{t("tax.choiceNote")}</p>}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {result.estimates.map((e) => <RegimeCard key={e.regime} e={e} best={anyIncome && e.regime === result.recommended && result.saving > 0} money={money} />)}
+      </div>
+
+      <div className="text-muted-foreground flex gap-2 text-xs leading-relaxed">
+        <Info className="mt-0.5 size-3.5 shrink-0" />
+        <div className="space-y-1">
+          <p>{t("tax.disclaimer", { date: formatDate(result.last_checked, { dateStyle: "medium" }) })}</p>
+          {result.notes && <p>{result.notes}</p>}
+          <p>{t("tax.sources")} {result.sources.map((s, i) => <span key={s}>{i > 0 && ", "}<a href={s} target="_blank" rel="noreferrer" className="underline underline-offset-2">{new URL(s).hostname.replace(/^www\./, "")}</a></span>)}</p>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function RegimeCard({ e, best, money }: { e: TaxEstimate; best: boolean; money: (n: number) => string }) {
+  const { t } = useTranslation();
+  const deducted = e.deductions.reduce((s, d) => s + d.allowed, 0);
+  const capped = e.deductions.filter((d) => d.claimed > d.allowed);
+  const rows: [string, number, boolean?][] = [
+    [t("tax.gross"), e.gross],
+    [t("tax.standardDeduction"), -e.standard_deduction],
+    [t("tax.deductionsAllowed"), -deducted],
+    [t("tax.taxable"), e.taxable, true],
+    [t("tax.slabTax"), e.slab_tax],
+    [t("tax.rebate"), -e.rebate],
+    [t("tax.surcharge", { rate: formatNumber(e.surcharge_rate) }), e.surcharge],
+    [t("tax.cess"), e.cess],
+  ];
+  return (
+    <Card className={cn("gap-4", best && "ring-primary ring-2")}>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle>{e.name}</CardTitle>
+          {best && <Badge>{t("tax.lower")}</Badge>}
+        </div>
+        <div className="pt-2">
+          <div className="text-3xl font-semibold tracking-tight tabular-nums">{money(e.total)}</div>
+          <div className="text-muted-foreground text-xs">{t("tax.effective", { rate: formatNumber(e.effective_rate, { maximumFractionDigits: 1 }) })}</div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <SlabBar e={e} />
+        <dl className="space-y-1.5 text-sm">
+          {rows.filter(([, v], i) => i === 0 || i === 3 || i === 4 || v !== 0).map(([label, v, strong]) => (
+            <div key={label} className={cn("flex justify-between gap-3", strong && "border-t pt-1.5 font-medium")}>
+              <dt className={cn(!strong && "text-muted-foreground")}>{label}</dt>
+              <dd className="tabular-nums">{v < 0 ? `− ${money(-v)}` : money(v)}</dd>
+            </div>
+          ))}
+        </dl>
+        {capped.length > 0 && (
+          <p className="text-muted-foreground text-xs">{t("tax.capped", { items: capped.map((d) => d.label).join(", ") })}</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Taxable income split by band: width is the income in the band, shade is its rate. */
+function SlabBar({ e }: { e: TaxEstimate }) {
+  const { t } = useTranslation();
+  const used = e.bands.filter((b) => b.taxed > 0);
+  if (!used.length) return <div className="bg-muted h-2 rounded-full" />;
+  const max = Math.max(...e.bands.map((b) => b.rate), 1);
+  return (
+    <div className="space-y-1.5">
+      <div className="flex h-2 overflow-hidden rounded-full" role="img" aria-label={t("tax.bandsLabel")}>
+        {used.map((b) => (
+          <div key={b.from} style={{ flexGrow: b.taxed, opacity: b.rate === 0 ? 0.18 : 0.3 + (0.7 * b.rate) / max }}
+            className="bg-primary border-background border-e last:border-e-0" title={`${formatNumber(b.rate)}%`} />
+        ))}
+      </div>
+      <div className="text-muted-foreground flex justify-between text-[11px] tabular-nums">
+        <span>{formatNumber(used[0].rate)}%</span><span>{formatNumber(used.at(-1)!.rate)}%</span>
+      </div>
+    </div>
+  );
+}
