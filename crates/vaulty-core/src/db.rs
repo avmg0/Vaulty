@@ -63,8 +63,11 @@ pub fn pending(conn: &Connection, migrations: Migrations) -> Result<usize> {
 fn with_history(conn: &Connection) -> Result<()> {
     let has_log: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = 'change_context')", [], |r| r.get(0))?;
     if has_log { crate::history::drop_triggers(conn)?; }
+    let updating = has_log && pending(conn, DATA_MIGRATIONS)? > 0;
     migrate(conn, DATA_MIGRATIONS)?;
-    crate::history::install(conn)
+    crate::history::install(conn)?;
+    if updating { crate::history::record_app_update(conn)?; }
+    Ok(())
 }
 
 /// Opens an SQLCipher database (AES-256), encrypting a legacy plain file first if needed.

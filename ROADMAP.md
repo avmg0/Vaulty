@@ -77,7 +77,17 @@ Vaulty is open source and will hold business records, so security comes from the
    - [ ] GitHub security advisories and CVEs for fixes
    - [ ] Opt-in in-app notice when a security update is available
    - [ ] Bug bounty or hall of fame once there are users
-8. **Legal and compliance**
+8. **Tamper-evident history** (no blockchain: a private, offline hash chain)
+   - [x] Every recorded action carries a SHA-256 fingerprint of the one before it plus everything it changed; altering, removing or reordering any action breaks every fingerprint after it
+   - [x] The 90-day clean-up keeps a checkpoint so the remaining chain still verifies
+   - [x] "Verify history" on the History page: checks the chain, shows the current fingerprint, and flags items changed outside Vaulty (compared with their last recorded state)
+   - [x] App updates that reshape data are recorded as "Vaulty updated your data" (and can't be undone) instead of being flagged
+   - [ ] Business workspaces: always on (part of the unalterable edit log) and kept for the retention period
+   - [ ] Signed checkpoints: each business workspace gets its own signing key; periodic checkpoints are signed so an accountant or auditor can verify the books without trusting the owner or Vaulty
+   - [ ] Fingerprints kept outside the database (someone with full control and the keys could otherwise rebuild the whole chain): in safety copies, on each exported invoice, and in a monthly fingerprint sent to the accountant
+   - [ ] Invoices record their place in the chain, so edits after issue and gaps in numbering are detectable
+   - [ ] Optional public timestamp with OpenTimestamps: only a fingerprint leaves the device, never data; opt-in, needs the internet
+9. **Legal and compliance**
    - [ ] Never claim "GST compliant" or "audit ready"; say Vaulty helps prepare invoices and returns and that a CA should review filings (MIT "as is" plus in-app disclaimers)
    - [ ] India's DPDP Act 2023 mainly binds whoever collects and holds people's data; a local, offline app keeps the project largely outside that role. Revisit before any cloud sync or hosted service
    - [ ] Business record-keeping (unalterable edit log, 6–8 year retention) designed into business workspaces from the start (see Business below)
@@ -482,7 +492,7 @@ Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. S
 - [ ] Budget vs actual per business
 
 ### Compliance built in
-- [ ] Edit log that can't be turned off for business workspaces (Indian companies using accounting software must keep one since April 2023); builds on the existing change history
+- [ ] Edit log that can't be turned off for business workspaces (Indian companies using accounting software must keep one since April 2023); builds on the existing tamper-evident change history (decision 1c, part 8)
 - [ ] Record retention: GST records 6 years, company books 8 years; business history and safety copies kept that long instead of the personal 90 days
 
 ## Further ideas (added 16 October 2026, evening)

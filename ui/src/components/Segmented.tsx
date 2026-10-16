@@ -24,7 +24,7 @@ export function Segmented<T extends string>({ value, onChange, options, role = "
           <button key={o.value} type="button" role={item} title={o.title} disabled={disabled}
             {...(item === "tab" ? { "aria-selected": on } : { "aria-checked": on })}
             onClick={() => onChange(o.value)}
-            className={cn("relative flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1 text-sm transition-colors",
+            className={cn("relative flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1 text-sm transition-colors",
               on ? "text-foreground font-medium" : "text-muted-foreground hover:text-foreground", itemClassName)}>
             {on && <motion.span layoutId={`seg-${id}`} transition={move(SPRING)} className="bg-background absolute inset-0 -z-10 rounded-md shadow-sm" aria-hidden />}
             {o.label}

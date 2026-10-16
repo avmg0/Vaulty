@@ -6,6 +6,7 @@ import { api, DATA_RESTORED, errorText, type HistoryItem } from "@/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useActionLabel } from "@/components/UndoToaster";
+import { HistoryCheck } from "@/components/HistoryCheck";
 import { Segmented } from "@/components/Segmented";
 import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
 import { motion } from "motion/react";
@@ -47,6 +48,7 @@ export function History() {
         <span className="text-muted-foreground text-xs">{t("history.shortcut")}</span>
       </div>
       <p className="text-muted-foreground flex gap-2 text-xs"><Info className="mt-px size-3.5 shrink-0" />{t("history.keep")}</p>
+      {tab === "recent" && <HistoryCheck />}
       {error && <p className="text-destructive text-sm">{error}</p>}
       {!items && !error && <Card className="py-1"><CardContent className="px-4"><SkeletonRows rows={5} /></CardContent></Card>}
       {items && (

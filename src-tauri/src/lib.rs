@@ -533,6 +533,8 @@ async fn market_refresh(s: S<'_>) -> Result<Value> {
 
 #[tauri::command] fn history_recent(s: S, limit: Option<i64>) -> Result<Vec<Value>> { s.data(|c| vaulty_core::history::recent(c, limit.unwrap_or(100))) }
 #[tauri::command] fn history_trash(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::history::trash) }
+/// Re-checks the tamper-evident chain and looks for data changed outside Vaulty.
+#[tauri::command] fn history_verify(s: S) -> Result<vaulty_core::history::Verification> { s.data(vaulty_core::history::verify) }
 #[tauri::command] fn history_item(s: S, table: String, id: String) -> Result<Vec<Value>> { s.data(|c| vaulty_core::history::for_item(c, &table, &id)) }
 
 /// Undo one action (restore from trash, or undo from history). Shared items are re-published.
@@ -639,7 +641,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");
