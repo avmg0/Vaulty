@@ -218,6 +218,54 @@ Members can let others in the family see chosen expenses. They never have to giv
 - **"Safe to spend" today:** balance minus upcoming bills before the next income.
 - **Open data format:** documented JSON export so users are never locked in, which matters for an open-source app.
 
+## Feature backlog (added October 2026)
+Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick add and CAS import are the suggested next builds (small, visible, useful every day).
+
+### Top picks
+- ⭐ **Family "In case of emergency" file** (Phase 3)
+  - Every bank account, policy, nominee and loan in one place, plus where the documents are kept and who to call.
+  - A spouse or adult child opens it with their own login; it can also be printed as a PDF.
+- ⭐ **Private on-device assistant** (Phase 4)
+  - Plain-English questions about your own data: "How much did we spend on food last month?", "Which subscriptions went up this year?"
+  - Runs locally through Ollama, so nothing leaves the device. The same local model can help read messy bank statements.
+- ⭐ **Quick add from anywhere** (Phase 1)
+  - Menu-bar / tray icon and a global shortcut open a small entry box.
+  - Natural-language entry: `250 swiggy yesterday` becomes a transaction.
+- ⭐ **Mutual fund import from CAS** (Phase 3)
+  - Import the CAMS/KFintech consolidated account statement PDF, which covers all of a person's mutual funds in one file.
+  - Automatic holdings, SIP history and returns (XIRR).
+- ⭐ **Lend and borrow tracker** (Phase 2)
+  - "I paid for Rahul's ticket", "Mom owes me ₹2,000", with reminders and a settle-up history.
+
+### Family and kids (Phase 4)
+- Allowance with chores: a weekly allowance, plus extra earned for tasks.
+- Kids' savings goals with parent matching, e.g. "we add ₹1 for every ₹2 you save".
+- Money requests: a child asks for money (e.g. ₹500 for a school trip); a parent approves and it's recorded on both sides.
+- Shared family wishlist with a savings target for each item.
+
+### India-specific
+- Tax-saving tracker: 80C, 80D and HRA progress against limits (Phase 3).
+- Old vs new tax regime comparison using your actual numbers (Phase 3).
+- EPF, PPF, NPS, sovereign gold bonds, FDs and RDs, with maturity dates on the calendar (Phase 3).
+- Budgets for festivals and occasions (Diwali, weddings, school admissions), with year-on-year comparison (Phase 2).
+- UPI SMS reading on Android: bank alert SMS become draft transactions on the phone itself (Phase 5).
+  - Google Play restricts SMS access, so this likely ships as an opt-in or a "share to Vaulty" action.
+
+### Insights (Phase 2–3)
+- Price-rise alerts on recurring bills: "Your broadband bill went up ₹200 this month."
+- Warranty tracker: attach the bill and get a reminder before the warranty ends.
+- Spending heatmap calendar, so the expensive days stand out.
+- Monthly and yearly summaries ("Vaulty Wrapped"): top categories, biggest change, savings rate.
+- Trip mode: a trip budget, foreign-currency spending, and splitting costs with friends.
+
+### Privacy and security (Phase 1–2)
+- Duress password: a second password that opens a decoy profile with harmless data.
+- Panic shortcut: instantly locks and hides the app.
+- Encrypted, readable export: an export file anyone can open with the password, even if Vaulty no longer exists.
+
+### Open-source community
+- Shared bank statement parsers: a separate folder or repo where contributors add import rules for each bank (HDFC, ICICI, SBI…), so CSV and PDF import keeps improving without app changes.
+
 ## Keyboard shortcuts (current)
 | Keys | Action |
 |---|---|
