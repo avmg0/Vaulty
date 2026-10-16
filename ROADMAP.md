@@ -17,7 +17,7 @@ SHA-256 and SHA-512 are **hash functions**. They can't encrypt or decrypt data, 
 - Don't offer an algorithm picker. One audited default is safer than a menu of options. If a "choice" is wanted for marketing, offer an Argon2 strength level (memory and time cost): Standard or Paranoid.
 - Backups are encrypted with the same key before they leave the device, including to Google Drive.
 
-### 2. Store money as integers (minor units), not floats
+### 2. Store money as integers (minor units), not floats ✅ (done)
 The schema currently uses `REAL`, which causes rounding drift (0.1 + 0.2 ≠ 0.3).
 
 - Switch to `amount_minor INTEGER` (paise or cents) plus a `currency` column on each row.
@@ -113,7 +113,7 @@ Vaulty must work in any country. Tax rules change every year and differ by count
 - **Starter packs:** India, US (federal; states over time), UK, Canada, Australia, Singapore, UAE, and a generic EU VAT pack. Without a pack, everything except tax estimates still works.
 - **Tests:** each pack ships with worked examples (income X → tax Y) that run in CI, so a wrong rule fails the build.
 
-### 8. Small business: business workspaces on a double-entry ledger
+### 8. Small business: business workspaces on a double-entry ledger (ledger ✅, workspaces next)
 A member can run a small business inside Vaulty without mixing it with personal money.
 
 - **Business workspace:** its own accounts, categories, clients, vendors and reports, separate from personal finances. Money moving between them is recorded as "owner paid in" (capital) or "owner took out" (drawings).
@@ -142,8 +142,9 @@ A member can run a small business inside Vaulty without mixing it with personal 
 - [x] Family profiles: per-user database, setup codes, roles, admin reset and remove
 - [x] Per-user 2FA (authenticator app + backup codes) and biometric unlock (desktop)
 - [x] Family sharing: Private / Shared / Public visibility, two-sided consent, Family view
-- [ ] Money as integer minor units (decision 2)
-- [ ] Double-entry ledger core, with personal and business workspaces (decision 8)
+- [x] Money as integer minor units (decision 2)
+- [x] Double-entry ledger core (decision 8): entries and balanced postings, balances derived from postings, existing data converted by migration 0004, backup format v2 (v1 still imports)
+- [ ] Business workspaces on top of the ledger: create and switch workspace, owner capital and drawings (decision 8)
 - [ ] Region pack format and loader, plus the India pack as the first one (decision 7)
 - [ ] SQLCipher encryption at rest (decision 1)
 - [ ] Settings persisted in DB: currency, date and time format, first day of week, fiscal year start, decimals, negative format

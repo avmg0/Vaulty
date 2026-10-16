@@ -2,18 +2,20 @@ use crate::error::Result;
 use rusqlite::{Connection, OpenFlags};
 use std::path::Path;
 
-type Migrations = &'static [(&'static str, &'static str)];
+pub type Migrations = &'static [(&'static str, &'static str)];
 
 /// Per-user finance data. Append new entries; never edit shipped ones.
 pub const DATA_MIGRATIONS: Migrations = &[
     ("0001_init", include_str!("../migrations/data/0001_init.sql")),
     ("0002_seed", include_str!("../migrations/data/0002_seed.sql")),
     ("0003_visibility", include_str!("../migrations/data/0003_visibility.sql")),
+    ("0004_ledger", include_str!("../migrations/data/0004_ledger.sql")),
 ];
 
 /// Device-level family sharing store.
 pub const HOUSEHOLD_MIGRATIONS: Migrations = &[
     ("0001_sharing", include_str!("../migrations/household/0001_sharing.sql")),
+    ("0002_minor_units", include_str!("../migrations/household/0002_minor_units.sql")),
 ];
 
 /// Device-level user registry.
@@ -56,7 +58,8 @@ fn configure(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn migrate(conn: &Connection, migrations: Migrations) -> Result<()> {
+/// Applies any migrations not yet recorded in `_migrations`, each in its own transaction.
+pub fn migrate(conn: &Connection, migrations: Migrations) -> Result<()> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TEXT DEFAULT CURRENT_TIMESTAMP)",
     )?;

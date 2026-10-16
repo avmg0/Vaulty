@@ -68,6 +68,19 @@ pub fn run(conn: &Connection, sql: &str, params: &[Value]) -> Result<RunResult> 
     Ok(RunResult { changes, last_insert_rowid: conn.last_insert_rowid() })
 }
 
+/// Runs `f` atomically: in a new transaction, or inside the caller's if one is already open
+/// (so module functions can be composed, e.g. by backup import).
+pub fn atomic<T>(conn: &Connection, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
+    if conn.is_autocommit() {
+        let tx = conn.unchecked_transaction()?;
+        let out = f(&tx)?;
+        tx.commit()?;
+        Ok(out)
+    } else {
+        f(conn)
+    }
+}
+
 pub fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }

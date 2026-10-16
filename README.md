@@ -23,7 +23,12 @@ Privacy-first, offline-first family finance planner. Tauri v2 + Rust (SQLite, Ar
   registry.db        # who's on this device: names, password hashes, sealed 2FA secrets
   users/<id>.db      # one private finance database per family member
 ```
-Signing in opens only that member's database. Admins manage who's on the device but can't open other members' data.
+Signing in opens only that member's database.
+
+### How money is stored
+- Amounts are integers in minor units (paise, cents…); each currency's decimal places come from `money.rs` and the `currencies` table (JPY 0, INR/USD 2, KWD 3…). Floats are never stored.
+- Every income, expense, transfer and opening balance is a double-entry `entry` whose `postings` sum to zero per currency (`ledger.rs`, migration `0004_ledger.sql`). Account balances are sums of postings, never stored.
+- The `transactions` view presents entries in the simple shape the UI uses (one row per income / expense / transfer). Admins manage who's on the device but can't open other members' data.
 
 ## Develop
 ```

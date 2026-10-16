@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Banknote, Building2, CreditCard, Landmark, LineChart, Plus, Trash2, Wallet } from "lucide-react";
-import { api, type Account } from "@/api";
+import { api, errorText, type Account } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -22,18 +22,23 @@ export function Accounts() {
   const { hideBalances } = useTheme();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [open, setOpen] = useState(false);
+  const [newType, setNewType] = useState<keyof typeof ACCOUNT_TYPES>("checking");
+  const [error, setError] = useState("");
   const load = () => api.accounts.getAll().then(setAccounts);
+  const isCard = newType === "credit";
   useEffect(() => { load(); }, []);
 
   async function create(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    await api.accounts.create({
-      name: String(f.get("name")), type: String(f.get("type")),
-      currency: String(f.get("currency")).toUpperCase(), initial_balance: Number(f.get("balance") || 0),
-    });
-    setOpen(false);
-    load();
+    try {
+      await api.accounts.create({
+        name: String(f.get("name")), type: String(f.get("type")),
+        currency: String(f.get("currency")).toUpperCase(), initial_balance: String(f.get("balance") || "0"),
+      });
+      setOpen(false); setError(""); setNewType("checking");
+      load();
+    } catch (err) { setError(errorText(err)); }
   }
 
   return (
@@ -47,11 +52,16 @@ export function Accounts() {
               <div className="grid gap-2"><Label htmlFor="name">Name</Label><Input id="name" name="name" placeholder="HDFC Savings" required /></div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2"><Label htmlFor="type">Type</Label>
-                  <NativeSelect id="type" name="type">{Object.entries(ACCOUNT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</NativeSelect>
+                  <NativeSelect id="type" name="type" value={newType} onChange={(e) => setNewType(e.target.value as keyof typeof ACCOUNT_TYPES)}>{Object.entries(ACCOUNT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</NativeSelect>
                 </div>
                 <div className="grid gap-2"><Label htmlFor="currency">Currency</Label><Input id="currency" name="currency" defaultValue="INR" maxLength={3} required /></div>
               </div>
-              <div className="grid gap-2"><Label htmlFor="balance">Opening balance</Label><Input id="balance" name="balance" type="number" step="0.01" defaultValue="0" /></div>
+              <div className="grid gap-2">
+                <Label htmlFor="balance">{isCard ? "Amount currently owed" : "Opening balance"}</Label>
+                <Input id="balance" name="balance" type="number" step="0.01" min={isCard ? "0" : undefined} defaultValue="0" />
+                {isCard && <p className="text-muted-foreground text-xs">Card balances count against your net worth.</p>}
+              </div>
+              {error && <p className="text-destructive text-sm">{error}</p>}
               <DialogFooter><Button type="submit">Create account</Button></DialogFooter>
             </form>
           </DialogContent>
@@ -74,7 +84,16 @@ export function Accounts() {
                 <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100" title="Archive"
                   onClick={() => api.accounts.delete(a.id).then(load)}><Trash2 /></Button>
               </CardHeader>
-              <CardContent className="text-2xl font-semibold tabular-nums">{formatMoney(a.current_balance, a.currency, hideBalances)}</CardContent>
+              <CardContent>
+                {a.ledger_kind === "liability" ? (
+                  <>
+                    <div className="text-2xl font-semibold tabular-nums">{formatMoney(Math.max(0, -a.current_balance), a.currency, hideBalances)}</div>
+                    <div className="text-muted-foreground text-xs">{a.current_balance > 0 ? `In credit by ${formatMoney(a.current_balance, a.currency, hideBalances)}` : "Owed"}</div>
+                  </>
+                ) : (
+                  <div className="text-2xl font-semibold tabular-nums">{formatMoney(a.current_balance, a.currency, hideBalances)}</div>
+                )}
+              </CardContent>
             </Card>
           );
         })}

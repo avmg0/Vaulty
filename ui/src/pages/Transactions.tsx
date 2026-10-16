@@ -81,7 +81,7 @@ export function Transactions() {
     const f = new FormData(e.currentTarget);
     try {
       await api.transactions.create({
-        type: kind, amount: Number(f.get("amount")), date: String(f.get("date")),
+        type: kind, amount: String(f.get("amount")), date: String(f.get("date")),
         account_id: String(f.get("account")), category_id: String(f.get("category")) || undefined,
         merchant: String(f.get("merchant")) || undefined, visibility: newVisibility,
       });

@@ -149,7 +149,7 @@ impl Household {
     // ------------------------------------------------------------ publishing
 
     /// Publish (or withdraw) one transaction after it was created or edited.
-    /// `row` is the owner's transaction joined with category/account names.
+    /// `row` is the owner's transaction as returned by `transactions::get_one` (exact `amount_minor` + `currency`).
     pub fn publish(&self, owner_id: &str, row: &Value) -> Result<()> {
         let id = row["id"].as_str().ok_or_else(|| Error::Invalid("transaction without id".into()))?;
         let vis = Visibility::parse(row["visibility"].as_str().unwrap_or("private"))?;
@@ -157,19 +157,21 @@ impl Household {
             return self.withdraw(owner_id, id);
         }
         self.conn.execute(
-            "INSERT INTO shared_items (owner_id, item_id, visibility, date, type, amount, currency, merchant, description,
-                                       category_name, category_icon, category_color, account_name, published_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, CURRENT_TIMESTAMP)
+            "INSERT INTO shared_items (owner_id, item_id, visibility, date, type, amount_minor, amount_scale, currency, merchant,
+                                       description, category_name, category_icon, category_color, account_name, published_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, CURRENT_TIMESTAMP)
              ON CONFLICT(owner_id, item_id) DO UPDATE SET
-               visibility = ?3, date = ?4, type = ?5, amount = ?6, currency = ?7, merchant = ?8, description = ?9,
-               category_name = ?10, category_icon = ?11, category_color = ?12, account_name = ?13, published_at = CURRENT_TIMESTAMP",
+               visibility = ?3, date = ?4, type = ?5, amount_minor = ?6, amount_scale = ?7, currency = ?8, merchant = ?9,
+               description = ?10, category_name = ?11, category_icon = ?12, category_color = ?13, account_name = ?14,
+               published_at = CURRENT_TIMESTAMP",
             params![
                 owner_id,
                 id,
                 vis.as_str(),
                 row["date"].as_str().unwrap_or_default(),
                 row["type"].as_str().unwrap_or_default(),
-                row["amount"].as_f64().unwrap_or(0.0),
+                row["amount_minor"].as_i64().unwrap_or(0),
+                crate::money::scale(row["currency"].as_str().unwrap_or("USD")),
                 row["currency"].as_str(),
                 row["merchant"].as_str(),
                 row["description"].as_str(),
@@ -212,7 +214,8 @@ impl Household {
             return Err(Error::Auth("turn on Family sharing in Settings to see what your family shares".into()));
         }
         let mut sql = String::from(
-            "SELECT s.owner_id, s.item_id AS id, s.visibility, s.date, s.type, s.amount, s.currency, s.merchant,
+            "SELECT s.owner_id, s.item_id AS id, s.visibility, s.date, s.type, s.amount_minor,
+                    s.amount_minor * 1.0 / s.amount_scale AS amount, s.currency, s.merchant,
                     s.description, s.category_name, s.category_icon, s.category_color, s.account_name,
                     (s.owner_id = ?1) AS is_mine
              FROM shared_items s
