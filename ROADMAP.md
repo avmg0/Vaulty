@@ -153,9 +153,28 @@ Members can let others in the family see chosen expenses. They never have to giv
   - a shared household budget
 - **With encryption (decision 1):** `household.db` gets its own key, wrapped once per member who has sharing on. Withdrawing re-keys it.
 
-### 4. Online mode = encrypted backup first, true sync later
-- **Phase 1 of online mode:** an encrypted snapshot backup to Google Drive's private `appDataFolder`, with restore and "merge newer" on restore.
-- **Real multi-device sync** needs every change recorded as an event (an append-only change log or CRDT) so it can be merged safely. Design the tables with `updated_at` and soft deletes now, so sync can be added later without a rewrite.
+### 4. Device sync: local network first, no server (planned)
+Phones, iPads and computers sync directly with each other. Data never goes to a Vaulty server; there isn't one.
+
+- **Pairing, once per device**
+  - [ ] The desktop shows a QR code; the phone scans it; both screens show the same 6-digit code and the member confirms it matches (stops a "man in the middle" on the same network)
+  - [ ] Each device creates its own key pair at pairing; every sync after that is mutually authenticated and end-to-end encrypted (TLS 1.3 or the Noise protocol); no passwords travel over the network
+  - [ ] Per member: each person pairs their own phone and receives only their own data plus the shared family store; a child's phone gets only the child's profile
+  - [ ] Device list in Settings with "Remove this device": a lost phone stops syncing at once and keys are rotated
+- **Sync the change history, not database files**
+  - [ ] Devices exchange "changes since we last spoke" using the existing change batches, so edits made on both sides while apart are all kept
+  - [ ] Real conflicts (the same item edited differently on two devices) are shown with both versions for the member to choose; never resolved silently
+  - [ ] Each device verifies the other's tamper-evident chain before accepting changes
+- **Networks**
+  - [ ] Default: same Wi-Fi only, with devices finding each other on the local network (mDNS/Bonjour)
+  - [ ] Optional, off by default: sync across networks with Iroh (Rust peer-to-peer; direct where possible, otherwise through a relay that only sees encrypted data; the relay can be self-hosted)
+  - [ ] Optional, off by default: the member's own storage as an encrypted postbox (iCloud Drive, Google Drive, Dropbox, home NAS); changes are encrypted on the device before upload
+- **Mobile realities**
+  - [ ] iPhone and iPad don't allow free background syncing: sync when the app is open (fast, because only changes travel)
+  - [ ] Clear explanations for the iOS "Local Network" prompt and Android's local-discovery permission
+  - [ ] Data on the phone encrypted with the member's key and unlocked with Face ID or fingerprint, as on desktop
+- **Build order:** pairing plus local Wi-Fi sync with the desktop as hub → change-history sync with conflict handling → device list and removal → optional cross-network sync → phone-to-phone sync without the desktop
+- **Encrypted backups** (separate from sync): password-protected export files first; an optional encrypted backup to the member's own cloud drive later
 
 ### 5. Never store full card numbers
 - Detect the card network (Visa, Mastercard, AmEx, Discover, RuPay) and run a Luhn check **on the input only**.
@@ -339,14 +358,15 @@ A member can run a small business inside Vaulty without mixing it with personal 
   - a shared household budget DB that members can opt into
   - kids' allowance accounts (virtual balances that a parent tops up)
   - finer permissions on shared data (view or edit)
-- **Online mode:**
-  - Google Drive encrypted backup and auto-backup
+- **Online mode** (all opt-in; device sync is decision 4):
+  - optional encrypted backup to the member's own cloud drive
   - FX rates for multi-currency
   - update checker (`tauri-plugin-updater`)
   - calendar sync (Google, Apple, Outlook) last
 
 ### Phase 5: Mobile
 - iOS and Android builds from the same codebase (Tauri v2 mobile)
+- Pairing and sync with the desktop over local Wi-Fi (decision 4)
 - Responsive layout: the sidebar becomes a bottom tab bar
 - Biometric unlock and quick-add widget
 
