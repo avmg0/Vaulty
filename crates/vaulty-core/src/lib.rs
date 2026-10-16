@@ -4,6 +4,7 @@ pub mod accounts;
 pub mod cards;
 pub mod categories;
 mod crypto;
+pub use crypto::Key;
 pub mod db;
 pub mod error;
 pub mod export;

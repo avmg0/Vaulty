@@ -18,9 +18,10 @@ export function FamilySharingCard() {
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [available, setAvailable] = useState(true);
 
   useEffect(() => {
-    api.sharing.get().then((s) => { setPrefs(s.prefs); setMembers(s.members.filter((m) => m.id !== user.id)); });
+    api.sharing.get().then((s) => { setPrefs(s.prefs); setAvailable(s.available); setMembers(s.members.filter((m) => m.id !== user.id)); });
   }, [user.id]);
 
   const save = async (next: SharingPrefs) => {
@@ -40,8 +41,13 @@ export function FamilySharingCard() {
             <CardTitle className="flex items-center gap-2">Family sharing {saving && <Loader2 className="text-muted-foreground size-4 animate-spin" />}</CardTitle>
             <CardDescription>Share chosen expenses with your family, and see what they share with you. Nothing is shared until you turn this on.</CardDescription>
           </div>
-          <Switch checked={prefs.enabled} onCheckedChange={(enabled) => save({ ...prefs, enabled })} aria-label="Family sharing" />
+          <Switch checked={prefs.enabled} disabled={!available} onCheckedChange={(enabled) => save({ ...prefs, enabled })} aria-label="Family sharing" />
         </div>
+        {!available && (
+          <p className="text-muted-foreground pt-2 text-xs">
+            The family store is encrypted with a shared key. You'll get it the next time another family member signs in on this device.
+          </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid gap-3 text-sm sm:grid-cols-3">

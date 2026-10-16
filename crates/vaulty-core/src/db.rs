@@ -1,6 +1,7 @@
-use crate::error::Result;
+use crate::crypto::{to_hex, Key};
+use crate::error::{Error, Result};
 use rusqlite::{Connection, OpenFlags};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub type Migrations = &'static [(&'static str, &'static str)];
 
@@ -25,11 +26,95 @@ pub const HOUSEHOLD_MIGRATIONS: Migrations = &[
 /// Device-level user registry.
 pub const REGISTRY_MIGRATIONS: Migrations = &[
     ("0001_users", include_str!("../migrations/registry/0001_users.sql")),
+    ("0002_keys", include_str!("../migrations/registry/0002_keys.sql")),
 ];
 
-/// Opens (creating if needed) a user's finance database.
-pub fn open(path: &Path) -> Result<Connection> {
-    open_with(path, DATA_MIGRATIONS)
+/// Opens (creating if needed) a member's encrypted finance database.
+pub fn open(path: &Path, key: &Key) -> Result<Connection> {
+    open_encrypted(path, key, DATA_MIGRATIONS)
+}
+
+/// Opens an SQLCipher database (AES-256), encrypting a legacy plain file first if needed.
+/// The key is a random 256-bit value (never a password), passed raw so SQLCipher skips its own KDF.
+pub fn open_encrypted(path: &Path, key: &Key, migrations: Migrations) -> Result<Connection> {
+    if is_plain_sqlite(path) {
+        encrypt_plain_file(path, key)?;
+    }
+    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE)?;
+    apply_key(&conn, key)?;
+    configure(&conn)?;
+    migrate(&conn, migrations)?;
+    Ok(conn)
+}
+
+fn key_pragma(key: &Key) -> zeroize::Zeroizing<String> {
+    zeroize::Zeroizing::new(format!("x'{}'", to_hex(key.as_ref())))
+}
+
+/// Must run before anything else touches the file. Wrong keys fail here, not later.
+fn apply_key(conn: &Connection, key: &Key) -> Result<()> {
+    conn.pragma_update(None, "key", key_pragma(key).as_str())?;
+    // Wipe SQLCipher's own copies of keys and pages from memory when they are freed.
+    conn.pragma_update(None, "cipher_memory_security", "ON")?;
+    conn.query_row("SELECT count(*) FROM sqlite_master", [], |r| r.get::<_, i64>(0))
+        .map_err(|_| Error::Auth("this data can't be opened with the key provided".into()))?;
+    Ok(())
+}
+
+/// True when `path` is an unencrypted SQLite file (its first 16 bytes are the SQLite header).
+pub fn is_plain_sqlite(path: &Path) -> bool {
+    use std::io::Read;
+    let mut head = [0u8; 16];
+    std::fs::File::open(path).and_then(|mut f| f.read_exact(&mut head)).is_ok() && &head == b"SQLite format 3\0"
+}
+
+fn sibling(path: &Path, suffix: &str) -> PathBuf {
+    PathBuf::from(format!("{}{suffix}", path.display()))
+}
+
+/// Encrypts a legacy plain database in place: export to an encrypted copy, verify it, then swap.
+/// The plain file is overwritten with zeros before removal (best effort; SSDs may keep old blocks).
+pub fn encrypt_plain_file(path: &Path, key: &Key) -> Result<()> {
+    let tmp = sibling(path, ".encrypting");
+    let _ = std::fs::remove_file(&tmp);
+    {
+        let plain = Connection::open(path)?;
+        plain.pragma_update(None, "journal_mode", "DELETE")?; // fold any WAL into the main file
+        let tmp_s = tmp.to_str().ok_or_else(|| Error::Invalid("data folder path isn't valid UTF-8".into()))?;
+        plain.execute("ATTACH DATABASE ?1 AS enc KEY ?2", rusqlite::params![tmp_s, key_pragma(key).as_str()])?;
+        plain.query_row("SELECT sqlcipher_export('enc')", [], |_| Ok(()))?;
+        let v: i64 = plain.query_row("PRAGMA user_version", [], |r| r.get(0))?;
+        plain.execute_batch(&format!("PRAGMA enc.user_version = {v}; DETACH DATABASE enc;"))?;
+    }
+    // Prove the copy opens with the key before touching the original.
+    {
+        let c = Connection::open(&tmp)?;
+        apply_key(&c, key)?;
+        c.query_row("PRAGMA integrity_check", [], |r| r.get::<_, String>(0)).ok().filter(|s| s == "ok")
+            .ok_or_else(|| Error::Invalid("encrypted copy failed its integrity check; original left untouched".into()))?;
+    }
+    shred(path);
+    for s in ["-wal", "-shm"] { shred(&sibling(path, s)); }
+    std::fs::rename(&tmp, path)?;
+    Ok(())
+}
+
+/// Overwrites a file with zeros, then deletes it.
+pub fn shred(path: &Path) {
+    if let Ok(meta) = std::fs::metadata(path) {
+        if let Ok(mut f) = std::fs::OpenOptions::new().write(true).open(path) {
+            use std::io::Write;
+            let zeros = vec![0u8; 64 * 1024];
+            let mut left = meta.len();
+            while left > 0 {
+                let n = left.min(zeros.len() as u64) as usize;
+                if f.write_all(&zeros[..n]).is_err() { break; }
+                left -= n as u64;
+            }
+            let _ = f.sync_all();
+        }
+        let _ = std::fs::remove_file(path);
+    }
 }
 
 pub fn open_in_memory() -> Result<Connection> {
@@ -39,6 +124,7 @@ pub fn open_in_memory() -> Result<Connection> {
     Ok(conn)
 }
 
+/// Unencrypted database: only the registry (names and sign-in data, no finances).
 pub fn open_with(path: &Path, migrations: Migrations) -> Result<Connection> {
     let conn = Connection::open_with_flags(
         path,

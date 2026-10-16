@@ -1,10 +1,15 @@
-use vaulty_core::profiles::{PasswordOutcome, Registry, Role};
+use vaulty_core::profiles::{PasswordOutcome, Registry, Role, Unlocked};
 use vaulty_core::Error;
 
 fn setup() -> (Registry, String) {
+    let (r, a) = setup_keys();
+    (r, a.user_id)
+}
+
+fn setup_keys() -> (Registry, Unlocked) {
     let r = Registry::open_in_memory().unwrap();
     let admin = r.create_first_admin("John Doe", "#2563eb", "parent-password").unwrap();
-    (r, admin.id)
+    (r, admin)
 }
 
 fn now_code(secret: &str, name: &str) -> String {
@@ -27,24 +32,25 @@ fn first_admin_only_once() {
 
 #[test]
 fn admin_adds_member_who_sets_own_password() {
-    let (r, admin) = setup();
+    let (r, admin) = setup_keys();
     let invite = r.add_user(&admin, "Jenny Doe", "#e11d48", Role::Child).unwrap();
     assert!(!invite.user.active);
     assert!(matches!(r.sign_in_with_password(&invite.user.id, "whatever-pw"), Err(Error::Auth(_))));
     assert!(r.claim_profile(&invite.user.id, "WRONG-CODE", "jenny-password").is_err());
     r.claim_profile(&invite.user.id, &invite.setup_code.to_lowercase(), "jenny-password").unwrap();
     assert!(r.get(&invite.user.id).unwrap().active);
-    assert!(matches!(r.sign_in_with_password(&invite.user.id, "jenny-password").unwrap(), PasswordOutcome::SignedIn));
+    assert!(matches!(r.sign_in_with_password(&invite.user.id, "jenny-password").unwrap(), PasswordOutcome::SignedIn(_)));
     // Can't be claimed twice.
     assert!(r.claim_profile(&invite.user.id, &invite.setup_code, "hijack-password").is_err());
 }
 
 #[test]
 fn only_admins_manage_users() {
-    let (r, admin) = setup();
-    let inv = r.add_user(&admin, "Jimmy Doe", "#000", Role::Member).unwrap();
-    r.claim_profile(&inv.user.id, &inv.setup_code, "member-password").unwrap();
-    assert!(r.add_user(&inv.user.id, "Jane Smith", "#000", Role::Member).is_err());
+    let (r, keys) = setup_keys();
+    let admin = keys.user_id.clone();
+    let inv = r.add_user(&keys, "Jimmy Doe", "#000", Role::Member).unwrap();
+    let member = r.claim_profile(&inv.user.id, &inv.setup_code, "member-password").unwrap();
+    assert!(r.add_user(&member, "Jane Smith", "#000", Role::Member).is_err());
     assert!(r.remove_user(&inv.user.id, &admin).is_err());
     assert!(r.remove_user(&admin, &admin).is_err(), "only admin can't be removed");
     r.remove_user(&admin, &inv.user.id).unwrap();
@@ -73,7 +79,7 @@ fn totp_enrollment_sign_in_and_replay_protection() {
     let PasswordOutcome::NeedsSecondFactor(pending) = r.sign_in_with_password(&admin, "parent-password").unwrap() else {
         panic!("2FA should be required");
     };
-    assert_eq!(pending.secret_for_tests(), e.secret_base32, "secret is unsealed with the password");
+    assert_eq!(pending.secret_for_tests(), e.secret_base32, "secret is unsealed with the data key");
     // The code used during enrolment can't be reused within the same 30s step.
     let step = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() / 30;
     let before = step();
@@ -112,14 +118,17 @@ fn biometric_token_flow() {
 }
 
 #[test]
-fn admin_reset_issues_new_setup_code() {
-    let (r, admin) = setup();
+fn adults_can_only_be_erased_and_reset() {
+    let (r, admin) = setup_keys();
     let inv = r.add_user(&admin, "Jane Doe", "#16a34a", Role::Admin).unwrap();
-    r.claim_profile(&inv.user.id, &inv.setup_code, "jane-password!").unwrap();
-    let reset = r.reset_user(&admin, &inv.user.id).unwrap();
-    assert!(!reset.user.active);
+    let jane = r.claim_profile(&inv.user.id, &inv.setup_code, "jane-password!").unwrap();
+    assert!(r.reset_user(&admin, &inv.user.id).is_err(), "an admin can't take over an adult's data");
+    let reset = r.erase_and_reset(&admin, &inv.user.id).unwrap();
+    assert!(!reset.data_kept);
+    assert!(!reset.invite.user.active);
     assert!(r.sign_in_with_password(&inv.user.id, "jane-password!").is_err());
-    r.claim_profile(&inv.user.id, &reset.setup_code, "jane-new-password").unwrap();
+    let fresh = r.claim_profile(&inv.user.id, &reset.invite.setup_code, "jane-new-password").unwrap();
+    assert_ne!(*fresh.data_key, *jane.data_key, "erased profile starts with a new key");
     // Second admin can now remove the first.
-    r.remove_user(&inv.user.id, &admin).unwrap();
+    r.remove_user(&inv.user.id, &admin.user_id).unwrap();
 }

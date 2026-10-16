@@ -3,7 +3,9 @@ import { invoke } from "@tauri-apps/api/core";
 export type Role = "admin" | "member" | "child";
 export type User = { id: string; name: string; color: string; role: Role; active: boolean; totp_enabled: boolean; biometric_enabled: boolean };
 export type Invite = { user: User; setup_code: string };
-export type SignIn = { status: "signed_in"; user: User } | { status: "needs_second_factor" };
+/** A new recovery key appears only right after it was created and must be shown once. */
+export type SignedInUser = User & { recovery_key?: string | null };
+export type SignIn = { status: "signed_in"; user: SignedInUser } | { status: "needs_second_factor" };
 export type TotpEnrollment = { secret_base32: string; otpauth_url: string; qr_png_base64: string };
 export type TaxDeduction = { id: string; label: string; hint?: string; cap?: number; cap_senior?: number; cap_alt?: number; alt_label?: string };
 export type TaxRegime = { id: string; name: string; default?: boolean; description?: string; deductions: TaxDeduction[]; cess?: { name: string; rate: number } };
@@ -113,18 +115,23 @@ export const api = {
   users: {
     list: () => invoke<User[]>("users_list"),
     add: (name: string, color: string, role: Role) => invoke<Invite>("users_add", { name, color, role }),
+    /** Child profiles only: a parent's recovery copy keeps their data. */
     reset: (userId: string) => invoke<Invite>("users_reset", { userId }),
-    remove: (userId: string) => invoke<void>("users_remove", { userId }),
+    /** Deletes the member's data for good and issues a new setup code. */
+    erase: (userId: string, confirmName: string) => invoke<Invite>("users_erase", { userId, confirmName }),
+    remove: (userId: string, confirmName: string) => invoke<void>("users_remove", { userId, confirmName }),
     updateProfile: (name: string, color: string) => invoke<User>("profile_update", { name, color }),
   },
   auth: {
     current: () => invoke<User | null>("session_current"),
-    setupFirstAdmin: (name: string, color: string, password: string) => invoke<User>("setup_first_admin", { name, color, password }),
-    claimProfile: (userId: string, setupCode: string, password: string) => invoke<User>("claim_profile", { userId, setupCode, password }),
+    setupFirstAdmin: (name: string, color: string, password: string) => invoke<SignedInUser>("setup_first_admin", { name, color, password }),
+    claimProfile: (userId: string, setupCode: string, password: string) => invoke<SignedInUser>("claim_profile", { userId, setupCode, password }),
     signIn: (userId: string, password: string) => invoke<SignIn>("sign_in", { userId, password }),
-    signInTotp: (code: string) => invoke<User>("sign_in_totp", { code }),
-    signInBackupCode: (code: string) => invoke<User>("sign_in_backup_code", { code }),
-    signInBiometric: (userId: string) => invoke<User>("sign_in_biometric", { userId }),
+    signInTotp: (code: string) => invoke<SignedInUser>("sign_in_totp", { code }),
+    signInBackupCode: (code: string) => invoke<SignedInUser>("sign_in_backup_code", { code }),
+    signInBiometric: (userId: string) => invoke<SignedInUser>("sign_in_biometric", { userId }),
+    signInRecovery: (userId: string, recoveryKey: string, newPassword: string) =>
+      invoke<SignedInUser>("sign_in_recovery", { userId, recoveryKey, newPassword }),
     signOut: () => invoke<void>("sign_out"),
   },
   security: {
@@ -136,6 +143,7 @@ export const api = {
     regenerateBackupCodes: (password: string) => invoke<string[]>("backup_codes_regenerate", { password }),
     biometricEnable: (password: string) => invoke<void>("biometric_enable", { password }),
     biometricDisable: () => invoke<void>("biometric_disable"),
+    newRecoveryKey: (password: string) => invoke<string>("recovery_key_new", { password }),
   },
   accounts: {
     getAll: () => invoke<Account[]>("accounts_get_all"),
@@ -180,7 +188,8 @@ export const api = {
     delete: (id: string) => invoke<void>("transactions_delete", { id }),
   },
   sharing: {
-    get: () => invoke<{ prefs: SharingPrefs; members: FamilyMember[] }>("sharing_get"),
+    /** `available` is false until another member has signed in once and shared the family key. */
+    get: () => invoke<{ prefs: SharingPrefs; members: FamilyMember[]; available: boolean }>("sharing_get"),
     update: (prefs: SharingPrefs) => invoke<SharingPrefs>("sharing_update", { prefs }),
     feed: (view: FeedView, filter?: FeedFilter) => invoke<FamilyItem[]>("family_feed", { view, filter }),
   },

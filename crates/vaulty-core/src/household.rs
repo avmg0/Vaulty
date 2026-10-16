@@ -87,8 +87,9 @@ pub struct Household {
 }
 
 impl Household {
-    pub fn open(path: &Path) -> Result<Self> {
-        Ok(Self { conn: crate::db::open_with(path, crate::db::HOUSEHOLD_MIGRATIONS)? })
+    /// Opens the encrypted family store with the household key (see `profiles::Unlocked`).
+    pub fn open(path: &Path, key: &crate::Key) -> Result<Self> {
+        Ok(Self { conn: crate::db::open_encrypted(path, key, crate::db::HOUSEHOLD_MIGRATIONS)? })
     }
 
     pub fn open_in_memory() -> Result<Self> {

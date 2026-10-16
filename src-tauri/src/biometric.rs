@@ -2,9 +2,10 @@
 //!
 //! How biometric unlock works:
 //! 1. While signed in, the user turns it on (re-entering their password). Core issues a random
-//!    32-byte device token; only its SHA-256 is stored in the registry.
+//!    256-bit device token and stores the member's data key wrapped (encrypted) under it.
 //! 2. The token itself goes into the OS keychain under this user's id.
-//! 3. To unlock: show the OS prompt; on success read the token from the keychain and hand it to core.
+//! 3. To unlock: show the OS prompt; on success read the token from the keychain and hand it to
+//!    core, which uses it to unwrap the data key. Without the token the wrapped key is useless.
 //!
 //! The keychain item is readable by Vaulty without a prompt, so the prompt is enforced by the app
 //! rather than by the OS. Binding the item to biometrics at the OS level (macOS/iOS access control,

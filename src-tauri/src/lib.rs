@@ -13,24 +13,39 @@ use tauri::{Manager, State};
 use vaulty_core::{
     accounts, categories, db, export,
     household::{FeedFilter, FeedView, Household, SharingPrefs},
-    profiles::{Invite, PasswordOutcome, Registry, Role, SecondFactor, TotpEnrollment, UserSummary},
+    profiles::{Invite, PasswordOutcome, Registry, Role, SecondFactor, TotpEnrollment, Unlocked, UserSummary},
     rows, settings, transactions, Error, Result,
 };
 
 /// How long a "password OK, now enter your code" step stays valid.
 const SECOND_FACTOR_TTL: Duration = Duration::from_secs(5 * 60);
 
+/// Everything unlocked for the signed-in member. Dropping it (sign-out, lock, quit) closes the
+/// databases and wipes the keys from memory.
 struct Session {
     user: UserSummary,
     conn: Connection,
+    keys: Unlocked,
+    /// The encrypted family store. In-memory stand-in (nothing shared) until this member has
+    /// been given the family key, which happens the next time another member signs in.
+    household: Household,
+    household_ready: bool,
 }
 
 struct AppState {
     data_dir: PathBuf,
     registry: Mutex<Registry>,
-    household: Mutex<Household>,
     session: Mutex<Option<Session>>,
     pending: Mutex<Option<(SecondFactor, Instant)>>,
+}
+
+/// Returned by every sign-in route. `recovery_key` is set only when a new one was just created
+/// and must be shown to the member once.
+#[derive(Serialize)]
+struct SignedIn {
+    #[serde(flatten)]
+    user: UserSummary,
+    recovery_key: Option<String>,
 }
 
 fn poisoned<T>(_: T) -> Error {
@@ -47,16 +62,23 @@ impl AppState {
     }
 
     fn household<T>(&self, f: impl FnOnce(&Household) -> Result<T>) -> Result<T> {
-        f(&*self.household.lock().map_err(poisoned)?)
+        let guard = self.session.lock().map_err(poisoned)?;
+        let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
+        f(&s.household)
     }
 
     /// Runs `f` against the signed-in user's own database, then mirrors any change to
-    /// the family sharing store. Lock order is always session → household.
+    /// the family sharing store.
     fn data_and_share<T>(&self, f: impl FnOnce(&Connection, &str, &Household) -> Result<T>) -> Result<T> {
         let guard = self.session.lock().map_err(poisoned)?;
         let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
-        let h = self.household.lock().map_err(poisoned)?;
-        f(&s.conn, &s.user.id, &h)
+        f(&s.conn, &s.user.id, &s.household)
+    }
+
+    fn keys<T>(&self, f: impl FnOnce(&Unlocked) -> Result<T>) -> Result<T> {
+        let guard = self.session.lock().map_err(poisoned)?;
+        let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
+        f(&s.keys)
     }
 
     /// Runs `f` against the signed-in user's own database.
@@ -71,14 +93,28 @@ impl AppState {
         guard.as_ref().map(|s| s.user.clone()).ok_or_else(|| Error::Auth("locked".into()))
     }
 
-    fn start_session(&self, user_id: &str) -> Result<UserSummary> {
-        let user = self.registry(|r| r.get(user_id))?;
-        let path = self.user_db_path(user_id);
+    fn start_session(&self, mut keys: Unlocked) -> Result<SignedIn> {
+        let user_id = keys.user_id.clone();
+        self.registry(|r| r.sync_keys(&mut keys))?;
+        let user = self.registry(|r| r.get(&user_id))?;
+        let path = self.user_db_path(&user_id);
         std::fs::create_dir_all(path.parent().expect("users dir"))?;
-        let conn = db::open(&path)?;
+        let conn = db::open(&path, &keys.data_key)?;
+        let (household, household_ready) = match &keys.household_key {
+            Some(hk) => (Household::open(&self.data_dir.join("household.db"), hk)?, true),
+            None => (Household::open_in_memory()?, false),
+        };
+        let recovery_key = keys.new_recovery_key.take();
         *self.pending.lock().map_err(poisoned)? = None;
-        *self.session.lock().map_err(poisoned)? = Some(Session { user: user.clone(), conn });
-        Ok(user)
+        *self.session.lock().map_err(poisoned)? = Some(Session { user: user.clone(), conn, keys, household, household_ready });
+        Ok(SignedIn { user, recovery_key })
+    }
+
+    fn delete_user_files(&self, user_id: &str) {
+        let path = self.user_db_path(user_id);
+        for suffix in ["", "-wal", "-shm"] {
+            db::shred(std::path::Path::new(&format!("{}{suffix}", path.display())));
+        }
     }
 
     fn take_pending(&self) -> Result<SecondFactor> {
@@ -101,7 +137,7 @@ type S<'a> = State<'a, AppState>;
 #[derive(Serialize)]
 #[serde(tag = "status", rename_all = "snake_case")]
 enum SignIn {
-    SignedIn { user: UserSummary },
+    SignedIn { user: SignedIn },
     NeedsSecondFactor,
 }
 
@@ -118,21 +154,28 @@ fn session_current(s: S) -> Result<Option<UserSummary>> {
 }
 
 #[tauri::command]
-fn setup_first_admin(s: S, name: String, color: String, password: String) -> Result<UserSummary> {
-    let user = s.registry(|r| r.create_first_admin(&name, &color, &password))?;
-    s.start_session(&user.id)
+fn setup_first_admin(s: S, name: String, color: String, password: String) -> Result<SignedIn> {
+    let keys = s.registry(|r| r.create_first_admin(&name, &color, &password))?;
+    s.start_session(keys)
 }
 
 #[tauri::command]
-fn claim_profile(s: S, user_id: String, setup_code: String, password: String) -> Result<UserSummary> {
-    s.registry(|r| r.claim_profile(&user_id, &setup_code, &password))?;
-    s.start_session(&user_id)
+fn claim_profile(s: S, user_id: String, setup_code: String, password: String) -> Result<SignedIn> {
+    let keys = s.registry(|r| r.claim_profile(&user_id, &setup_code, &password))?;
+    s.start_session(keys)
+}
+
+/// Forgot password: the member's recovery key opens their data and sets a new password.
+#[tauri::command]
+fn sign_in_recovery(s: S, user_id: String, recovery_key: String, new_password: String) -> Result<SignedIn> {
+    let keys = s.registry(|r| r.sign_in_with_recovery_key(&user_id, &recovery_key, &new_password))?;
+    s.start_session(keys)
 }
 
 #[tauri::command]
 fn sign_in(s: S, user_id: String, password: String) -> Result<SignIn> {
     match s.registry(|r| r.sign_in_with_password(&user_id, &password))? {
-        PasswordOutcome::SignedIn => Ok(SignIn::SignedIn { user: s.start_session(&user_id)? }),
+        PasswordOutcome::SignedIn(keys) => Ok(SignIn::SignedIn { user: s.start_session(keys)? }),
         PasswordOutcome::NeedsSecondFactor(sf) => {
             s.put_back_pending(sf);
             Ok(SignIn::NeedsSecondFactor)
@@ -141,10 +184,10 @@ fn sign_in(s: S, user_id: String, password: String) -> Result<SignIn> {
 }
 
 #[tauri::command]
-fn sign_in_totp(s: S, code: String) -> Result<UserSummary> {
+fn sign_in_totp(s: S, code: String) -> Result<SignedIn> {
     let sf = s.take_pending()?;
     match s.registry(|r| r.complete_with_totp(&sf, &code)) {
-        Ok(()) => s.start_session(&sf.user_id),
+        Ok(keys) => s.start_session(keys),
         Err(e) => {
             s.put_back_pending(sf);
             Err(e)
@@ -153,10 +196,10 @@ fn sign_in_totp(s: S, code: String) -> Result<UserSummary> {
 }
 
 #[tauri::command]
-fn sign_in_backup_code(s: S, code: String) -> Result<UserSummary> {
+fn sign_in_backup_code(s: S, code: String) -> Result<SignedIn> {
     let sf = s.take_pending()?;
     match s.registry(|r| r.complete_with_backup_code(&sf, &code)) {
-        Ok(()) => s.start_session(&sf.user_id),
+        Ok(keys) => s.start_session(keys),
         Err(e) => {
             s.put_back_pending(sf);
             Err(e)
@@ -165,11 +208,11 @@ fn sign_in_backup_code(s: S, code: String) -> Result<UserSummary> {
 }
 
 #[tauri::command]
-async fn sign_in_biometric(s: S<'_>, user_id: String) -> Result<UserSummary> {
+async fn sign_in_biometric(s: S<'_>, user_id: String) -> Result<SignedIn> {
     biometric::prompt("Unlock your Vaulty profile").await.map_err(Error::Auth)?;
-    let token = biometric::read_token(&user_id).map_err(Error::Auth)?;
-    s.registry(|r| r.sign_in_with_biometric_token(&user_id, &token))?;
-    s.start_session(&user_id)
+    let token = zeroize::Zeroizing::new(biometric::read_token(&user_id).map_err(Error::Auth)?);
+    let keys = s.registry(|r| r.sign_in_with_biometric_token(&user_id, &token))?;
+    s.start_session(keys)
 }
 
 #[tauri::command]
@@ -183,29 +226,43 @@ fn sign_out(s: S) -> Result<()> {
 
 #[tauri::command]
 fn users_add(s: S, name: String, color: String, role: String) -> Result<Invite> {
-    let me = s.current_user()?;
     let role = Role::parse(&role)?;
-    s.registry(|r| r.add_user(&me.id, &name, &color, role))
+    s.keys(|k| s.registry(|r| r.add_user(k, &name, &color, role)))
 }
 
+/// Child forgot their password: a parent's recovery copy keeps their data.
 #[tauri::command]
 fn users_reset(s: S, user_id: String) -> Result<Invite> {
-    let me = s.current_user()?;
-    let inv = s.registry(|r| r.reset_user(&me.id, &user_id))?;
+    let reset = s.keys(|k| s.registry(|r| r.reset_user(k, &user_id)))?;
     biometric::delete_token(&user_id);
-    Ok(inv)
+    Ok(reset.invite)
+}
+
+/// Starts a profile over: deletes the member's data for good and issues a new setup code.
+/// The UI asks the admin to type the member's name first.
+#[tauri::command]
+fn users_erase(s: S, user_id: String, confirm_name: String) -> Result<Invite> {
+    let target = s.registry(|r| r.get(&user_id))?;
+    if confirm_name.trim() != target.name {
+        return Err(Error::Invalid("type the member's name exactly to confirm".into()));
+    }
+    let reset = s.keys(|k| s.registry(|r| r.erase_and_reset(k, &user_id)))?;
+    s.household(|h| h.forget_member(&user_id))?;
+    biometric::delete_token(&user_id);
+    s.delete_user_files(&user_id);
+    Ok(reset.invite)
 }
 
 #[tauri::command]
-fn users_remove(s: S, user_id: String) -> Result<()> {
+fn users_remove(s: S, user_id: String, confirm_name: String) -> Result<()> {
     let me = s.current_user()?;
+    if confirm_name.trim() != s.registry(|r| r.get(&user_id))?.name {
+        return Err(Error::Invalid("type the member's name exactly to confirm".into()));
+    }
     s.registry(|r| r.remove_user(&me.id, &user_id))?;
     s.household(|h| h.forget_member(&user_id))?;
     biometric::delete_token(&user_id);
-    let path = s.user_db_path(&user_id);
-    for suffix in ["", "-wal", "-shm"] {
-        let _ = std::fs::remove_file(format!("{}{suffix}", path.display()));
-    }
+    s.delete_user_files(&user_id);
     Ok(())
 }
 
@@ -238,6 +295,13 @@ fn security_status(s: S) -> Result<Value> {
 fn password_change(s: S, current: String, new: String) -> Result<()> {
     let me = s.current_user()?;
     s.registry(|r| r.change_password(&me.id, &current, &new))
+}
+
+/// Replaces the recovery key; returned once for the member to print or write down.
+#[tauri::command]
+fn recovery_key_new(s: S, password: String) -> Result<String> {
+    let me = s.current_user()?;
+    s.registry(|r| r.new_recovery_key(&me.id, &password))
 }
 
 #[tauri::command]
@@ -360,7 +424,8 @@ fn sharing_get(s: S) -> Result<Value> {
         .into_iter()
         .map(|u| FamilyMember { sharing_enabled: enabled.contains(&u.id), user: u })
         .collect();
-    Ok(json!({ "prefs": prefs, "members": members }))
+    let available = s.session.lock().map_err(poisoned)?.as_ref().is_some_and(|x| x.household_ready);
+    Ok(json!({ "prefs": prefs, "members": members, "available": available }))
 }
 
 #[tauri::command]
@@ -474,11 +539,9 @@ pub fn run() {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(data_dir.join("users"))?;
             let registry = Registry::open(&data_dir.join("registry.db"))?;
-            let household = Household::open(&data_dir.join("household.db"))?;
             app.manage(AppState {
                 data_dir,
                 registry: Mutex::new(registry),
-                household: Mutex::new(household),
                 session: Mutex::new(None),
                 pending: Mutex::new(None),
             });
@@ -487,7 +550,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             users_list, session_current, setup_first_admin, claim_profile,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,
-            users_add, users_reset, users_remove, profile_update,
+            users_add, users_reset, users_erase, users_remove, profile_update, sign_in_recovery, recovery_key_new,
             security_status, password_change, totp_begin, totp_confirm, totp_disable,
             backup_codes_regenerate, biometric_enable, biometric_disable,
             accounts_get_all, accounts_create, accounts_update, accounts_delete,

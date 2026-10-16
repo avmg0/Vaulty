@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { Check, Fingerprint, KeyRound, Loader2, Monitor, Moon, ShieldCheck, Sun } from "lucide-react";
+import { Check, Fingerprint, KeyRound, Loader2, LockKeyhole, Monitor, Moon, ShieldCheck, Sun, Timer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LANGUAGES } from "@/i18n";
 import { COUNTRIES } from "@/i18n/regions";
@@ -19,6 +19,8 @@ import { ColorPicker, UserAvatar } from "@/components/UserAvatar";
 import { PasswordDialog } from "@/components/security/PasswordDialog";
 import { TotpSetupDialog } from "@/components/security/TotpSetupDialog";
 import { BackupCodes } from "@/components/security/BackupCodes";
+import { RecoveryKeyDialog } from "@/components/security/RecoveryKeyDialog";
+import { AUTO_LOCK_CHOICES, getAutoLockMinutes, setAutoLockMinutes } from "@/hooks/idle";
 import { FamilySharingCard } from "@/components/FamilySharingCard";
 import { useTheme, type Accent, type Theme } from "@/hooks/theme";
 import { useSession } from "@/hooks/session";
@@ -148,7 +150,9 @@ function LanguageRegionCard() {
 function SecurityCard() {
   const { user } = useSession();
   const [status, setStatus] = useState<SecurityStatus | null>(null);
-  const [dialog, setDialog] = useState<null | "password" | "totp-on" | "totp-off" | "codes" | "bio-on">(null);
+  const [dialog, setDialog] = useState<null | "password" | "totp-on" | "totp-off" | "codes" | "bio-on" | "recovery">(null);
+  const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const [autoLock, setAutoLock] = useState(getAutoLockMinutes);
   const [newCodes, setNewCodes] = useState<string[] | null>(null);
   const [bioError, setBioError] = useState("");
   const refresh = () => api.security.status().then(setStatus);
@@ -182,12 +186,30 @@ function SecurityCard() {
         </Row>
         {bioError && <p className="text-destructive text-sm">{bioError}</p>}
         <Separator />
-        {["Auto-lock after inactivity", "Screenshot protection", "Blur in app switcher"].map((l) => (
+        <Row icon={LockKeyhole} label="Recovery key"
+          desc={user.role === "child"
+            ? "Unlocks your data if you forget your password. A parent can also reset it for you."
+            : "Unlocks your data if you forget your password. Nobody else can recover your data, so keep it somewhere safe."}>
+          <Button variant="outline" size="sm" onClick={() => setDialog("recovery")}>New key</Button>
+        </Row>
+        <Separator />
+        <Row icon={Timer} label="Lock automatically" desc="After this long without using Vaulty on this device, or when you come back to it.">
+          <select className="border-input dark:bg-input/30 h-8 rounded-md border bg-transparent px-2 text-sm" value={autoLock}
+            onChange={(e) => { const m = Number(e.target.value); setAutoLock(m); setAutoLockMinutes(m); }} aria-label="Lock automatically">
+            {AUTO_LOCK_CHOICES.map((m) => <option key={m} value={m}>{m === 0 ? "Never" : m === 1 ? "1 minute" : `${m} minutes`}</option>)}
+          </select>
+        </Row>
+        <Separator />
+        {["Screenshot protection", "Blur in app switcher"].map((l) => (
           <Row key={l} label={l}><Badge variant="secondary">Coming soon</Badge></Row>
         ))}
       </CardContent>
 
       <ChangePasswordDialog open={dialog === "password"} onOpenChange={(o) => setDialog(o ? "password" : null)} />
+      <PasswordDialog open={dialog === "recovery"} onOpenChange={(o) => setDialog(o ? "recovery" : null)}
+        title="Create a new recovery key?" description="Your current recovery key stops working. You'll see the new one once, so have somewhere ready to save it."
+        confirmLabel="Create new key" action={async (pw) => setRecoveryKey(await api.security.newRecoveryKey(pw))} />
+      <RecoveryKeyDialog recoveryKey={recoveryKey} isNew child={user.role === "child"} onDone={() => setRecoveryKey(null)} />
       <TotpSetupDialog open={dialog === "totp-on"} onOpenChange={(o) => setDialog(o ? "totp-on" : null)} userName={user.name} onEnabled={refresh} />
       <PasswordDialog open={dialog === "totp-off"} onOpenChange={(o) => setDialog(o ? "totp-off" : null)} destructive
         title="Turn off two-step verification?" description="Your password alone will unlock your profile, and your backup codes will stop working."

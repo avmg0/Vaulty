@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocale } from "@/hooks/locale";
-import { api, type User } from "@/api";
+import { api, type SignedInUser, type User } from "@/api";
+import { RecoveryKeyDialog } from "@/components/security/RecoveryKeyDialog";
+import { useIdleLock } from "@/hooks/idle";
 import { ALL_ITEMS, type PageId } from "@/nav";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
@@ -29,8 +31,10 @@ export function App() {
   useEffect(() => { api.auth.current().then(setUser).catch(() => setBackendMissing(true)); }, []);
 
   const { locale, currency, setLocale, setCurrency } = useLocale();
-  const signedIn = (u: User, fresh?: boolean) => {
+  const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
+  const signedIn = (u: SignedInUser, fresh?: boolean) => {
     setUser(u);
+    if (u.recovery_key) setRecoveryKey(u.recovery_key);
     // A new profile starts in the language and currency chosen on this device; an existing one
     // brings its own (which also becomes this device's default for the sign-in screens).
     if (fresh) api.settings.update({ locale, currency }).catch(() => {});
@@ -51,6 +55,7 @@ export function App() {
   return (
     <SessionProvider value={{ user, setUser, signOut }}>
       <Shell key={user.id} signOut={signOut} />
+      <RecoveryKeyDialog recoveryKey={recoveryKey} child={user.role === "child"} onDone={() => setRecoveryKey(null)} />
     </SessionProvider>
   );
 }
@@ -60,6 +65,7 @@ function Shell({ signOut }: { signOut: () => void }) {
   const [page, setPage] = useState<PageId>("dashboard");
   const [collapsed, setCollapsed] = useState(false);
   const { hideBalances, setHideBalances } = useTheme();
+  useIdleLock(signOut);
 
   // Keyboard shortcuts. Ctrl on Windows/Linux, Cmd on macOS.
   useEffect(() => {

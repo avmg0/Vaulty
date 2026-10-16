@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Copy, Check, Fingerprint, Loader2, MoreHorizontal, RotateCcw, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { Copy, Check, Eraser, Fingerprint, Loader2, MoreHorizontal, RotateCcw, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { api, errorText, type Invite, type Role, type User } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,15 +13,15 @@ import { cn } from "@/lib/utils";
 
 const ROLES: { id: Role; label: string; desc: string }[] = [
   { id: "member", label: "Member", desc: "Their own private finances." },
-  { id: "admin", label: "Admin", desc: "Can also add, reset and remove family members." },
-  { id: "child", label: "Child", desc: "For kids' allowance tracking (more controls coming)." },
+  { id: "admin", label: "Admin", desc: "Can also add and remove members and reset children's passwords. Can't open other adults' data." },
+  { id: "child", label: "Child", desc: "For kids. Parents can reset their password without losing their data." },
 ];
 
 export function FamilyMembers() {
   const { user: me } = useSession();
   const [users, setUsers] = useState<User[]>([]);
   const [invite, setInvite] = useState<Invite | null>(null);
-  const [confirm, setConfirm] = useState<{ kind: "reset" | "remove"; user: User } | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: Action; user: User } | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const isAdmin = me.role === "admin";
   const load = () => api.users.list().then(setUsers);
@@ -30,7 +30,7 @@ export function FamilyMembers() {
   return (
     <div className="max-w-3xl space-y-4">
       <div className="flex items-start justify-between gap-4">
-        <p className="text-muted-foreground text-sm">Everyone gets a separate, private profile with their own password. Admins manage who's on this device but can't see other members' data.</p>
+        <p className="text-muted-foreground text-sm">Everyone gets a separate, private profile with their own password. Admins manage who's on this device but can't open other members' data: each profile is encrypted with its own key. Parents can reset a child's password without losing the child's data.</p>
         {isAdmin && <AddMemberDialog onAdded={(inv) => { setInvite(inv); load(); }} />}
       </div>
       <Card className="py-2">
@@ -52,9 +52,13 @@ export function FamilyMembers() {
                   <Button variant="ghost" size="icon" onClick={() => setMenu(menu === u.id ? null : u.id)} aria-label="Member actions"><MoreHorizontal /></Button>
                   {menu === u.id && (
                     <div className="bg-popover absolute right-0 z-10 mt-1 w-52 rounded-md border p-1 shadow-md" onMouseLeave={() => setMenu(null)}>
-                      <MenuItem icon={RotateCcw} onClick={() => { setMenu(null); setConfirm({ kind: "reset", user: u }); }}>
-                        {u.active ? "Reset password & 2FA" : "New setup code"}
-                      </MenuItem>
+                      {!u.active && <MenuItem icon={RotateCcw} onClick={() => { setMenu(null); setConfirm({ kind: "newcode", user: u }); }}>New setup code</MenuItem>}
+                      {u.active && u.role === "child" && (
+                        <MenuItem icon={RotateCcw} onClick={() => { setMenu(null); setConfirm({ kind: "reset", user: u }); }}>Reset password (keeps data)</MenuItem>
+                      )}
+                      {u.active && (
+                        <MenuItem icon={Eraser} destructive onClick={() => { setMenu(null); setConfirm({ kind: "erase", user: u }); }}>Erase and start over</MenuItem>
+                      )}
                       <MenuItem icon={Trash2} destructive onClick={() => { setMenu(null); setConfirm({ kind: "remove", user: u }); }}>Remove from Vaulty</MenuItem>
                     </div>
                   )}
@@ -151,34 +155,67 @@ function InviteDialog({ invite, onClose }: { invite: Invite | null; onClose: () 
   );
 }
 
-function ConfirmDialog({ target, onClose, onDone }: { target: { kind: "reset" | "remove"; user: User } | null; onClose: () => void; onDone: (inv?: Invite) => void }) {
+type Action = "reset" | "newcode" | "erase" | "remove";
+
+const ACTIONS: Record<Action, { title: (n: string) => string; body: (n: string) => string; button: string; typeName: boolean; destructive: boolean }> = {
+  reset: {
+    title: (n) => `Reset ${n}'s password?`,
+    body: (n) => `You hold a parent's recovery copy of ${n}'s key, so their data is kept. Their password, two-step verification and biometric unlock are cleared, and you get a new setup code for them.`,
+    button: "Reset password", typeName: false, destructive: false,
+  },
+  newcode: {
+    title: (n) => `New setup code for ${n}?`,
+    body: () => "The old code stops working. This profile hasn't been set up yet, so there's no data to lose.",
+    button: "Issue new code", typeName: false, destructive: false,
+  },
+  erase: {
+    title: (n) => `Erase ${n}'s data and start over?`,
+    body: (n) => `${n}'s data is encrypted with their own password and recovery key, and no admin can open it. If they've lost both, the only way forward is to delete everything in their profile and issue a new setup code. This can't be undone. If they still have their recovery key, they should use "Forgot password?" on the sign-in screen instead.`,
+    button: "Erase permanently", typeName: true, destructive: true,
+  },
+  remove: {
+    title: (n) => `Remove ${n} from Vaulty?`,
+    body: () => "This permanently deletes their profile and all of their financial data on this device. Make sure they've exported a backup first.",
+    button: "Remove permanently", typeName: true, destructive: true,
+  },
+};
+
+function ConfirmDialog({ target, onClose, onDone }: { target: { kind: Action; user: User } | null; onClose: () => void; onDone: (inv?: Invite) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [typed, setTyped] = useState("");
+  useEffect(() => { setTyped(""); setError(""); }, [target]);
   if (!target) return null;
   const { kind, user } = target;
+  const a = ACTIONS[kind];
   const go = async () => {
     setBusy(true); setError("");
     try {
       if (kind === "reset") onDone(await api.users.reset(user.id));
-      else { await api.users.remove(user.id); onDone(); }
+      else if (kind === "newcode") onDone(await api.users.erase(user.id, user.name));
+      else if (kind === "erase") onDone(await api.users.erase(user.id, typed));
+      else { await api.users.remove(user.id, typed); onDone(); }
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
+  const ready = !a.typeName || typed.trim() === user.name;
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{kind === "reset" ? `Reset ${user.name}'s sign-in?` : `Remove ${user.name}?`}</DialogTitle>
-          <DialogDescription>
-            {kind === "reset"
-              ? "Their password, two-step verification and biometric unlock will be cleared, and you'll get a new setup code for them. Their data is kept."
-              : "This permanently deletes their profile and all of their financial data on this device. Make sure they've exported a backup first."}
-          </DialogDescription>
+          <DialogTitle>{a.title(user.name)}</DialogTitle>
+          <DialogDescription>{a.body(user.name)}</DialogDescription>
         </DialogHeader>
+        {a.typeName && (
+          <div className="space-y-2">
+            <Label htmlFor="confirm-name">Type <b>{user.name}</b> to confirm</Label>
+            <Input id="confirm-name" autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} />
+          </div>
+        )}
         {error && <p className="text-destructive text-sm">{error}</p>}
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button variant={kind === "remove" ? "destructive" : "default"} onClick={go} disabled={busy}>
-            {busy && <Loader2 className="animate-spin" />}{kind === "reset" ? "Reset" : "Remove permanently"}
+          <Button variant={a.destructive ? "destructive" : "default"} onClick={go} disabled={busy || !ready}>
+            {busy && <Loader2 className="animate-spin" />}{a.button}
           </Button>
         </DialogFooter>
       </DialogContent>

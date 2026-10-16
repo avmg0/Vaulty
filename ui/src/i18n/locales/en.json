@@ -213,5 +213,24 @@
       "normal": "Normal",
       "fast": "Fast"
     }
+  },
+  "recovery": {
+    "title": "Save your recovery key",
+    "titleNew": "Your new recovery key",
+    "body": "Your data is encrypted. If you forget your password, this key is the only way back in. Nobody else, not even a family admin, can recover it for you.",
+    "bodyChild": "Your data is encrypted. If you forget your password, this key gets you back in, or a parent can reset it for you.",
+    "where": "Write it down or keep it in a password manager, somewhere other than this device.",
+    "copy": "Copy",
+    "copied": "Copied",
+    "clipboardNote": "The clipboard is cleared after a minute.",
+    "confirm": "I've saved my recovery key somewhere safe",
+    "continue": "Continue",
+    "forgot": "Forgot password?",
+    "recoverTitle": "Use your recovery key",
+    "recoverDesc": "Enter the recovery key you saved when you set up this profile, then choose a new password.",
+    "recoveryKey": "Recovery key",
+    "recover": "Unlock and set password",
+    "childHint": "No recovery key? A parent can reset your password from the Family page.",
+    "adultHint": "No recovery key? An admin can only erase this profile and start it over; the data can't be recovered without your password or key."
   }
 }

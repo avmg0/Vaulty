@@ -4,7 +4,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { LANGUAGES } from "@/i18n";
 import { useLocale } from "@/hooks/locale";
 import { Logo } from "@/components/Logo";
-import { api, biometricLabel, errorText, type User } from "@/api";
+import { api, biometricLabel, errorText, type SignedInUser, type User } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,10 +18,11 @@ type Step =
   | { kind: "pick" }
   | { kind: "password"; user: User }
   | { kind: "claim"; user: User }
-  | { kind: "totp"; user: User; backup: boolean };
+  | { kind: "totp"; user: User; backup: boolean }
+  | { kind: "recover"; user: User };
 
 /** `fresh` is true when the profile was created just now, so it can inherit the device language. */
-export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: User, fresh?: boolean) => void; lastUserId?: string }) {
+export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: SignedInUser, fresh?: boolean) => void; lastUserId?: string }) {
   const [users, setUsers] = useState<User[] | null>(null);
   const [step, setStep] = useState<Step>({ kind: "pick" });
 
@@ -42,8 +43,10 @@ export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: User, fre
     <Centered>
       {step.kind === "pick" && <ProfilePicker users={users} onPick={(u) => setStep(u.active ? { kind: "password", user: u } : { kind: "claim", user: u })} />}
       {step.kind === "password" && (
-        <PasswordStep user={step.user} onBack={back} onSignedIn={onSignedIn} onNeedsCode={() => setStep({ kind: "totp", user: step.user, backup: false })} />
+        <PasswordStep user={step.user} onBack={back} onSignedIn={onSignedIn} onNeedsCode={() => setStep({ kind: "totp", user: step.user, backup: false })}
+          onForgot={() => setStep({ kind: "recover", user: step.user })} />
       )}
+      {step.kind === "recover" && <RecoverStep user={step.user} onBack={() => setStep({ kind: "password", user: step.user })} onDone={onSignedIn} />}
       {step.kind === "claim" && <ClaimStep user={step.user} onBack={() => setStep({ kind: "pick" })} onDone={(u) => onSignedIn(u, true)} />}
       {step.kind === "totp" && (
         <SecondFactorStep user={step.user} backup={step.backup} onToggle={() => setStep({ ...step, backup: !step.backup })}
@@ -126,7 +129,7 @@ function ProfilePicker({ users, onPick }: { users: User[]; onPick: (u: User) => 
   );
 }
 
-function PasswordStep({ user, onBack, onSignedIn, onNeedsCode }: { user: User; onBack?: () => void; onSignedIn: (u: User) => void; onNeedsCode: () => void }) {
+function PasswordStep({ user, onBack, onSignedIn, onNeedsCode, onForgot }: { user: User; onBack?: () => void; onSignedIn: (u: SignedInUser) => void; onNeedsCode: () => void; onForgot: () => void }) {
   const { t } = useTranslation();
   const [pw, setPw] = useState("");
   const { busy, error, run } = useSubmit();
@@ -164,6 +167,9 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode }: { user: User; o
                 <Fingerprint />{t("auth.useBiometric", { method: biometricLabel() })}
               </Button>
             )}
+            <button type="button" onClick={onForgot} className="text-muted-foreground hover:text-foreground w-full text-center text-sm underline-offset-4 hover:underline">
+              {t("recovery.forgot")}
+            </button>
           </form>
         </CardContent>
       </Card>
@@ -171,7 +177,7 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode }: { user: User; o
   );
 }
 
-function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: User; backup: boolean; onToggle: () => void; onBack: () => void; onDone: (u: User) => void }) {
+function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: User; backup: boolean; onToggle: () => void; onBack: () => void; onDone: (u: SignedInUser) => void }) {
   const { t } = useTranslation();
   const [code, setCode] = useState("");
   const { busy, error, run, setError } = useSubmit();
@@ -229,7 +235,7 @@ function NewPasswordFields({ pw, setPw, confirm, setConfirm }: { pw: string; set
   );
 }
 
-function FirstRun({ onDone }: { onDone: (u: User) => void }) {
+function FirstRun({ onDone }: { onDone: (u: SignedInUser) => void }) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [color, setColor] = useState(PROFILE_COLORS[0]);
@@ -260,7 +266,7 @@ function FirstRun({ onDone }: { onDone: (u: User) => void }) {
   );
 }
 
-function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; onDone: (u: User) => void }) {
+function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; onDone: (u: SignedInUser) => void }) {
   const { t } = useTranslation();
   const [code, setCode] = useState("");
   const [pw, setPw] = useState("");
@@ -291,6 +297,45 @@ function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; o
             <NewPasswordFields pw={pw} setPw={setPw} confirm={confirm} setConfirm={setConfirm} />
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button className="w-full" disabled={busy}>{busy && <Loader2 className="animate-spin" />}{t("auth.createMyPassword")}</Button>
+          </form>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+/** Forgot password: the recovery key unlocks the data and a new password is set. */
+function RecoverStep({ user, onBack, onDone }: { user: User; onBack: () => void; onDone: (u: SignedInUser) => void }) {
+  const { t } = useTranslation();
+  const [key, setKey] = useState("");
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const { busy, error, setError, run } = useSubmit();
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (pw !== confirm) return setError(t("auth.mismatch"));
+    run(async () => onDone(await api.auth.signInRecovery(user.id, key, pw)));
+  };
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="text-muted-foreground mb-2 -ml-2" onClick={onBack}><ArrowLeft />{t("common.back")}</Button>
+      <Card>
+        <CardHeader className="items-center text-center">
+          <div className="bg-secondary mb-2 grid size-11 place-items-center rounded-xl"><KeyRound className="size-5" /></div>
+          <CardTitle className="text-xl">{t("recovery.recoverTitle")}</CardTitle>
+          <CardDescription>{t("recovery.recoverDesc")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={submit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="rk">{t("recovery.recoveryKey")}</Label>
+              <Input id="rk" autoFocus autoComplete="off" spellCheck={false} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+                className="font-mono tracking-wider uppercase" value={key} onChange={(e) => setKey(e.target.value)} required />
+            </div>
+            <NewPasswordFields pw={pw} setPw={setPw} confirm={confirm} setConfirm={setConfirm} />
+            {error && <p className="text-destructive text-sm">{error}</p>}
+            <Button className="w-full" disabled={busy}>{busy && <Loader2 className="animate-spin" />}{t("recovery.recover")}</Button>
+            <p className="text-muted-foreground text-center text-xs">{user.role === "child" ? t("recovery.childHint") : t("recovery.adultHint")}</p>
           </form>
         </CardContent>
       </Card>
