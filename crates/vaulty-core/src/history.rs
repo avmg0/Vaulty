@@ -223,7 +223,7 @@ fn describe(conn: &Connection, batch: i64) -> Result<Value> {
         let title = match c.tbl.as_str() {
             "entries" => pick(&["merchant", "description"]).unwrap_or_else(|| "Transaction".into()),
             "journal_entries" | "tasks" | "calendar_events" => pick(&["title"]).unwrap_or_default(),
-            "user_settings" => "Settings".into(),
+            "user_settings" => String::new(),
             _ => pick(&["name", "symbol"]).unwrap_or_default(),
         };
         (c.tbl.clone(), title, c.op.clone())

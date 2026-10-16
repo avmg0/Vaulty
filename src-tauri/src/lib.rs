@@ -119,9 +119,10 @@ impl AppState {
         if vaulty_core::snapshots::age_of_latest(&snaps)?.is_none_or(|age| age > vaulty_core::snapshots::DAILY_INTERVAL_SECS) {
             let _ = vaulty_core::snapshots::take(&conn, &keys.data_key, &snaps, "daily");
         }
-        let (household, household_ready) = match &keys.household_key {
-            Some(hk) => (Household::open(&self.data_dir.join("household.db"), hk)?, true),
-            None => (Household::open_in_memory()?, false),
+        // A problem with the shared family store must never lock anyone out of their own data.
+        let (household, household_ready) = match keys.household_key.as_ref().map(|hk| Household::open(&self.data_dir.join("household.db"), hk)) {
+            Some(Ok(h)) => (h, true),
+            _ => (Household::open_in_memory()?, false),
         };
         let recovery_key = keys.new_recovery_key.take();
         *self.pending.lock().map_err(poisoned)? = None;

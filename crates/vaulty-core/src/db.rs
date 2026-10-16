@@ -75,6 +75,8 @@ pub fn open_encrypted(path: &Path, key: &Key, migrations: Migrations) -> Result<
     }
     let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_WRITE | OpenFlags::SQLITE_OPEN_CREATE)?;
     apply_key(&conn, key)?;
+    // Sorts and temporary tables stay in memory: SQLite's temp files are not encrypted.
+    conn.pragma_update(None, "temp_store", "MEMORY")?;
     configure(&conn)?;
     migrate(&conn, migrations)?;
     Ok(conn)

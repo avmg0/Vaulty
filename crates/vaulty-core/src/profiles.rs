@@ -723,6 +723,10 @@ impl Registry {
             .ok_or_else(|| Error::Auth("no such user".into()))?;
         let Some(hash) = hash else { return Err(Error::Auth("this profile hasn't been set up yet".into())) };
         if crypto::verify_secret(password, &hash) {
+            // Hashes made before the stronger Argon2 settings are upgraded on the next success.
+            if !crypto::is_current_hash(&hash) {
+                self.conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", params![crypto::hash_secret(password)?, user_id])?;
+            }
             Ok(())
         } else {
             self.register_failure(user_id)?;

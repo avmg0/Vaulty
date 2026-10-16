@@ -41,10 +41,14 @@ never shown again. The last prices are kept so the ticker still shows something 
 ## Where data lives
 ```
 <app data dir>/
-  registry.db        # who's on this device: names, password hashes, sealed 2FA secrets
-  users/<id>.db      # one private finance database per family member
+  registry.db           # who's on this device: names, password hashes, wrapped keys (no finances)
+  users/<id>.db         # each member's finances, encrypted with their own key (SQLCipher, AES-256)
+  household.db          # what members chose to share, encrypted with the family key
+  snapshots/<id>/*.db   # encrypted safety copies of each member's data
 ```
-Signing in opens only that member's database.
+Signing in unwraps only that member's key and opens only their database. Every change is
+recorded in their encrypted database so it can be undone; deleted items stay restorable for 30
+days. See decisions 1 and 1b in `ROADMAP.md` for how keys and recovery work.
 
 ### How money is stored
 - Amounts are integers in minor units (paise, cents…); each currency's decimal places come from `money.rs` and the `currencies` table (JPY 0, INR/USD 2, KWD 3…). Floats are never stored.
@@ -52,6 +56,9 @@ Signing in opens only that member's database.
 - The `transactions` view presents entries in the simple shape the UI uses (one row per income / expense / transfer). Admins manage who's on the device but can't open other members' data.
 
 ## Develop
+
+SQLCipher is built with a vendored OpenSSL, so no system crypto library is needed. Building it
+needs Perl and a C compiler (preinstalled on macOS and Linux; on Windows install Strawberry Perl).
 ```
 cargo test -p vaulty-core
 npm --prefix ui install

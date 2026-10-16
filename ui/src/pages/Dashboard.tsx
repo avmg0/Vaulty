@@ -5,6 +5,7 @@ import { api, type Account, type Transaction } from "@/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney, formatNumber } from "@/lib/utils";
 import { useTheme } from "@/hooks/theme";
+import { useLocale } from "@/hooks/locale";
 import { TransactionRow } from "./Transactions";
 
 function monthRange() {
@@ -29,7 +30,8 @@ export function Dashboard() {
   const sum = (t: string) => month.filter((x) => x.type === t).reduce((s, x) => s + x.amount, 0);
   const income = sum("income"), expense = sum("expense");
   const netWorth = accounts.reduce((s, a) => s + a.current_balance, 0);
-  const money = (n: number) => formatMoney(n, accounts[0]?.currency ?? "USD", hideBalances);
+  const { currency: mainCurrency } = useLocale();
+  const money = (n: number) => formatMoney(n, accounts[0]?.currency ?? mainCurrency, hideBalances);
 
   const stats = [
     { label: t("dashboard.netWorth"), value: money(netWorth), icon: Wallet, hint: t("dashboard.accountsCount", { count: accounts.length }) },

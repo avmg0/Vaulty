@@ -9,13 +9,34 @@ Stack: Tauri v2, Rust (`crates/vaulty-core`), React + TypeScript, shadcn/ui, Luc
 
 These are cheap to get right now and expensive to change once real data exists.
 
-### 1. Encryption: use AES-256 with SQLCipher, not "SHA-256 vs SHA-512"
-SHA-256 and SHA-512 are **hash functions**. They can't encrypt or decrypt data, so offering a choice between them for encryption isn't meaningful. Recommended instead:
+### 1. Encryption at rest ✅ (done)
+SHA-256 and SHA-512 are hash functions; they can't encrypt. What Vaulty does instead:
 
-- **Encrypt the database at rest with SQLCipher (AES-256).** In `rusqlite` this is a feature flag (`bundled-sqlcipher`).
-- **Derive the key from the master password with Argon2id.** Argon2 is already used for the password check.
-- Don't offer an algorithm picker. One audited default is safer than a menu of options. If a "choice" is wanted for marketing, offer an Argon2 strength level (memory and time cost): Standard or Paranoid.
-- Backups are encrypted with the same key before they leave the device, including to Google Drive.
+- **Each member's database and the family store are encrypted with SQLCipher (AES-256).**
+- **Each member has a random 256-bit data key.** It is stored only wrapped (encrypted) under:
+  - their password (Argon2id, 64 MiB, 3 passes)
+  - their recovery key (24 characters, about 119 bits, shown once)
+  - a biometric token kept in the OS keychain (if turned on)
+  - a pending setup code (until they claim the profile)
+  - for Child profiles only, each parent's X25519 public key (sealed box)
+- Changing a password re-wraps the key; the data is never re-encrypted.
+- **The family store key** is sealed to each member's public key.
+- **Admins can't open adults' data.** Adults recover with their recovery key. Parents can reset a child's password and keep the child's data. Otherwise an admin can only erase a profile and start it over, after typing the member's name.
+- Keys are wiped from memory on sign-out (zeroize, SQLCipher memory security); temp tables stay in memory; auto-lock after inactivity.
+- Older plain databases are encrypted in place on first sign-in.
+- Still to do:
+  - [ ] bind the biometric keychain item to biometrics at the OS level (macOS/iOS access control, Android Keystore); today the prompt is enforced by the app
+  - [ ] password-protected export files (exports are currently plain JSON/CSV, by the user's choice)
+  - [ ] "Delete forever" in Trash, removing an item from history now rather than after 90 days
+  - [ ] screenshot protection and blur in the app switcher
+  - [ ] external security review before a public release
+
+### 1b. Mistakes and accidental deletes ✅ (done)
+- Every change is recorded (before and after) in the encrypted database, one batch per action.
+- Undo toast after edits and deletes; Ctrl/Cmd+Z; History page with recent changes and a 30-day trash.
+- Undo refuses when a later change touched the same item, rather than overwriting it.
+- Encrypted safety copies: daily, before imports, app updates and restores; 7 daily and 4 weekly kept; restore from Settings.
+- Removing or erasing a member requires typing their name.
 
 ### 2. Store money as integers (minor units), not floats ✅ (done)
 The schema currently uses `REAL`, which causes rounding drift (0.1 + 0.2 ≠ 0.3).
@@ -165,7 +186,8 @@ A member can run a small business inside Vaulty without mixing it with personal 
 - [ ] More tax packs: US, UK, Canada, Australia, Singapore, UAE; GST/VAT rates; capital gains at special rates
 - [ ] More languages: Tamil, Bengali, Marathi, Telugu, Gujarati, Kannada, Malayalam, Punjabi, Urdu (RTL), Arabic (RTL), Spanish, French, German
 - [ ] Ticker: more providers, more regional lists, and live prices for holdings on the Investments page
-- [ ] SQLCipher encryption at rest (decision 1)
+- [x] SQLCipher encryption at rest, recovery keys, parent recovery for children (decision 1)
+- [x] Change history, undo, trash and encrypted safety copies (decision 1b)
 - [ ] Settings persisted in DB: date and time format, first day of week, fiscal year start, decimals, negative format (language, country and currency done)
 - [ ] CI: `cargo test`, `tsc`, and Tauri builds for all three desktop OSes (GitHub Actions)
 

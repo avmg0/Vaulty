@@ -29,6 +29,11 @@ pub fn hash_secret(secret: &str) -> Result<String> {
         .map_err(|e| Error::Auth(e.to_string()))
 }
 
+/// True when a stored hash already uses the current Argon2 parameters.
+pub fn is_current_hash(phc: &str) -> bool {
+    phc.starts_with("$argon2id$") && phc.contains("m=65536,t=3,p=1")
+}
+
 pub fn verify_secret(secret: &str, phc: &str) -> bool {
     // Parameters come from the stored hash, so older hashes still verify.
     PasswordHash::new(phc)

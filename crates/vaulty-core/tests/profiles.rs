@@ -132,3 +132,10 @@ fn adults_can_only_be_erased_and_reset() {
     // Second admin can now remove the first.
     r.remove_user(&inv.user.id, &admin.user_id).unwrap();
 }
+
+#[test]
+fn password_hashes_use_strong_argon2_settings() {
+    let (r, admin) = setup();
+    let hash: String = r.conn_for_tests().query_row("SELECT password_hash FROM users WHERE id = ?", [&admin], |x| x.get(0)).unwrap();
+    assert!(hash.starts_with("$argon2id$v=19$m=65536,t=3,p=1$"), "{hash}");
+}
