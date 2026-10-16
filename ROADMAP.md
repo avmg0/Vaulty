@@ -95,6 +95,40 @@ Members can let others in the family see chosen expenses. They never have to giv
 | iOS | Blur on background; recording can only be detected |
 | Linux | No reliable equivalent. Hide the toggle there. |
 
+### 7. Countries and taxes: region packs (data, not code)
+Vaulty must work in any country. Tax rules change every year and differ by country, state and city, so they live in **region packs**: versioned data files (TOML or JSON) in the repo, maintained by the community. They are never hard-coded.
+
+- **What a region pack contains:**
+  - currency, number grouping (lakh/crore vs thousand/million), date format, first day of week
+  - financial year (India Apr–Mar, US Jan–Dec, UK 6 Apr–5 Apr, Australia Jul–Jun)
+  - income-tax regimes and slabs per tax year (e.g. India old vs new regime)
+  - deductions and allowances (India 80C/80D/HRA, US 401(k)/IRA/standard deduction, UK personal allowance/pension/ISA, Canada RRSP/TFSA…)
+  - sales tax: GST / VAT / sales tax, with rates per state, province or city where needed
+  - local savings and investment instruments (PPF, EPF, NPS, SGB, 401(k), ISA, Super…) with their rules (lock-ins, limits)
+  - tax deadlines and bank holidays, shown on the calendar
+  - bank statement import templates for that country
+  - business tax forms and categories (see decision 8)
+- **Every rule records its tax year, a link to the official source and a "last checked" date.** The UI labels results "Estimate. Rules last checked on …" and never presents them as tax advice.
+- **Per person, not per device:** the household has a default country; each member can override it (e.g. someone working abroad).
+- **Starter packs:** India, US (federal; states over time), UK, Canada, Australia, Singapore, UAE, and a generic EU VAT pack. Without a pack, everything except tax estimates still works.
+- **Tests:** each pack ships with worked examples (income X → tax Y) that run in CI, so a wrong rule fails the build.
+
+### 8. Small business: business workspaces on a double-entry ledger
+A member can run a small business inside Vaulty without mixing it with personal money.
+
+- **Business workspace:** its own accounts, categories, clients, vendors and reports, separate from personal finances. Money moving between them is recorded as "owner paid in" (capital) or "owner took out" (drawings).
+- **Double-entry under the hood:** every transaction becomes balanced ledger entries. Users still just "add an expense"; they never see debits and credits. In return:
+  - receivables and payables (who owes what, and for how long)
+  - GST/VAT collected vs paid, correctly
+  - profit & loss, balance sheet, cash flow
+  - bank reconciliation an accountant can trust
+- **Do it early:** switch the core to a double-entry ledger in Phase 0, together with integer money (decision 2). It's far cheaper now than after real data exists.
+- **Business tax mapping comes from region packs:**
+  - India: GST returns summary with input tax credit, TDS deducted by clients reconciled with Form 26AS, presumptive taxation (44AD/44ADA)
+  - US: Schedule C categories, quarterly estimated tax, 1099 tracking
+  - UK: self-assessment (SA103) boxes, VAT return summary
+  - others as packs are added
+
 ---
 
 ## Phases
@@ -109,6 +143,8 @@ Members can let others in the family see chosen expenses. They never have to giv
 - [x] Per-user 2FA (authenticator app + backup codes) and biometric unlock (desktop)
 - [x] Family sharing: Private / Shared / Public visibility, two-sided consent, Family view
 - [ ] Money as integer minor units (decision 2)
+- [ ] Double-entry ledger core, with personal and business workspaces (decision 8)
+- [ ] Region pack format and loader, plus the India pack as the first one (decision 7)
 - [ ] SQLCipher encryption at rest (decision 1)
 - [ ] Settings persisted in DB: currency, date and time format, first day of week, fiscal year start, decimals, negative format
 - [ ] CI: `cargo test`, `tsc`, and Tauri builds for all three desktop OSes (GitHub Actions)
@@ -183,12 +219,16 @@ Members can let others in the family see chosen expenses. They never have to giv
   - "convert PDF to CSV" falls out of this
 
 ### Phase 4: Business, family, online
-- **Business:**
-  - personal vs business tagging
-  - invoices (PDF) with payment status
-  - GST and VAT rates as editable data tables per country and state (don't hard-code tax law)
-  - tax-filing export
-  - mileage log
+- **Business** (workspaces and ledger from decision 8; tax rules from region packs):
+  - quotes → invoices → payments, with GST/VAT lines; recurring invoices and late-payment reminders
+  - payment QR on invoices: UPI (India), EPC/SEPA QR (EU), PayNow (Singapore), Pix (Brazil)
+  - client and vendor directory; receivables and payables ageing
+  - profit & loss, balance sheet, cash flow; bank reconciliation
+  - tax summaries per region pack (GST/VAT returns, Schedule C, SA103…) and a tax-filing export
+  - exports for accountants: Tally (India), QuickBooks / Xero CSV, Excel, PDF
+  - receipt capture with on-device OCR
+  - time tracking for freelancers, billed straight into invoices
+  - mileage log and home-office expenses
   - tax-deductible donation tracking
 - **Family:** (profiles and roles are already done; these extend them)
   - a shared household budget DB that members can opt into
@@ -263,8 +303,17 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - Panic shortcut: instantly locks and hides the app.
 - Encrypted, readable export: an export file anyone can open with the password, even if Vaulty no longer exists.
 
+### International and tax (with region packs, decision 7)
+- Tax set-aside jar: when freelance or business income arrives, suggest a percentage to put aside for tax, based on the member's region pack (Phase 3).
+- Multi-country money: accounts in several countries, NRE/NRO accounts, remittance tracking, currency gains and losses (Phase 3).
+- Tax residency day counter for people who split time between countries; the 183-day rule (Phase 3).
+- Accountant access: a read-only profile or year-end export bundle for your CA or accountant (Phase 4).
+- Languages: Hindi and other Indian languages; right-to-left languages such as Arabic (Phase 4).
+- Bank holidays per country: due dates that fall on a holiday move to the next working day (Phase 2).
+
 ### Open-source community
 - Shared bank statement parsers: a separate folder or repo where contributors add import rules for each bank (HDFC, ICICI, SBI…), so CSV and PDF import keeps improving without app changes.
+- Region packs are community-maintained too: anyone can update their country's tax rules, with worked examples as tests.
 
 ## Keyboard shortcuts (current)
 | Keys | Action |
