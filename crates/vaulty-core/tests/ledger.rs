@@ -280,3 +280,29 @@ fn accounts_link_to_institutions_and_take_a_logo() {
     let cleared = accounts::update(&c, id, &json!({"logo": null, "institution_id": null})).unwrap();
     assert_eq!((cleared["logo"].clone(), cleared["institution_id"].clone()), (Value::Null, Value::Null));
 }
+
+#[test]
+fn credit_card_details_and_utilization() {
+    use vaulty_core::cards;
+    let c = conn();
+    let card = accounts::create(&c, &json!({"name": "Rewards", "type": "credit", "currency": "INR", "institution_id": "in-hdfc", "initial_balance": "12400"})).unwrap();
+    let id = card["id"].as_str().unwrap();
+    let d = cards::set_details(&c, id, &json!({"network": "visa", "last4": "4242", "credit_limit": "100000", "statement_day": 12, "due_day": "2", "design": "ocean"})).unwrap();
+    assert_eq!((d["owed"].clone(), d["available"].clone(), d["utilization"].clone()), (json!(12400.0), json!(87600.0), json!(0.124)));
+    assert_eq!((d["network"].clone(), d["last4"].clone(), d["design"].clone()), (json!("visa"), json!("4242"), json!("ocean")));
+
+    // Full numbers, bad values and non-card accounts are refused.
+    assert!(cards::set_details(&c, id, &json!({"number": "4111111111111111"})).is_err());
+    assert!(cards::set_details(&c, id, &json!({"last4": "42a2"})).is_err());
+    assert!(cards::set_details(&c, id, &json!({"network": "notanetwork"})).is_err());
+    assert!(cards::set_details(&c, id, &json!({"due_day": 40})).is_err());
+    assert!(cards::set_details(&c, id, &json!({"credit_limit": "-5"})).is_err());
+    let bank = accounts::create(&c, &json!({"name": "Bank", "type": "checking", "currency": "INR"})).unwrap();
+    assert!(cards::set_details(&c, bank["id"].as_str().unwrap(), &json!({"last4": "1111"})).is_err());
+
+    // Spending on the card updates owed / available live.
+    transactions::create(&c, &json!({"account_id": id, "type": "expense", "amount": "600", "date": "2026-10-10"})).unwrap();
+    let listed = cards::list(&c).unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!((listed[0]["owed"].clone(), listed[0]["available"].clone()), (json!(13000.0), json!(87000.0)));
+}

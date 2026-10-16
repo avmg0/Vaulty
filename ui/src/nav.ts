@@ -20,7 +20,7 @@ export const NAV: { group: string; items: NavItem[] }[] = [
   { group: "Money", items: [
     { id: "transactions", label: "Transactions", icon: ArrowLeftRight, phase: 1 },
     { id: "accounts", label: "Accounts", icon: Wallet, phase: 1 },
-    { id: "cards", label: "Credit cards", icon: CreditCard, phase: 2 },
+    { id: "cards", label: "Credit cards", icon: CreditCard, phase: 1 },
     { id: "recurring", label: "Recurring", icon: Repeat, phase: 2 },
   ]},
   { group: "Wealth", items: [

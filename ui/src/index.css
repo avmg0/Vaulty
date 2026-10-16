@@ -111,6 +111,9 @@
   body { @apply bg-background text-foreground antialiased; }
 }
 
+/* Gentle float for the live card preview (disabled with reduced motion via motion-safe:). */
+@keyframes float { 0%, 100% { transform: translateY(0) rotate(-1deg); } 50% { transform: translateY(-6px) rotate(1deg); } }
+
 /* Subtle page transition (spec: fade + slide, 150-220ms) */
 @keyframes page-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .page-enter { animation: page-in 180ms ease-out; }

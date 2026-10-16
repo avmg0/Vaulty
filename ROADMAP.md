@@ -170,7 +170,9 @@ A member can run a small business inside Vaulty without mixing it with personal 
   - generates upcoming instances
   - mark as paid creates the transaction
 - **Credit cards:**
-  - billing cycle and due date
+  - ✅ card page with animated cards (tilt, glare, flip, stack), designs, network detection, last-4-only storage
+  - ✅ limit, available credit, credit-used ring, statement and due day with countdown
+  - billing cycle and due date reminders
   - monthly statement generation ("Statement for Dec 2025")
   - minimum due, paid or unpaid, late-fee warning
   - EMIs and taxes on the card

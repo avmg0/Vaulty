@@ -26,6 +26,19 @@ export type NewAccount = {
   name: string; type: string; currency: string; initial_balance?: string | number; color?: string; icon?: string;
   institution_id?: string | null; logo?: string | null;
 };
+export type CardNetwork = "visa" | "mastercard" | "amex" | "discover" | "rupay" | "diners" | "jcb" | "unionpay" | "maestro";
+export type CardDesign = "midnight" | "ocean" | "aurora" | "sunset" | "graphite" | "emerald" | "rose" | "gold";
+/** A credit-card account plus its card details. Only the network and last 4 digits are ever stored. */
+export type CreditCard = Account & {
+  network: CardNetwork | null; last4: string | null; statement_day: number | null; due_day: number | null; design: CardDesign;
+  owed: number; owed_minor: number; credit_limit: number | null; credit_limit_minor: number | null;
+  available: number | null; available_minor: number | null; utilization: number | null;
+};
+export type CardDetailsInput = {
+  network?: CardNetwork | null; last4?: string | null; credit_limit?: string | null;
+  statement_day?: number | null; due_day?: number | null; design?: CardDesign;
+};
+
 /** A bank, card issuer, broker or wallet from the bundled directory. */
 export type Institution = { id: string; name: string; short: string; kind: "bank" | "card" | "broker" | "wallet"; country: string; aliases: string[]; logo?: string };
 export type Category = { id: string; name: string; type: "income" | "expense"; icon?: string; color?: string; is_system: number };
@@ -84,6 +97,10 @@ export const api = {
     delete: (id: string) => invoke<void>("accounts_delete", { id }),
   },
   categories: { getAll: () => invoke<Category[]>("categories_get_all") },
+  cards: {
+    list: () => invoke<CreditCard[]>("cards_list"),
+    setDetails: (accountId: string, details: CardDetailsInput) => invoke<CreditCard>("cards_set_details", { accountId, details }),
+  },
   institutions: {
     search: (query: string, currency?: string, limit = 20) => invoke<Institution[]>("institutions_search", { query, currency, limit }),
   },
