@@ -112,6 +112,16 @@ Vaulty must work in any country. Tax rules change every year and differ by count
 - **Per person, not per device:** the household has a default country; each member can override it (e.g. someone working abroad).
 - **Starter packs:** India, US (federal; states over time), UK, Canada, Australia, Singapore, UAE, and a generic EU VAT pack. Without a pack, everything except tax estimates still works.
 - **Tests:** each pack ships with worked examples (income X → tax Y) that run in CI, so a wrong rule fails the build.
+- **Status:** format, loader and the India pack done (`crates/vaulty-core/data/tax/`). The calculator is built from generic building blocks: bands by age, standard deduction, capped deductions, rebate, surcharge, cess, marginal relief and rounding.
+- **Building blocks still to add**, each the first time a country needs it, then reusable by every pack:
+  - filing status (single, married jointly…) with its own bands (US)
+  - tax credits that reduce the tax rather than the income (US child credit, Australian offsets)
+  - layered taxes: federal plus state or provincial, chosen by where the person lives (US, Canada, Australia); extra taxes such as UK National Insurance or the Medicare levy
+  - allowance taper: a tax-free amount that shrinks as income rises (UK above £100k)
+  - an overall cap across several reliefs (Singapore)
+  - as a last resort, a pack may name a small, tested Rust function for a rule too unusual for data
+- **Updates:** packs are built into the app so tax works offline. Later, optional signed pack updates let a budget change be fixed without a full app release; nothing else leaves the device.
+- **Next pack:** pick the second country first, since it shows which building blocks are missing (UK or Singapore are moderate; the US is the hardest).
 
 ### 8. Small business: business workspaces on a double-entry ledger (ledger ✅, workspaces next)
 A member can run a small business inside Vaulty without mixing it with personal money.
@@ -333,6 +343,38 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 ### Open-source community
 - Shared bank statement parsers: a separate folder or repo where contributors add import rules for each bank (HDFC, ICICI, SBI…), so CSV and PDF import keeps improving without app changes.
 - Region packs are community-maintained too: anyone can update their country's tax rules, with worked examples as tests.
+
+## More ideas (added 16 October 2026)
+
+### Tax planner
+- [ ] Fill the planner from transactions: link categories to deductions (health insurance premium → health insurance limit, ELSS → tax-saving investments) and show progress against each limit through the year (Phase 3).
+- [ ] Break-even point: how much more you'd need to invest or claim before the old regime beats the new one (Phase 3).
+- [ ] Tax already paid: TDS from salary and interest, advance-tax instalments with calendar reminders, and "tax still due" or "refund expected" (Phase 3).
+- [ ] Import the AIS (Annual Information Statement) to check your entries against what banks and employers reported (Phase 3).
+- [ ] Capital gains harvesting: suggest selling and rebuying before 31 March to use the yearly tax-free long-term gains limit (currently ₹1.25 lakh) (Phase 3).
+
+### Investments and prices
+- [ ] Mutual fund NAVs from AMFI's free daily file: daily values for Indian funds with no account or API key (Phase 3, top pick).
+- [ ] Live value of holdings from ticker prices, returns by XIRR, and price alerts checked only while the ticker is on (Phase 3).
+- [ ] Exchange rates from free reference rates (e.g. the European Central Bank) to show total net worth in one currency (Phase 3).
+
+### Language and region
+- [ ] Lakh and crore: compact amounts like "₹12.3 L" and "₹1.2 Cr" on dashboards in India, full figures in tables (Phase 1).
+- [ ] Amount in words ("Twelve lakh thirty-four thousand rupees") on receipts, invoices and cheque-writing, in the interface language (Phase 2).
+- [ ] Natural-language and voice entry in your own language, e.g. "कल स्विगी 250" for ₹250 on Swiggy yesterday (Phase 3).
+
+### Cards
+- [ ] Benefits tracker: reward points and their expiry, lounge visits left, spend still needed for the annual fee waiver (Phase 2).
+- [ ] Best card for today: the card whose billing cycle gives the longest interest-free period for a purchase made now (Phase 2).
+
+### Family and safety
+- [ ] Emergency kit: a printable, password-protected summary for a spouse or nominee with accounts, policies, nominees and who to contact (Phase 3, top pick).
+- [ ] Nominee tracking on every account, policy and investment, flagging the ones without a nominee (Phase 3).
+
+### For the project
+- [ ] Demo mode with John Doe sample data, so screenshots, testing and new contributors never touch real data (Phase 1).
+- [ ] Import from other apps: Money Manager, Walnut, YNAB and similar (Phase 2).
+- [ ] Accessibility check: screen readers and keyboard-only use, with older family members in mind (Phase 2).
 
 ## Keyboard shortcuts (current)
 | Keys | Action |
