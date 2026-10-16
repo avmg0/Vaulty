@@ -11,6 +11,11 @@ Privacy-first, offline-first family finance planner. Tauri v2 + Rust (SQLite, Ar
 - `ui`: React + Vite + Tailwind v4 + shadcn/ui (new-york, zinc) + Lucide icons. It talks to Rust only through `ui/src/api.ts`.
   Add shadcn components with `npx shadcn@latest add <name>` from `ui/`.
 
+## Brand
+- `assets/brand/logo.svg`: master logo. `ui/public/logo.svg` is a copy used in the app and as the favicon.
+- `assets/brand/app-icon-1024.png` (macOS/Linux tile) and `app-icon-small-1024.png` (tight crop for small sizes and Windows) are the sources for `src-tauri/icons/`.
+  To regenerate after a logo change: `npx @tauri-apps/cli icon assets/brand/app-icon-1024.png -o src-tauri/icons`, then re-export the small sizes and `icon.ico` from the tight crop.
+
 ## Where data lives
 ```
 <app data dir>/

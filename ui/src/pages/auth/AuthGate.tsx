@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowLeft, Fingerprint, KeyRound, Loader2, Plus, ShieldCheck, Vault } from "lucide-react";
+import { ArrowLeft, Fingerprint, KeyRound, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { api, biometricLabel, errorText, type User } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +56,7 @@ function Centered({ children }: { children: ReactNode }) {
 function Brand({ title, desc }: { title: string; desc: ReactNode }) {
   return (
     <CardHeader className="items-center text-center">
-      <div className="bg-primary text-primary-foreground mb-2 grid size-11 place-items-center rounded-xl"><Vault className="size-5" /></div>
+      <Logo className="mb-2 w-14" />
       <CardTitle className="text-xl">{title}</CardTitle>
       <CardDescription>{desc}</CardDescription>
     </CardHeader>

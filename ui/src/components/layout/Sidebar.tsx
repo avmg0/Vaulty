@@ -1,4 +1,5 @@
-import { LogOut, PanelLeftClose, PanelLeftOpen, Vault } from "lucide-react";
+import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { NAV, SETTINGS_ITEM, type NavItem, type PageId } from "@/nav";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
   return (
     <aside className={cn("bg-sidebar text-sidebar-foreground flex h-full flex-col border-r border-sidebar-border transition-[width] duration-200", collapsed ? "w-14" : "w-60")}>
       <div className={cn("flex h-14 items-center gap-2 px-3", collapsed && "justify-center")}>
-        <div className="bg-primary text-primary-foreground grid size-7 place-items-center rounded-md"><Vault className="size-4" /></div>
+        <Logo className="w-7 shrink-0" />
         {!collapsed && <span className="font-semibold tracking-tight">Vaulty</span>}
         {!collapsed && (
           <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title="Collapse sidebar (Ctrl+B)"><PanelLeftClose /></Button>
