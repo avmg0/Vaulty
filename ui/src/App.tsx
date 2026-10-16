@@ -23,7 +23,7 @@ import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
 import { History } from "@/pages/History";
 import { DATA_RESTORED } from "@/api";
-import { UnlockSplash } from "@/components/UnlockSplash";
+import { VaultSplash } from "@/components/UnlockSplash";
 
 const LAST_USER_KEY = "vaulty.lastUser";
 /** Pages that reload themselves after an undo (so changes animate in place instead of the page re-mounting). */
@@ -52,15 +52,16 @@ export function App() {
     setLastUserId(u.id);
     try { localStorage.setItem(LAST_USER_KEY, u.id); } catch { /* ignore */ }
   };
-  // Locking dims and blurs the app away before the sign-in screen appears, so it reads as a
-  // deliberate lock rather than a crash. The data is closed right away; only the picture lingers.
+  // Locking closes the vault: the app blurs away and the logo's dial turns clockwise before the
+  // sign-in screen appears. The data is closed straight away; only the picture lingers.
   const signOut = useCallback(() => {
     const done = api.auth.signOut();
     if (motion === "off") { void done.finally(() => setUser(null)); return; }
     setLocking(true);
-    void Promise.all([done.catch(() => {}), new Promise((r) => setTimeout(r, motion === "full" ? 280 : 180))])
-      .finally(() => { setUser(null); setLocking(false); });
+    void done.catch(() => {});
   }, [motion]);
+  const lockFinished = useCallback(() => { setUser(null); setLocking(false); }, []);
+  const unlockFinished = useCallback(() => setUnlocking(false), []);
 
   if (backendMissing) return (
     <div className="text-muted-foreground grid min-h-screen place-items-center p-6 text-center text-sm">
@@ -75,7 +76,8 @@ export function App() {
       <div className={locking ? "pointer-events-none opacity-0 blur-md transition-[opacity,filter] duration-300" : "transition-[opacity,filter] duration-300"}>
         <Shell key={user.id} signOut={signOut} />
       </div>
-      {unlocking && <UnlockSplash onDone={() => setUnlocking(false)} />}
+      {unlocking && !locking && <VaultSplash mode="open" onDone={unlockFinished} />}
+      {locking && <VaultSplash mode="close" onDone={lockFinished} />}
       <RecoveryKeyDialog recoveryKey={recoveryKey} child={user.role === "child"} onDone={() => setRecoveryKey(null)} />
     </SessionProvider>
   );
