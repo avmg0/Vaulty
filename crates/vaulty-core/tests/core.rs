@@ -105,3 +105,25 @@ fn display_format_settings_start_automatic_and_are_validated() {
         assert!(vaulty_core::settings::update(&c, &serde_json::json!({ bad.0: bad.1 })).is_err(), "{bad:?} is rejected");
     }
 }
+
+#[test]
+fn tags_are_tidied_and_transfers_edit_cleanly() {
+    use vaulty_core::{accounts, transactions};
+    let c = vaulty_core::db::open_in_memory().unwrap();
+    let a = accounts::create(&c, &json!({ "name": "Bank", "type": "checking", "currency": "INR", "initial_balance": "1000" })).unwrap();
+    let b = accounts::create(&c, &json!({ "name": "Wallet", "type": "cash", "currency": "INR" })).unwrap();
+    let t = transactions::create(&c, &json!({ "account_id": a["id"], "type": "expense", "amount": "100", "date": "2026-10-01",
+        "tags": " #Trip, goa , trip,  ", "notes": "with friends" })).unwrap();
+    assert_eq!(t["tags"], "Trip, goa");
+    assert_eq!(t["notes"], "with friends");
+    assert!(transactions::create(&c, &json!({ "account_id": a["id"], "type": "expense", "amount": "1", "date": "2026-10-01", "tags": "x".repeat(41) })).is_err());
+    // Turn the expense into a transfer, then back.
+    let id = t["id"].as_str().unwrap();
+    let t = transactions::update(&c, id, &json!({ "account_id": a["id"], "to_account_id": b["id"], "type": "transfer", "amount": "250", "date": "2026-10-02", "tags": ["cash"] })).unwrap();
+    assert_eq!((t["type"].as_str(), t["to_account_id"].as_str(), t["tags"].as_str()), (Some("transfer"), b["id"].as_str(), Some("cash")));
+    let bal = |id: &serde_json::Value| accounts::get_all(&c).unwrap().into_iter().find(|x| x["id"] == *id).unwrap()["current_balance"].as_f64().unwrap();
+    assert_eq!((bal(&a["id"]), bal(&b["id"])), (750.0, 250.0));
+    transactions::update(&c, id, &json!({ "account_id": a["id"], "type": "expense", "amount": "100", "date": "2026-10-02" })).unwrap();
+    assert_eq!((bal(&a["id"]), bal(&b["id"])), (900.0, 0.0));
+    assert!(vaulty_core::ledger::unbalanced_entries(&c).unwrap().is_empty());
+}

@@ -175,6 +175,26 @@ fn postings_for(conn: &Connection, t: &Value) -> Result<(&'static str, Vec<Posti
     Ok((kind, postings))
 }
 
+/// Tags as stored: trimmed, without `#`, duplicates (ignoring case) removed, joined by ", ".
+/// Accepts a comma-separated string or an array of strings.
+pub fn normalize_tags(v: Option<&Value>) -> Result<Option<String>> {
+    let raw: Vec<String> = match v {
+        None | Some(Value::Null) => return Ok(None),
+        Some(Value::String(s)) => s.split(',').map(str::to_owned).collect(),
+        Some(Value::Array(a)) => a.iter().map(|x| x.as_str().map(str::to_owned).ok_or_else(|| Error::Invalid("tags must be text".into()))).collect::<Result<_>>()?,
+        _ => return Err(Error::Invalid("tags must be text or a list".into())),
+    };
+    let mut out: Vec<String> = Vec::new();
+    for t in raw {
+        let t = t.trim().trim_start_matches('#').trim();
+        if t.is_empty() { continue; }
+        if t.chars().count() > 40 { return Err(Error::Invalid("a tag can be at most 40 characters".into())); }
+        if !out.iter().any(|o| o.eq_ignore_ascii_case(t)) { out.push(t.to_string()); }
+    }
+    if out.len() > 20 { return Err(Error::Invalid("at most 20 tags per transaction".into())); }
+    Ok((!out.is_empty()).then(|| out.join(", ")))
+}
+
 pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
     let id = str_field(t, "id").map(String::from).unwrap_or_else(new_id);
     atomic(conn, |tx| {
@@ -190,7 +210,7 @@ pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
                 str_field(t, "merchant"),
                 str_field(t, "description"),
                 str_field(t, "notes"),
-                str_field(t, "tags"),
+                normalize_tags(t.get("tags"))?,
                 bool_field(t, "is_pending", false),
                 bool_field(t, "is_cleared", true),
                 visibility(t)?,
@@ -217,7 +237,7 @@ pub fn update(conn: &Connection, id: &str, t: &Value) -> Result<Value> {
                 str_field(t, "merchant"),
                 str_field(t, "description"),
                 str_field(t, "notes"),
-                str_field(t, "tags"),
+                normalize_tags(t.get("tags"))?,
                 bool_field(t, "is_pending", false),
                 bool_field(t, "is_cleared", true),
                 visibility(t)?,

@@ -125,6 +125,8 @@ export type Transaction = {
   merchant?: string; description?: string; account_name?: string; category_name?: string; category_icon?: string; category_color?: string | null; currency?: string;
   visibility: Visibility;
   notes?: string | null;
+  /** Comma-separated, e.g. "trip, goa". */
+  tags?: string | null;
   /** 1 when the transaction lives in the Hidden section. */
   hidden?: number;
   /** True when the details were withheld: only amount, date, type and account are real. */
@@ -237,6 +239,8 @@ export const api = {
       invoke<Transaction[]>("transactions_get_all", { filters }),
     create: (transaction: Omit<Partial<Transaction>, "amount" | "hidden"> & { amount: string | number; hidden?: boolean }) =>
       invoke<Transaction>("transactions_create", { transaction }),
+    update: (id: string, transaction: Omit<Partial<Transaction>, "amount" | "hidden"> & { amount: string | number }) =>
+      invoke<Transaction>("transactions_update", { id, transaction }),
     setVisibility: (id: string, visibility: Visibility) => invoke<Transaction>("transactions_set_visibility", { id, visibility }),
     delete: (id: string) => invoke<void>("transactions_delete", { id }),
     setHidden: (id: string, hidden: boolean) => invoke<Transaction>("transactions_set_hidden", { id, hidden }),

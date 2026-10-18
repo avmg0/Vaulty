@@ -415,7 +415,7 @@
   "tx": {
     "untitled": "Untitled",
     "delete": "Delete",
-    "search": "Search merchant, category, account…",
+    "search": "Search, or #tag",
     "allTypes": "All types",
     "expenses": "Expenses",
     "incomes": "Income",
@@ -436,7 +436,18 @@
     "whoCanSee": "Who can see this",
     "noMatch": "No transactions match.",
     "sharingOff": "Family sharing is off, so this stays private until you turn it on in Settings.",
-    "noOneYet": "You haven't picked anyone to share with yet (Settings → Family sharing)."
+    "noOneYet": "You haven't picked anyone to share with yet (Settings → Family sharing).",
+    "editTitle": "Edit transaction",
+    "transfer": "Transfer",
+    "transferNote": "Description (optional)",
+    "transferPh": "e.g. Credit card payment",
+    "from": "From",
+    "to": "To",
+    "chooseAccount": "Choose an account",
+    "notes": "Notes",
+    "transferLabel": "Transfer",
+    "edit": "Edit",
+    "transfers": "Transfers"
   },
   "visibility": {
     "private": "Private",
@@ -783,5 +794,10 @@
     "weekStart": "Week starts on",
     "fiscal": "Financial year starts in",
     "preview": "Looks like: {{date}}, {{amount}}"
+  },
+  "tags": {
+    "label": "Tags",
+    "placeholder": "Type and press Enter",
+    "remove": "Remove #{{tag}}"
   }
 }
