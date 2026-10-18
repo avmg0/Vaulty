@@ -710,9 +710,51 @@ fn export_csv(s: S, path: String) -> Result<usize> {
     std::fs::write(path, text)?;
     Ok(n)
 }
+/// Writes a password-protected backup (`.vaulty`, see docs/BACKUP_FORMAT.md).
+#[tauri::command]
+fn backup_export(s: S, path: String, password: String, hint: Option<String>) -> Result<()> {
+    s.guard_export()?;
+    let bytes = s.data(|c| vaulty_core::backup::encrypt(c, &password, hint.as_deref()))?;
+    std::fs::write(path, bytes)?;
+    Ok(())
+}
+
+/// What a backup file is, before restoring: encrypted (with its hint and date) or plain JSON.
+#[tauri::command]
+fn backup_inspect(path: String) -> Result<Value> {
+    let bytes = read_limited(&path, 200 * 1024 * 1024)?;
+    Ok(match vaulty_core::backup::header(&bytes) {
+        Some(h) => json!({ "encrypted": true, "hint": h["hint"], "created_at": h["created_at"] }),
+        None => {
+            let v: Value = serde_json::from_slice(&bytes).map_err(|_| Error::Invalid("that isn't a Vaulty backup".into()))?;
+            json!({ "encrypted": false, "hint": null, "created_at": v["exported_at"] })
+        }
+    })
+}
+
+fn read_limited(path: &str, max: u64) -> Result<Vec<u8>> {
+    if std::fs::metadata(path)?.len() > max { return Err(Error::Invalid("that file is too large to be a backup".into())); }
+    Ok(std::fs::read(path)?)
+}
+
+/// Restores a backup into this profile (encrypted ones need their password). Existing items are
+/// kept; a safety copy is taken first and the restore can be undone.
+#[tauri::command]
+fn backup_import(s: S, path: String, password: Option<String>) -> Result<Value> {
+    let bytes = read_limited(&path, 200 * 1024 * 1024)?;
+    let data = match vaulty_core::backup::header(&bytes) {
+        Some(_) => vaulty_core::backup::decrypt(&bytes, password.as_deref().ok_or_else(|| Error::Auth("this backup needs its password".into()))?)?,
+        None => serde_json::from_slice(&bytes).map_err(|_| Error::Invalid("that isn't a Vaulty backup".into()))?,
+    };
+    restore_backup(&s, data)
+}
+
 #[tauri::command]
 fn import_json(s: S, path: String) -> Result<Value> {
-    let data: Value = serde_json::from_slice(&std::fs::read(path)?)?;
+    restore_backup(&s, serde_json::from_slice(&read_limited(&path, 200 * 1024 * 1024)?)?)
+}
+
+fn restore_backup(s: &AppState, data: Value) -> Result<Value> {
     let me = s.current_user()?;
     s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "before-import")))?;
     let counts = s.act_and_share("import", |c, me, h| {
@@ -926,7 +968,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");

@@ -1,6 +1,7 @@
 //! Vaulty core: everything the app does with data, independent of Tauri.
 //! The desktop shell (src-tauri) only wires these functions to commands.
 pub mod accounts;
+pub mod backup;
 pub mod budgets;
 pub mod cards;
 pub mod categories;

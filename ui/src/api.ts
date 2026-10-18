@@ -5,7 +5,12 @@ export const DATA_CHANGED = "vaulty:data-changed";
 /** Fired after an undo or restore, so open pages reload. */
 export const DATA_RESTORED = "vaulty:data-restored";
 
-const RECORDED = /^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$|^settings_update$|^import_json$/;
+/** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
+const RECORDED = new RegExp([
+  "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_set_hidden$",
+  "^settings_update$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
+].join("|"));
 
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const out = await tauriInvoke<T>(cmd, args);
@@ -171,6 +176,7 @@ export type ImportRow = {
 };
 export type Rule = { id: string; pattern: string; category_id: string; source: "learned" | "manual"; category_name: string; category_icon: string | null; category_type: "income" | "expense" };
 export type QuickParsed = { kind: "income" | "expense"; amount: string | null; date: string; merchant: string; account_id: string | null; category_id: string | null; understood: [string, string][] };
+export type BackupInfo = { encrypted: boolean; hint: string | null; created_at: string | null };
 export type HiddenStatus = { unlocked: boolean; seconds_left: number; count: number; biometric: boolean };
 
 export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
@@ -240,6 +246,12 @@ export const api = {
     delete: (id: string) => invoke<void>("rules_delete", { id }),
     pending: () => invoke<number>("rules_pending"),
     apply: () => invoke<number>("rules_apply"),
+  },
+  backup: {
+    export: (path: string, password: string, hint?: string) => invoke<void>("backup_export", { path, password, hint }),
+    inspect: (path: string) => invoke<BackupInfo>("backup_inspect", { path }),
+    import: (path: string, password?: string) => invoke<{ transactions: number; accounts: number; categories: number }>("backup_import", { path, password }),
+    exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {

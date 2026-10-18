@@ -9,6 +9,7 @@ import { MONTH_IDS, resolveFiscalStart, resolveWeekStart } from "@/lib/formats";
 import { CurrencyPicker } from "@/components/CurrencyPicker";
 import { MarketCard } from "@/components/MarketCard";
 import { SnapshotsCard } from "@/components/SnapshotsCard";
+import { BackupsCard } from "@/components/BackupsCard";
 import { SuccessTick } from "@/components/SuccessTick";
 import { Segmented } from "@/components/Segmented";
 import { motion as m } from "motion/react";
@@ -51,6 +52,7 @@ export function Settings() {
       <LanguageRegionCard />
       <FormatsCard />
       <SecurityCard />
+      <BackupsCard />
       <SnapshotsCard />
       <FamilySharingCard />
       <AppearanceCard />

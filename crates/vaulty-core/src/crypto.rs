@@ -98,6 +98,15 @@ pub fn seal(key: &Key, plaintext: &[u8]) -> Result<String> {
     Ok(to_hex(&[nonce.as_slice(), &ct].concat()))
 }
 
+/// Opens data sealed with associated data (e.g. a backup file header).
+pub fn open_aad(key: &Key, nonce: &[u8], ciphertext: &[u8], aad: &[u8]) -> Result<Vec<u8>> {
+    use chacha20poly1305::aead::Payload;
+    if nonce.len() != 24 { return Err(Error::Auth("bad nonce".into())); }
+    XChaCha20Poly1305::new(key.as_ref().into())
+        .decrypt(XNonce::from_slice(nonce), Payload { msg: ciphertext, aad })
+        .map_err(|_| Error::Auth("wrong password, or the file was changed".into()))
+}
+
 pub fn open(key: &Key, sealed_hex: &str) -> Result<Vec<u8>> {
     let raw = from_hex(sealed_hex)?;
     if raw.len() < 24 {

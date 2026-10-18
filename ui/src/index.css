@@ -157,3 +157,11 @@
 
 /* The logo eases to a new accent colour rather than snapping. */
 .vaulty-logo * { transition: fill 300ms ease, stroke 300ms ease; }
+
+/* Recovery sheet: only the sheet is printed, never the app behind it. */
+@media screen { #print-root { display: none; } }
+@media print {
+  body.printing-sheet > *:not(#print-root) { display: none !important; }
+  body.printing-sheet { background: #fff !important; }
+  @page { size: A4; margin: 0; }
+}
