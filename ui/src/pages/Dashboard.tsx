@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, PiggyBank, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, DATA_RESTORED, type Account, type Transaction } from "@/api";
+import { api, DATA_RESTORED, type Account, type Recurring, type Transaction } from "@/api";
+import { dueText } from "./Recurring";
+import { cn } from "@/lib/utils";
 import { AnimatedMoney } from "@/components/AnimatedMoney";
 import { ProgressBar } from "@/components/ProgressBar";
 import { Skeleton, SkeletonRows } from "@/components/Skeleton";
@@ -31,6 +33,7 @@ export function Dashboard() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [half, setHalf] = useState<Transaction[]>([]);
   const [recent, setRecent] = useState<Transaction[]>([]);
+  const [soon, setSoon] = useState<Recurring[]>([]);
   // Amounts appear once the data is in, so they never roll up from zero on first view.
   const [loaded, setLoaded] = useState(false);
 
@@ -40,6 +43,7 @@ export function Dashboard() {
         api.accounts.getAll().then(setAccounts),
         api.transactions.getAll({ startDate: iso(lastMonths()[0]) }).then(setHalf),
         api.transactions.getAll({ limit: 8 }).then(setRecent),
+        api.recurring.list().then((l) => setSoon(l.filter((r) => r.is_active === 1 && r.days_until != null && r.days_until <= 14).sort((a, b) => a.days_until! - b.days_until!).slice(0, 6))).catch(() => {}),
       ]).finally(() => setLoaded(true));
     };
     load();
@@ -148,6 +152,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <Card>
         <CardHeader><CardTitle>{t("dashboard.recent")}</CardTitle><CardDescription>{t("dashboard.recentHint")}</CardDescription></CardHeader>
         <CardContent className="divide-y">
@@ -158,6 +163,23 @@ export function Dashboard() {
           </AnimatedList>
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader><CardTitle>{t("recurring.comingUp")}</CardTitle><CardDescription>{t("recurring.comingUpDesc")}</CardDescription></CardHeader>
+        <CardContent className="divide-y">
+          {loaded && soon.length === 0 && <p className="text-muted-foreground py-6 text-center text-sm">{t("recurring.nothingSoon")}</p>}
+          {soon.map((r) => (
+            <div key={r.id} className="flex items-center gap-3 py-2.5">
+              <span className="bg-secondary grid size-8 shrink-0 place-items-center rounded-lg text-sm">{r.category_icon ?? "🔁"}</span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">{r.name}</div>
+                <div className={cn("text-xs", r.status === "overdue" ? "text-destructive" : "text-muted-foreground")}>{dueText(t, r.days_until)}</div>
+              </div>
+              <div className={cn("text-sm font-medium tabular-nums", r.type === "income" && "text-success")}>{formatMoney(r.amount, r.currency, hideBalances)}</div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+      </div>
     </div>
   );
 }

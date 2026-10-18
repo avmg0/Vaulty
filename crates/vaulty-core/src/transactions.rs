@@ -73,6 +73,7 @@ pub fn get_all(conn: &Connection, filters: Option<&Value>) -> Result<Vec<Value>>
             ("startDate", " AND t.date >= ?"),
             ("endDate", " AND t.date <= ?"),
             ("visibility", " AND t.visibility = ?"),
+            ("recurringId", " AND t.recurring_id = ?"),
         ] {
             if let Some(v) = str_field(f, key) {
                 sql.push_str(clause);
@@ -269,8 +270,8 @@ pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
     atomic(conn, |tx| {
         let (kind, postings) = postings_for(tx, t)?;
         tx.execute(
-            "INSERT INTO entries (id, kind, date, time, merchant, description, notes, tags, is_pending, is_cleared, visibility, hidden)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO entries (id, kind, date, time, merchant, description, notes, tags, is_pending, is_cleared, visibility, hidden, recurring_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 id,
                 kind,
@@ -284,6 +285,7 @@ pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
                 bool_field(t, "is_cleared", true),
                 visibility(t)?,
                 bool_field(t, "hidden", false),
+                str_field(t, "recurring_id"),
             ],
         )?;
         ledger::post(tx, &id, &postings)?;

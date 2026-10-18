@@ -17,6 +17,7 @@ pub mod ledger;
 pub mod market;
 pub mod money;
 pub mod profiles;
+pub mod recurring;
 pub mod rows;
 pub mod settings;
 pub mod snapshots;

@@ -313,6 +313,16 @@
       },
       "demo": {
         "seed": "Added sample data"
+      },
+      "recurring": {
+        "create": "Added a recurring payment",
+        "update": "Edited a recurring payment",
+        "delete": "Deleted a recurring payment",
+        "pay": "Paid a recurring payment",
+        "skip": "Skipped a payment",
+        "pause": "Paused a recurring payment",
+        "resume": "Resumed a recurring payment",
+        "auto": "Recorded automatic payments"
       }
     },
     "check": {
@@ -855,5 +865,75 @@
     "delete": "Delete",
     "create": "Add category",
     "deleteHint": "Its transactions become uncategorised; its sub-categories move to the top level."
+  },
+  "recurring": {
+    "next30Out": "Going out in the next 30 days",
+    "next30In": "Coming in",
+    "add": "Add recurring",
+    "emptyTitle": "Nothing recurring yet",
+    "emptyBody": "Add rent, subscriptions, SIPs, salary or a standing transfer. Vaulty reminds you before each one and records it when you mark it paid.",
+    "group": {
+      "overdue": "Overdue",
+      "soon": "Due soon",
+      "upcoming": "Upcoming",
+      "paused": "Paused or finished"
+    },
+    "auto": "Auto",
+    "autoHint": "Recorded automatically on the due date",
+    "paused": "Paused",
+    "noMore": "No more dates",
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "inDays_one": "in {{count}} day",
+    "inDays_other": "in {{count}} days",
+    "overdueBy_one": "{{count}} day overdue",
+    "overdueBy_other": "{{count}} days overdue",
+    "markPaid": "Mark paid",
+    "more": "More actions",
+    "skip": "Skip this one",
+    "pause": "Pause",
+    "resume": "Resume",
+    "payTitle": "Record {{name}}",
+    "payDesc": "Due {{date}}. A transaction is added and the next date is set.",
+    "paidOn": "Paid on",
+    "thisTimeOnly": "This amount is used this time only.",
+    "editTitle": "Edit recurring payment",
+    "newTitle": "New recurring payment",
+    "dialogDesc": "Bills, subscriptions, salary or a standing transfer.",
+    "namePh": "e.g. Rent",
+    "repeats": "Repeats",
+    "everyLabel": "Every",
+    "unit": {
+      "daily_one": "day",
+      "daily_other": "days",
+      "weekly_one": "week",
+      "weekly_other": "weeks",
+      "monthly_one": "month",
+      "monthly_other": "months",
+      "yearly_one": "year",
+      "yearly_other": "years"
+    },
+    "every": {
+      "daily_one": "Every day",
+      "daily_other": "Every {{count}} days",
+      "weekly_one": "Every week on {{on}}",
+      "weekly_other": "Every {{count}} weeks on {{on}}",
+      "monthly_one": "Every month on the {{on}}",
+      "monthly_other": "Every {{count}} months on the {{on}}",
+      "yearly_one": "Every year on {{on}}",
+      "yearly_other": "Every {{count}} years on {{on}}"
+    },
+    "firstDate": "First date",
+    "endDate": "Ends (optional)",
+    "remind": "Remind me",
+    "onTheDay": "On the day",
+    "daysBefore_one": "{{count}} day before",
+    "daysBefore_other": "{{count}} days before",
+    "autoPay": "Record automatically",
+    "autoPayDesc": "For payments that always happen, like a SIP or a direct debit. Vaulty adds the transaction on the due date (or when you next sign in).",
+    "comingUp": "Coming up",
+    "comingUpDesc": "Bills and payments in the next two weeks",
+    "nothingSoon": "Nothing due in the next two weeks.",
+    "seeAll": "See all"
   }
 }

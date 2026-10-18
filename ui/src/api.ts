@@ -146,6 +146,20 @@ export type SplitPart = { category_id: string | null; category_name?: string | n
 export type TransactionInput = Omit<Partial<Transaction>, "amount" | "hidden" | "splits"> & {
   amount: string | number; splits?: { category_id?: string | null; amount: string; memo?: string }[];
 };
+export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
+export type Recurring = {
+  id: string; name: string; type: "expense" | "income" | "transfer"; amount: number; amount_minor: number; currency: string;
+  account_id: string | null; to_account_id: string | null; category_id: string | null; merchant: string | null; notes: string | null; tags: string | null;
+  frequency: Frequency; every: number; start_date: string; end_date: string | null; next_due_date: string | null; last_paid_date: string | null;
+  reminder_days: number; auto_pay: number; is_active: number; visibility: Visibility;
+  account_name: string | null; to_account_name: string | null; category_name: string | null; category_icon: string | null;
+  days_until: number | null; status: "overdue" | "due" | "soon" | "upcoming" | "paused" | "ended";
+};
+export type RecurringInput = {
+  name: string; type: Recurring["type"]; amount: string; account_id: string; to_account_id?: string; category_id?: string; notes?: string;
+  frequency: Frequency; every: number; start_date: string; end_date?: string; reminder_days: number; auto_pay?: boolean;
+};
+export type Occurrence = { recurring_id: string; name: string; type: Recurring["type"]; date: string; amount: number; currency: string; category_icon: string | null; account_name: string | null };
 export type HiddenStatus = { unlocked: boolean; seconds_left: number; count: number; biometric: boolean };
 
 export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
@@ -207,6 +221,16 @@ export const api = {
     create: (category: CategoryInput) => invoke<Category>("categories_create", { category }),
     update: (id: string, category: CategoryInput) => invoke<Category>("categories_update", { id, category }),
     delete: (id: string) => invoke<void>("categories_delete", { id }),
+  },
+  recurring: {
+    list: () => invoke<Recurring[]>("recurring_list"),
+    create: (item: RecurringInput) => invoke<Recurring>("recurring_create", { item }),
+    update: (id: string, item: RecurringInput) => invoke<Recurring>("recurring_update", { id, item }),
+    setActive: (id: string, active: boolean) => invoke<Recurring>("recurring_set_active", { id, active }),
+    delete: (id: string) => invoke<void>("recurring_delete", { id }),
+    skip: (id: string) => invoke<Recurring>("recurring_skip", { id }),
+    pay: (id: string, date?: string, amount?: string) => invoke<Transaction>("recurring_pay", { id, date, amount }),
+    upcoming: (from: string, to: string) => invoke<Occurrence[]>("recurring_upcoming", { from, to }),
   },
   budgets: {
     month: (month: string) => invoke<BudgetMonth>("budgets_month", { month }),

@@ -11,7 +11,7 @@ use std::{
 };
 use tauri::{Manager, State};
 use vaulty_core::{
-    accounts, categories, db, export,
+    accounts, categories, db, export, recurring,
     household::{FeedFilter, FeedView, Household, SharingPrefs},
     profiles::{Invite, PasswordOutcome, Registry, Role, SecondFactor, TotpEnrollment, Unlocked, UserSummary},
     settings, transactions, Error, Result,
@@ -169,6 +169,15 @@ impl AppState {
             Some(Ok(h)) => (h, true),
             _ => (Household::open_in_memory()?, false),
         };
+        // Auto-pay items that fell due while the app was closed, as one undoable action.
+        let has_due: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM recurring_payments WHERE auto_pay = 1 AND is_active = 1 AND next_due_date <= ?)",
+            [today().to_string()], |r| r.get(0)).unwrap_or(false);
+        if has_due {
+            if let Ok(made) = vaulty_core::history::record(&conn, "recurring.auto", |c| recurring::run_auto_pay(c, today())) {
+                for t in &made { let _ = household.publish(&user_id, t); }
+            }
+        }
         let recovery_key = keys.new_recovery_key.take();
         *self.pending.lock().map_err(poisoned)? = None;
         *self.session.lock().map_err(poisoned)? = Some(Session { user: user.clone(), conn, keys, household, household_ready, hidden_until: None });
@@ -426,6 +435,37 @@ fn biometric_disable(s: S) -> Result<()> {
 #[tauri::command] fn categories_create(s: S, category: Value) -> Result<Value> { s.act("category.create", |c| categories::create(c, &category)) }
 #[tauri::command] fn categories_update(s: S, id: String, category: Value) -> Result<Value> { s.act("category.update", |c| categories::update(c, &id, &category)) }
 #[tauri::command] fn categories_delete(s: S, id: String) -> Result<()> { s.act("category.delete", |c| categories::delete(c, &id)) }
+
+// ============================================================ recurring payments
+
+fn today() -> chrono::NaiveDate { chrono::Local::now().date_naive() }
+fn day(s: &str) -> Result<chrono::NaiveDate> {
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").map_err(|_| Error::Invalid("dates look like 2026-10-19".into()))
+}
+
+#[tauri::command] fn recurring_list(s: S) -> Result<Vec<Value>> { s.data(|c| recurring::list(c, today())) }
+#[tauri::command] fn recurring_create(s: S, item: Value) -> Result<Value> { s.act("recurring.create", |c| recurring::create(c, &item, today())) }
+#[tauri::command] fn recurring_update(s: S, id: String, item: Value) -> Result<Value> { s.act("recurring.update", |c| recurring::update(c, &id, &item, today())) }
+#[tauri::command] fn recurring_set_active(s: S, id: String, active: bool) -> Result<Value> {
+    s.act(if active { "recurring.resume" } else { "recurring.pause" }, |c| recurring::set_active(c, &id, active, today()))
+}
+#[tauri::command] fn recurring_delete(s: S, id: String) -> Result<()> { s.act("recurring.delete", |c| recurring::delete(c, &id)) }
+#[tauri::command] fn recurring_skip(s: S, id: String) -> Result<Value> { s.act("recurring.skip", |c| recurring::skip(c, &id, today())) }
+#[tauri::command] fn recurring_history(s: S, id: String) -> Result<Vec<Value>> { s.data(|c| recurring::history(c, &id)) }
+/// Occurrences between two dates, for "coming up" lists and the calendar.
+#[tauri::command] fn recurring_upcoming(s: S, from: String, to: String) -> Result<Vec<Value>> {
+    let (from, to) = (day(&from)?, day(&to)?);
+    if (to - from).num_days() > 400 { return Err(Error::Invalid("pick a range of at most a year".into())); }
+    s.data(|c| recurring::upcoming(c, from, to))
+}
+/// Records the due occurrence as paid: creates its transaction and moves to the next date.
+#[tauri::command] fn recurring_pay(s: S, id: String, date: Option<String>, amount: Option<Value>) -> Result<Value> {
+    s.act_and_share("recurring.pay", |c, me, h| {
+        let row = recurring::mark_paid(c, &id, date.as_deref(), amount.as_ref(), today())?;
+        h.publish(me, &row)?;
+        Ok(row)
+    })
+}
 
 /// Each category's budget and what was spent in `month` (YYYY-MM).
 #[tauri::command] fn budgets_month(s: S, month: String) -> Result<Value> { s.data(|c| vaulty_core::budgets::month(c, &month)) }
@@ -817,6 +857,7 @@ pub fn run() {
             backup_codes_regenerate, biometric_enable, biometric_disable,
             accounts_get_all, accounts_create, accounts_update, accounts_delete,
             categories_get_all, categories_create, categories_update, categories_delete, budgets_month, budgets_set,
+            recurring_list, recurring_create, recurring_update, recurring_set_active, recurring_delete, recurring_skip, recurring_history, recurring_upcoming, recurring_pay,
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,

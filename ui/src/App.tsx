@@ -19,6 +19,7 @@ import { Family } from "@/pages/Family";
 import { Cards } from "@/pages/Cards";
 import { ComingSoon } from "@/pages/ComingSoon";
 import { Budgets } from "@/pages/Budgets";
+import { RecurringPage } from "@/pages/Recurring";
 import { TaxPlanner } from "@/pages/TaxPlanner";
 import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
@@ -114,7 +115,7 @@ function Shell({ signOut }: { signOut: () => void }) {
   }, [signOut, hideBalances, setHideBalances]);
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
-  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, budgets: <Budgets />, tax: <TaxPlanner />, history: <History /> }[page as string];
+  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, tax: <TaxPlanner />, history: <History /> }[page as string];
 
   return (
     <div className="flex h-screen overflow-hidden">
