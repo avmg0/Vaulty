@@ -326,6 +326,11 @@
       },
       "statement": {
         "import": "Imported a statement"
+      },
+      "rules": {
+        "add": "Added a category rule",
+        "delete": "Deleted a category rule",
+        "apply": "Categorised transactions by rules"
       }
     },
     "check": {
@@ -991,5 +996,34 @@
     "another": "Import another",
     "undoInHistory": "Undo in History",
     "dupOn": "Already in Vaulty from {{date}}"
+  },
+  "rules": {
+    "fromRule": "Picked from what you chose last time for this merchant.",
+    "title": "Automatic categories",
+    "desc": "When you give a merchant a category, Vaulty remembers it for next time, including imported statements. Add your own rules or remove any here.",
+    "apply_one": "Categorise {{count}} transaction",
+    "apply_other": "Categorise {{count}} transactions",
+    "applied_one": "{{count}} transaction categorised. Undo from History if needed.",
+    "applied_other": "{{count}} transactions categorised. Undo from History if needed.",
+    "patternPh": "When the merchant contains… e.g. zomato",
+    "pattern": "Text to look for",
+    "choose": "Put it in…",
+    "add": "Add rule",
+    "empty": "No rules yet. They appear as you categorise transactions.",
+    "learned": "Learned from your choices",
+    "manual": "Added by you",
+    "delete": "Remove rule {{pattern}}"
+  },
+  "quick": {
+    "title": "Quick add",
+    "hint": "Type a transaction in plain words",
+    "placeholder": "250 swiggy yesterday",
+    "noAmount": "Add an amount",
+    "saved": "Saved: {{what}}. Add another, or press Esc.",
+    "examples": "Try \"+85000 salary on 1st\", \"petrol 2k from card\" or \"corner cafe 180 cash last friday\".",
+    "keys": "Enter to save · Esc to close",
+    "details": "Add details",
+    "button": "Quick add",
+    "shortcut": "Add a transaction in one line"
   }
 }

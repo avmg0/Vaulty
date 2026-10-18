@@ -23,8 +23,10 @@ const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${St
  * Adds a transaction, or edits one when `initial` is given. Editing sends the whole transaction
  * (the core rewrites its ledger postings), so changing type, amount or accounts is safe.
  */
-export function TransactionDialog({ open, onOpenChange, initial, accounts, categories, prefs, startHidden, tagSuggestions, onSaved }: {
+export function TransactionDialog({ open, onOpenChange, initial, prefill, accounts, categories, prefs, startHidden, tagSuggestions, onSaved }: {
   open: boolean; onOpenChange: (o: boolean) => void; initial: Transaction | null; accounts: Account[]; categories: Category[];
+  /** Starting values for a new transaction (e.g. from quick add). */
+  prefill?: Partial<Pick<Transaction, "type" | "date" | "merchant" | "account_id" | "category_id">> & { amount?: string };
   prefs: SharingPrefs | null; startHidden?: boolean; tagSuggestions?: string[]; onSaved: (t: Transaction) => void;
 }) {
   const { t } = useTranslation();
@@ -38,6 +40,13 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
   const [toAccountId, setToAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [parts, setParts] = useState<Part[] | null>(null);
+  // True when the category was filled in from a rule (shown so it isn't a silent guess).
+  const [suggested, setSuggested] = useState(false);
+  const suggest = async () => {
+    if (kind === "transfer" || parts || categoryId || !merchant.trim()) return;
+    const c = await api.rules.suggest(merchant, kind).catch(() => null);
+    if (c) { setCategoryId(c); setSuggested(true); }
+  };
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<Visibility>("private");
@@ -49,20 +58,21 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
   useEffect(() => {
     if (!open) return;
     const first = accounts[0]?.id ?? "";
-    setKind(initial?.type ?? "expense");
-    setAmount(initial ? String(initial.amount) : "");
-    setDate(initial?.date ?? localToday());
-    setMerchant(initial?.merchant ?? "");
-    setAccountId(initial?.account_id ?? first);
+    setKind(initial?.type ?? prefill?.type ?? "expense");
+    setAmount(initial ? String(initial.amount) : prefill?.amount ?? "");
+    setDate(initial?.date ?? prefill?.date ?? localToday());
+    setMerchant(initial?.merchant ?? prefill?.merchant ?? "");
+    setAccountId(initial?.account_id ?? prefill?.account_id ?? first);
     setToAccountId(initial?.to_account_id ?? accounts.find((a) => a.id !== (initial?.account_id ?? first))?.id ?? "");
-    setCategoryId(initial?.category_id ?? "");
+    setCategoryId(initial?.category_id ?? prefill?.category_id ?? "");
+    setSuggested(false);
     setParts(initial?.splits?.length ? initial.splits.map((x) => ({ category_id: x.category_id ?? "", amount: String(x.amount), memo: x.memo ?? "" })) : null);
     setNotes(initial?.notes ?? "");
     setTags(splitTags(initial?.tags));
     setVisibility(initial?.visibility ?? prefs?.default_visibility ?? "private");
     setHide(!!startHidden);
     setError("");
-  }, [open, initial]);
+  }, [open, initial, prefill]);
 
   const isHidden = editing ? initial?.hidden === 1 : hide;
   // Parents first, each followed by its sub-categories (indented in the list).
@@ -118,7 +128,7 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
             <div className="grid gap-2"><Label htmlFor="date">{t("tx.date")}</Label><Input id="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required /></div>
           </div>
           <div className="grid gap-2"><Label htmlFor="merchant">{kind === "transfer" ? t("tx.transferNote") : t("tx.merchant")}</Label>
-            <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} placeholder={kind === "transfer" ? t("tx.transferPh") : undefined} /></div>
+            <Input id="merchant" value={merchant} onChange={(e) => setMerchant(e.target.value)} onBlur={suggest} placeholder={kind === "transfer" ? t("tx.transferPh") : undefined} /></div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2"><Label htmlFor="account">{kind === "transfer" ? t("tx.from") : t("tx.account")}</Label>
               <NativeSelect id="account" value={accountId} onChange={(e) => setAccountId(e.target.value)}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</NativeSelect></div>
@@ -132,8 +142,9 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
               <div className="grid gap-2">
                 <div className="flex items-center justify-between"><Label htmlFor="category">{t("tx.category")}</Label>
                   <button type="button" className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs" onClick={startSplit}><Split className="size-3" />{t("split.start")}</button></div>
-                <NativeSelect id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">{t("dashboard.uncategorised")}</option>
-                  {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.depth ? "\u00a0\u00a0\u00a0\u00a0" : ""}{c.icon} {c.name}</option>)}</NativeSelect></div>
+                <NativeSelect id="category" value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setSuggested(false); }}><option value="">{t("dashboard.uncategorised")}</option>
+                  {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.depth ? "\u00a0\u00a0\u00a0\u00a0" : ""}{c.icon} {c.name}</option>)}</NativeSelect>
+                {suggested && <p className="text-muted-foreground text-xs">{t("rules.fromRule")}</p>}</div>
             ) : <div />}
           </div>
           {kind !== "transfer" && parts && (

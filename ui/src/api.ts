@@ -169,6 +169,8 @@ export type ImportRow = {
   index: number; date: string | null; description: string; merchant: string; amount: string | null; kind: "income" | "expense" | null;
   reference: string | null; status: "new" | "duplicate" | "error" | "skipped"; message: string | null; matched_date: string | null;
 };
+export type Rule = { id: string; pattern: string; category_id: string; source: "learned" | "manual"; category_name: string; category_icon: string | null; category_type: "income" | "expense" };
+export type QuickParsed = { kind: "income" | "expense"; amount: string | null; date: string; merchant: string; account_id: string | null; category_id: string | null; understood: [string, string][] };
 export type HiddenStatus = { unlocked: boolean; seconds_left: number; count: number; biometric: boolean };
 
 export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
@@ -231,6 +233,15 @@ export const api = {
     update: (id: string, category: CategoryInput) => invoke<Category>("categories_update", { id, category }),
     delete: (id: string) => invoke<void>("categories_delete", { id }),
   },
+  rules: {
+    suggest: (merchant: string, kind: string) => invoke<string | null>("rules_suggest", { merchant, kind }),
+    list: () => invoke<Rule[]>("rules_list"),
+    add: (pattern: string, categoryId: string) => invoke<Rule>("rules_add", { pattern, categoryId }),
+    delete: (id: string) => invoke<void>("rules_delete", { id }),
+    pending: () => invoke<number>("rules_pending"),
+    apply: () => invoke<number>("rules_apply"),
+  },
+  quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {
     inspect: (path: string, accountId: string) => invoke<StatementInfo>("statement_inspect", { path, accountId }),
     preview: (path: string, accountId: string, mapping: ImportMapping) => invoke<ImportRow[]>("statement_preview", { path, accountId, mapping }),

@@ -275,6 +275,8 @@ pub struct ParsedRow {
     pub message: Option<String>,
     /// For duplicates: the date of the matching transaction already in Vaulty.
     pub matched_date: Option<String>,
+    /// Category from the member's rules, if one matches the merchant.
+    pub category_id: Option<String>,
 }
 
 fn cell(row: &[String], i: Option<usize>) -> &str { i.and_then(|i| row.get(i)).map(String::as_str).unwrap_or("") }
@@ -282,7 +284,7 @@ fn cell(row: &[String], i: Option<usize>) -> &str { i.and_then(|i| row.get(i)).m
 fn parse_row(index: usize, row: &[String], m: &Mapping) -> ParsedRow {
     let desc = cell(row, Some(m.description)).to_string();
     let mut p = ParsedRow { index, date: None, merchant: merchant_from(&desc), description: desc, amount: None, kind: None,
-        reference: Some(cell(row, m.reference).to_string()).filter(|s| !s.is_empty()), status: "new", message: None, matched_date: None };
+        reference: Some(cell(row, m.reference).to_string()).filter(|s| !s.is_empty()), status: "new", message: None, matched_date: None, category_id: None };
     let raw_date = cell(row, Some(m.date));
     let date = parse_date(raw_date, m.date_order);
     // Amount and direction.
@@ -337,6 +339,9 @@ pub fn preview(conn: &Connection, t: &Table, m: &Mapping, account_id: &str) -> R
         if let Err(e) = money::parse_minor(&json!(r.amount.as_deref().unwrap_or("")), &currency) { r.status = "error"; r.message = Some(e.to_string()); }
     }
     mark_duplicates(conn, &mut rows, account_id, &currency)?;
+    for r in rows.iter_mut().filter(|r| r.kind.is_some()) {
+        r.category_id = crate::rules::suggest(conn, &r.merchant, r.kind.unwrap_or("expense"))?;
+    }
     Ok(rows)
 }
 
@@ -377,7 +382,7 @@ pub fn import(conn: &Connection, t: &Table, m: &Mapping, account_id: &str, skip:
     atomic(conn, |tx| {
         for r in &chosen {
             transactions::create(tx, &json!({
-                "account_id": account_id, "type": r.kind, "amount": r.amount, "date": r.date,
+                "account_id": account_id, "type": r.kind, "amount": r.amount, "date": r.date, "category_id": r.category_id,
                 "merchant": r.merchant, "description": (r.description != r.merchant).then_some(&r.description),
                 "notes": r.reference.as_ref().map(|x| format!("Ref {x}")),
             }))?;

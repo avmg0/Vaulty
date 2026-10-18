@@ -582,6 +582,30 @@ fn transactions_set_hidden(s: S, id: String, hidden: bool) -> Result<Value> {
     Ok(if reveal { row } else { transactions::mask(row) })
 }
 
+/// Remembers the merchant's category for next time (not for hidden or split transactions).
+fn learn_rule(c: &Connection, row: &Value) -> Result<()> {
+    if row["hidden"] == 1 || row.get("splits").is_some() { return Ok(()); }
+    if let (Some(m), Some(cat)) = (row["merchant"].as_str(), row["category_id"].as_str()) { vaulty_core::rules::learn(c, m, cat)?; }
+    Ok(())
+}
+
+// ============================================================ rules and quick add
+
+/// The category a rule gives this merchant, if any.
+#[tauri::command] fn rules_suggest(s: S, merchant: String, kind: String) -> Result<Option<String>> { s.data(|c| vaulty_core::rules::suggest(c, &merchant, &kind)) }
+#[tauri::command] fn rules_list(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::rules::list) }
+#[tauri::command] fn rules_add(s: S, pattern: String, category_id: String) -> Result<Value> { s.act("rules.add", |c| vaulty_core::rules::add(c, &pattern, &category_id)) }
+#[tauri::command] fn rules_delete(s: S, id: String) -> Result<()> { s.act("rules.delete", |c| vaulty_core::rules::delete(c, &id)) }
+/// How many uncategorised transactions the rules would categorise.
+#[tauri::command] fn rules_pending(s: S) -> Result<usize> { s.data(|c| Ok(vaulty_core::rules::pending(c)?.len())) }
+#[tauri::command] fn rules_apply(s: S) -> Result<usize> { s.act("rules.apply", vaulty_core::rules::apply_all) }
+/// Reads one line of plain language ("250 swiggy yesterday") as a transaction, without saving.
+#[tauri::command]
+fn quick_parse(s: S, text: String) -> Result<vaulty_core::quick::Parsed> {
+    if text.chars().count() > 200 { return Err(Error::Invalid("keep it to one short line".into())); }
+    s.data(|c| vaulty_core::quick::parse(c, &text, today(), &accounts::get_all(c)?))
+}
+
 /// New transactions take the member's default visibility unless the form picked one.
 fn with_default_visibility(h: &Household, user_id: &str, mut t: Value) -> Result<Value> {
     if t.get("visibility").and_then(Value::as_str).is_none() {
@@ -597,6 +621,7 @@ fn with_default_visibility(h: &Household, user_id: &str, mut t: Value) -> Result
 fn transactions_create(s: S, transaction: Value) -> Result<Value> {
     s.act_and_share("transaction.create", |c, me, h| {
         let row = transactions::create(c, &with_default_visibility(h, me, transaction)?)?;
+        learn_rule(c, &row)?;
         h.publish(me, &row)?;
         Ok(row)
     })
@@ -606,6 +631,7 @@ fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> {
     s.guard_hidden(&id)?;
     s.act_and_share("transaction.update", |c, me, h| {
         let row = transactions::update(c, &id, &transaction)?;
+        learn_rule(c, &row)?;
         h.publish(me, &row)?;
         Ok(row)
     })
@@ -895,7 +921,7 @@ pub fn run() {
             backup_codes_regenerate, biometric_enable, biometric_disable,
             accounts_get_all, accounts_create, accounts_update, accounts_delete,
             categories_get_all, categories_create, categories_update, categories_delete, budgets_month, budgets_set,
-            statement_inspect, statement_preview, statement_import,
+            statement_inspect, statement_preview, statement_import, rules_suggest, rules_list, rules_add, rules_delete, rules_pending, rules_apply, quick_parse,
             recurring_list, recurring_create, recurring_update, recurring_set_active, recurring_delete, recurring_skip, recurring_history, recurring_upcoming, recurring_pay,
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,

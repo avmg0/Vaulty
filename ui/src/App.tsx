@@ -21,6 +21,7 @@ import { ComingSoon } from "@/pages/ComingSoon";
 import { Budgets } from "@/pages/Budgets";
 import { RecurringPage } from "@/pages/Recurring";
 import { ImportPage } from "@/pages/Import";
+import { QuickAdd } from "@/components/QuickAdd";
 import { TaxPlanner } from "@/pages/TaxPlanner";
 import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
@@ -129,6 +130,7 @@ function Shell({ signOut }: { signOut: () => void }) {
         </main>
       </div>
       <UndoToaster />
+      <QuickAdd />
     </div>
   );
 }

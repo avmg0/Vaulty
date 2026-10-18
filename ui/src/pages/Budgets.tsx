@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { ChevronLeft, ChevronRight, CornerDownRight, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CornerDownRight, Loader2, Pencil, Plus, Trash2, Wand2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { api, DATA_RESTORED, errorText, type BudgetLine, type BudgetMonth } from "@/api";
+import { api, DATA_RESTORED, errorText, type BudgetLine, type BudgetMonth, type Rule } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -122,6 +122,8 @@ export function Budgets() {
           ))}
         </CardContent>
       </Card>
+
+      <RulesCard categories={data?.categories ?? []} onApplied={load} />
 
       {dialog && <CategoryDialog type={dialog.type} edit={dialog.edit} lines={data?.categories ?? []} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); load(); }} />}
     </div>
@@ -270,3 +272,55 @@ function CategoryDialog({ type: initialType, edit, lines, onClose, onSaved }: {
   );
 }
 
+
+/** Merchant → category rules: learned as you categorise, or added here. */
+function RulesCard({ categories, onApplied }: { categories: BudgetLine[]; onApplied: () => void }) {
+  const { t } = useTranslation();
+  const [rules, setRules] = useState<Rule[]>([]);
+  const [pending, setPending] = useState(0);
+  const [pattern, setPattern] = useState("");
+  const [cat, setCat] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [applied, setApplied] = useState<number | null>(null);
+  const load = () => { api.rules.list().then(setRules); api.rules.pending().then(setPending); };
+  useEffect(() => { load(); }, []);
+  const add = async (e: FormEvent) => {
+    e.preventDefault(); setError("");
+    try { await api.rules.add(pattern, cat); setPattern(""); load(); } catch (err) { setError(errorText(err)); }
+  };
+  const apply = async () => {
+    setBusy(true);
+    try { setApplied(await api.rules.apply()); load(); onApplied(); } catch (err) { setError(errorText(err)); } finally { setBusy(false); }
+  };
+  return (
+    <Card>
+      <CardHeader className="flex-row items-start justify-between gap-3">
+        <div className="space-y-1.5"><CardTitle>{t("rules.title")}</CardTitle><CardDescription>{t("rules.desc")}</CardDescription></div>
+        {pending > 0 && <Button variant="outline" size="sm" onClick={apply} disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <Wand2 />}{t("rules.apply", { count: pending })}</Button>}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {applied != null && <p className="text-success text-sm">{t("rules.applied", { count: applied })}</p>}
+        <form onSubmit={add} className="flex flex-wrap gap-2">
+          <Input className="min-w-40 flex-1" placeholder={t("rules.patternPh")} value={pattern} onChange={(e) => setPattern(e.target.value)} aria-label={t("rules.pattern")} />
+          <NativeSelect className="w-56" value={cat} onChange={(e) => setCat(e.target.value)} aria-label={t("tx.category")} required>
+            <option value="" disabled>{t("rules.choose")}</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+          </NativeSelect>
+          <Button disabled={!pattern.trim() || !cat}><Plus />{t("rules.add")}</Button>
+        </form>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        {rules.length === 0 ? <p className="text-muted-foreground text-sm">{t("rules.empty")}</p> : (
+          <div className="flex flex-wrap gap-1.5">
+            {rules.map((r) => (
+              <span key={r.id} className="bg-secondary flex items-center gap-1.5 rounded-md py-1 ps-2 pe-1 text-xs" title={r.source === "learned" ? t("rules.learned") : t("rules.manual")}>
+                <span className="font-medium">{r.pattern}</span><span className="text-muted-foreground">→ {r.category_icon} {r.category_name}</span>
+                <button type="button" className="text-muted-foreground hover:text-foreground" onClick={() => api.rules.delete(r.id).then(load)} aria-label={t("rules.delete", { pattern: r.pattern })}><X className="size-3" /></button>
+              </span>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

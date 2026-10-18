@@ -1,4 +1,5 @@
-import { Eye, EyeOff, FlaskConical, LineChart, Monitor, Moon, Sun, WifiOff } from "lucide-react";
+import { Eye, EyeOff, FlaskConical, LineChart, Monitor, Moon, Sun, WifiOff, Zap } from "lucide-react";
+import { QUICK_ADD_EVENT } from "@/components/QuickAdd";
 import { useAppInfo } from "@/hooks/appInfo";
 import { useMarketEnabled } from "@/components/TickerBar";
 import { useTranslation } from "react-i18next";
@@ -21,6 +22,9 @@ export function Header({ title }: { title: string }) {
       <div className="ml-auto flex items-center gap-1">
         {info?.demo && <Badge className="me-1 gap-1 bg-amber-500/15 text-amber-700 dark:text-amber-300" title={t("demo.badgeTitle")}><FlaskConical className="size-3" />{t("demo.badge")}</Badge>}
         <Badge variant="outline" className="text-muted-foreground me-2 gap-1">{online ? <><LineChart className="size-3" />{t("header.pricesOnline")}</> : <><WifiOff className="size-3" />{t("header.offline")}</>}</Badge>
+        <Button variant="outline" size="sm" className="me-1 gap-1.5" onClick={() => window.dispatchEvent(new Event(QUICK_ADD_EVENT))} title={t("quick.shortcut")}>
+          <Zap />{t("quick.button")}<kbd className="text-muted-foreground hidden font-sans text-[10px] sm:inline">{navigator.platform.startsWith("Mac") ? "⌘J" : "Ctrl+J"}</kbd>
+        </Button>
         <Button variant="ghost" size="icon" onClick={() => setHideBalances(!hideBalances)} title={t("header.hideBalances")}>
           {hideBalances ? <EyeOff /> : <Eye />}
         </Button>
