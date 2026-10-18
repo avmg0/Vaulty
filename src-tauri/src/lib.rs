@@ -11,7 +11,7 @@ use std::{
 };
 use tauri::{Manager, State};
 use vaulty_core::{
-    accounts, categories, db, export, recurring,
+    accounts, categories, db, export, recurring, statements,
     household::{FeedFilter, FeedView, Household, SharingPrefs},
     profiles::{Invite, PasswordOutcome, Registry, Role, SecondFactor, TotpEnrollment, Unlocked, UserSummary},
     settings, transactions, Error, Result,
@@ -436,6 +436,44 @@ fn biometric_disable(s: S) -> Result<()> {
 #[tauri::command] fn categories_update(s: S, id: String, category: Value) -> Result<Value> { s.act("category.update", |c| categories::update(c, &id, &category)) }
 #[tauri::command] fn categories_delete(s: S, id: String) -> Result<()> { s.act("category.delete", |c| categories::delete(c, &id)) }
 
+// ============================================================ statement import
+
+/// Reads a statement the member picked, refusing anything over the size limit before loading it.
+fn read_statement(path: &str) -> Result<statements::Table> {
+    let p = std::path::Path::new(path);
+    if std::fs::metadata(p)?.len() as usize > statements::MAX_BYTES { return Err(Error::Invalid("that file is larger than 20 MB".into())); }
+    let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
+    statements::read(&std::fs::read(p)?, &name)
+}
+
+/// Day-first unless the profile reads dates month-first.
+fn default_order(c: &Connection) -> Result<statements::DateOrder> {
+    let s = settings::get(c)?;
+    let us = s["date_format"] == "mdy" || (s["date_format"] != "dmy" && s["locale"].as_str().is_some_and(|l| l.ends_with("-US") || l.ends_with("-PH")));
+    Ok(if us { statements::DateOrder::Mdy } else { statements::DateOrder::Dmy })
+}
+
+#[tauri::command]
+fn statement_inspect(s: S, path: String, account_id: String) -> Result<Value> {
+    let t = read_statement(&path)?;
+    s.data(|c| statements::inspect(c, &t, &account_id, default_order(c)?))
+}
+
+#[tauri::command]
+fn statement_preview(s: S, path: String, account_id: String, mapping: statements::Mapping) -> Result<Vec<statements::ParsedRow>> {
+    let t = read_statement(&path)?;
+    s.data(|c| statements::preview(c, &t, &mapping, &account_id))
+}
+
+/// Imports the chosen rows: `skip` lists new rows to leave out, `include` duplicates to add anyway.
+#[tauri::command]
+fn statement_import(s: S, path: String, account_id: String, mapping: statements::Mapping, skip: Vec<usize>, include: Vec<usize>) -> Result<usize> {
+    let t = read_statement(&path)?;
+    let me = s.current_user()?;
+    s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "before-import")))?;
+    s.act("statement.import", |c| statements::import(c, &t, &mapping, &account_id, &skip, &include))
+}
+
 // ============================================================ recurring payments
 
 fn today() -> chrono::NaiveDate { chrono::Local::now().date_naive() }
@@ -857,6 +895,7 @@ pub fn run() {
             backup_codes_regenerate, biometric_enable, biometric_disable,
             accounts_get_all, accounts_create, accounts_update, accounts_delete,
             categories_get_all, categories_create, categories_update, categories_delete, budgets_month, budgets_set,
+            statement_inspect, statement_preview, statement_import,
             recurring_list, recurring_create, recurring_update, recurring_set_active, recurring_delete, recurring_skip, recurring_history, recurring_upcoming, recurring_pay,
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,

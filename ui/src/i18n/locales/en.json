@@ -323,6 +323,9 @@
         "pause": "Paused a recurring payment",
         "resume": "Resumed a recurring payment",
         "auto": "Recorded automatic payments"
+      },
+      "statement": {
+        "import": "Imported a statement"
       }
     },
     "check": {
@@ -935,5 +938,58 @@
     "comingUpDesc": "Bills and payments in the next two weeks",
     "nothingSoon": "Nothing due in the next two weeks.",
     "seeAll": "See all"
+  },
+  "import": {
+    "filesName": "Statements",
+    "step1": "Choose a statement",
+    "step1Desc": "A CSV or Excel file downloaded from your bank or card. Nothing leaves this device.",
+    "into": "Import into",
+    "chooseFile": "Choose file",
+    "otherFile": "Choose another file",
+    "rows_one": "{{count}} row",
+    "rows_other": "{{count}} rows",
+    "step2": "Match the columns",
+    "step2Desc": "Vaulty guessed these from the headings. Fix anything that looks wrong; the list below updates as you go.",
+    "savedMapping": "Using your saved layout",
+    "none": "None",
+    "m": {
+      "date": "Date",
+      "order": "Dates are written",
+      "description": "Description",
+      "amounts": "Amounts",
+      "split": "Separate debit and credit columns",
+      "one": "One amount column",
+      "debit": "Money out (debit / withdrawal)",
+      "credit": "Money in (credit / deposit)",
+      "amount": "Amount",
+      "side": "Dr / Cr column",
+      "negative": "Negative amounts are",
+      "negOut": "Money out",
+      "negIn": "Money in (card statements)",
+      "reference": "Reference (optional)"
+    },
+    "order": {
+      "dmy": "Day first (15/10/2026)",
+      "mdy": "Month first (10/15/2026)",
+      "ymd": "Year first (2026-10-15)"
+    },
+    "step3": "Check and import",
+    "summary": "{{new}} new · {{dup}} already in Vaulty · {{err}} couldn't be read",
+    "f": {
+      "all": "All",
+      "new": "New",
+      "duplicate": "Already in Vaulty",
+      "error": "Problems"
+    },
+    "nothingHere": "Nothing in this list.",
+    "go_one": "Import {{count}} transaction",
+    "go_other": "Import {{count}} transactions",
+    "safety": "A safety copy is taken first, and the whole import can be undone from History.",
+    "doneTitle_one": "Added {{count}} transaction to {{account}}",
+    "doneTitle_other": "Added {{count}} transactions to {{account}}",
+    "doneBody": "The column layout is saved, so this bank's next statement imports straight away.",
+    "another": "Import another",
+    "undoInHistory": "Undo in History",
+    "dupOn": "Already in Vaulty from {{date}}"
   }
 }

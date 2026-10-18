@@ -160,6 +160,15 @@ export type RecurringInput = {
   frequency: Frequency; every: number; start_date: string; end_date?: string; reminder_days: number; auto_pay?: boolean;
 };
 export type Occurrence = { recurring_id: string; name: string; type: Recurring["type"]; date: string; amount: number; currency: string; category_icon: string | null; account_name: string | null };
+export type ImportMapping = {
+  header_row: number; date: number; description: number; amount?: number | null; debit?: number | null; credit?: number | null;
+  side?: number | null; reference?: number | null; date_order: "dmy" | "mdy" | "ymd"; negative_is_expense: boolean;
+};
+export type StatementInfo = { headers: string[]; header_row: number; row_count: number; sample: string[][]; mapping: ImportMapping; saved: boolean };
+export type ImportRow = {
+  index: number; date: string | null; description: string; merchant: string; amount: string | null; kind: "income" | "expense" | null;
+  reference: string | null; status: "new" | "duplicate" | "error" | "skipped"; message: string | null; matched_date: string | null;
+};
 export type HiddenStatus = { unlocked: boolean; seconds_left: number; count: number; biometric: boolean };
 
 export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
@@ -221,6 +230,12 @@ export const api = {
     create: (category: CategoryInput) => invoke<Category>("categories_create", { category }),
     update: (id: string, category: CategoryInput) => invoke<Category>("categories_update", { id, category }),
     delete: (id: string) => invoke<void>("categories_delete", { id }),
+  },
+  statements: {
+    inspect: (path: string, accountId: string) => invoke<StatementInfo>("statement_inspect", { path, accountId }),
+    preview: (path: string, accountId: string, mapping: ImportMapping) => invoke<ImportRow[]>("statement_preview", { path, accountId, mapping }),
+    import: (path: string, accountId: string, mapping: ImportMapping, skip: number[], include: number[]) =>
+      invoke<number>("statement_import", { path, accountId, mapping, skip, include }),
   },
   recurring: {
     list: () => invoke<Recurring[]>("recurring_list"),

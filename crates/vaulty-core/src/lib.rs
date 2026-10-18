@@ -21,6 +21,7 @@ pub mod recurring;
 pub mod rows;
 pub mod settings;
 pub mod snapshots;
+pub mod statements;
 pub mod tax;
 pub mod transactions;
 
