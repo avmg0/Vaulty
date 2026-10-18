@@ -1,6 +1,7 @@
 [package]
 name = "vaulty-core"
 version = "0.1.0"
+publish = false
 edition = "2021"
 description = "Vaulty backend logic: SQLite storage, auth, import/export. No UI/framework dependencies."
 license = "MIT"
