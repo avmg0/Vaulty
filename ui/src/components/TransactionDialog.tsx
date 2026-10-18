@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { EyeOff, Info, Loader2 } from "lucide-react";
+import { EyeOff, Info, Loader2, Plus, Split, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { api, errorText, type Account, type Category, type SharingPrefs, type Transaction, type Visibility } from "@/api";
@@ -12,8 +12,11 @@ import { Segmented } from "@/components/Segmented";
 import { VisibilityPicker } from "@/components/Visibility";
 import { TagInput, splitTags } from "@/components/TagInput";
 import { useMotion } from "@/lib/motion";
+import { cn, formatMoney } from "@/lib/utils";
 
 type Kind = "expense" | "income" | "transfer";
+type Part = { category_id: string; amount: string; memo: string };
+const toMinor = (s: string) => Math.round((Number(s) || 0) * 100);
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 /**
@@ -34,6 +37,7 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [parts, setParts] = useState<Part[] | null>(null);
   const [notes, setNotes] = useState("");
   const [tags, setTags] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<Visibility>("private");
@@ -52,6 +56,7 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
     setAccountId(initial?.account_id ?? first);
     setToAccountId(initial?.to_account_id ?? accounts.find((a) => a.id !== (initial?.account_id ?? first))?.id ?? "");
     setCategoryId(initial?.category_id ?? "");
+    setParts(initial?.splits?.length ? initial.splits.map((x) => ({ category_id: x.category_id ?? "", amount: String(x.amount), memo: x.memo ?? "" })) : null);
     setNotes(initial?.notes ?? "");
     setTags(splitTags(initial?.tags));
     setVisibility(initial?.visibility ?? prefs?.default_visibility ?? "private");
@@ -60,13 +65,21 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
   }, [open, initial]);
 
   const isHidden = editing ? initial?.hidden === 1 : hide;
+  const kindCategories = categories.filter((c) => c.type === kind);
+  const currency = accounts.find((a) => a.id === accountId)?.currency ?? "INR";
+  // What's still to assign, in minor units (positive: some left; negative: too much).
+  const left = parts ? toMinor(amount) - parts.reduce((s, x) => s + toMinor(x.amount), 0) : 0;
+  const setPart = (i: number, patch: Partial<Part>) => setParts((ps) => ps && ps.map((x, j) => (j === i ? { ...x, ...patch } : x)));
+  // Starts with the chosen category holding the whole amount, plus an empty second part.
+  const startSplit = () => setParts([{ category_id: categoryId, amount: amount || "", memo: "" }, { category_id: "", amount: "", memo: "" }]);
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true); setError("");
     const body = {
       type: kind, amount, date, account_id: accountId, merchant: merchant.trim() || undefined,
       to_account_id: kind === "transfer" ? toAccountId : undefined,
-      category_id: kind === "transfer" ? undefined : categoryId || undefined,
+      category_id: kind === "transfer" || parts ? undefined : categoryId || undefined,
+      splits: kind !== "transfer" && parts ? parts.map((x) => ({ category_id: x.category_id || null, amount: x.amount, memo: x.memo.trim() || undefined })) : undefined,
       notes: notes.trim() || undefined, tags: tags.length ? tags.join(", ") : undefined,
       visibility: isHidden ? "private" as const : visibility,
     };
@@ -110,12 +123,42 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
                   <option value="" disabled>{t("tx.chooseAccount")}</option>
                   {accounts.filter((a) => a.id !== accountId).map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                 </NativeSelect></div>
-            ) : (
-              <div className="grid gap-2"><Label htmlFor="category">{t("tx.category")}</Label>
+            ) : !parts ? (
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between"><Label htmlFor="category">{t("tx.category")}</Label>
+                  <button type="button" className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs" onClick={startSplit}><Split className="size-3" />{t("split.start")}</button></div>
                 <NativeSelect id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">{t("dashboard.uncategorised")}</option>
-                  {categories.filter((c) => c.type === kind).map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</NativeSelect></div>
-            )}
+                  {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</NativeSelect></div>
+            ) : <div />}
           </div>
+          {kind !== "transfer" && parts && (
+            <div className="grid gap-2 rounded-lg border p-3">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-1.5"><Split className="size-3.5" />{t("split.title")}</Label>
+                <button type="button" className="text-muted-foreground hover:text-foreground text-xs" onClick={() => { setCategoryId(parts[0]?.category_id ?? ""); setParts(null); }}>{t("split.undo")}</button>
+              </div>
+              {parts.map((x, i) => (
+                <div key={i} className="grid grid-cols-[1fr_6.5rem_auto] items-center gap-2">
+                  <NativeSelect aria-label={t("tx.category")} value={x.category_id} onChange={(e) => setPart(i, { category_id: e.target.value })}>
+                    <option value="">{t("dashboard.uncategorised")}</option>
+                    {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                  </NativeSelect>
+                  <Input aria-label={t("tx.amount")} type="number" step="0.01" min="0" value={x.amount} onChange={(e) => setPart(i, { amount: e.target.value })} />
+                  <button type="button" className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={parts.length <= 2}
+                    onClick={() => setParts(parts.filter((_, j) => j !== i))} aria-label={t("split.remove")}><X className="size-4" /></button>
+                  <Input className="col-span-2 h-8 text-xs" placeholder={t("split.memo")} maxLength={200} value={x.memo} onChange={(e) => setPart(i, { memo: e.target.value })} />
+                </div>
+              ))}
+              <div className="flex items-center justify-between text-xs">
+                <button type="button" className="text-muted-foreground hover:text-foreground flex items-center gap-1" onClick={() => setParts([...parts, { category_id: "", amount: left > 0 ? (left / 100).toFixed(2) : "", memo: "" }])}>
+                  <Plus className="size-3" />{t("split.add")}
+                </button>
+                <span className={cn("tabular-nums", left === 0 ? "text-success" : "text-destructive")}>
+                  {left === 0 ? t("split.balanced") : left > 0 ? t("split.left", { amount: formatMoney(left / 100, currency) }) : t("split.over", { amount: formatMoney(-left / 100, currency) })}
+                </span>
+              </div>
+            </div>
+          )}
           <div className="grid gap-2"><Label htmlFor="tags">{t("tags.label")}</Label><TagInput id="tags" value={tags} onChange={setTags} suggestions={tagSuggestions} /></div>
           <div className="grid gap-2"><Label htmlFor="notes">{t("tx.notes")}</Label>
             <textarea id="notes" rows={2} maxLength={1000} value={notes} onChange={(e) => setNotes(e.target.value)}
@@ -137,7 +180,7 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
           {error && <p className="text-destructive text-sm">{error}</p>}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
-            <Button type="submit" disabled={busy || (kind === "transfer" && !toAccountId)}>{busy && <Loader2 className="animate-spin" />}{editing ? t("cards.saveChanges") : t("common.save")}</Button>
+            <Button type="submit" disabled={busy || (kind === "transfer" && !toAccountId) || (kind !== "transfer" && !!parts && left !== 0)}>{busy && <Loader2 className="animate-spin" />}{editing ? t("cards.saveChanges") : t("common.save")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

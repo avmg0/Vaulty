@@ -799,5 +799,17 @@
     "label": "Tags",
     "placeholder": "Type and press Enter",
     "remove": "Remove #{{tag}}"
+  },
+  "split": {
+    "start": "Split",
+    "title": "Split across categories",
+    "undo": "Use one category",
+    "remove": "Remove this part",
+    "memo": "Note for this part (optional)",
+    "add": "Add a part",
+    "balanced": "Adds up",
+    "left": "{{amount}} left to assign",
+    "over": "{{amount}} too much",
+    "label": "Split: {{names}}"
   }
 }

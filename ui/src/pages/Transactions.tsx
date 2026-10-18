@@ -18,7 +18,7 @@ import { useTheme } from "@/hooks/theme";
 
 type RowProps = {
   t: Pick<Transaction, "type" | "amount" | "date" | "merchant" | "description" | "category_name" | "account_name" | "currency" | "visibility" | "hidden" | "masked">
-    & Partial<Pick<Transaction, "to_account_name" | "tags" | "notes">>;
+    & Partial<Pick<Transaction, "to_account_name" | "tags" | "notes" | "splits">>;
   hidden: boolean;
   /** Shown before the date line, e.g. who the item belongs to in the family view. */
   lead?: ReactNode;
@@ -71,7 +71,11 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, 
         })()}
         <div className="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
           {lead}
-          <span className="truncate">{[formatDate(t.date), transfer ? `${t.account_name} → ${t.to_account_name ?? "?"}` : t.category_name, transfer ? null : t.account_name].filter(Boolean).join(" · ")}</span>
+          <span className="truncate">{[formatDate(t.date),
+            transfer ? `${t.account_name} → ${t.to_account_name ?? "?"}`
+              : t.splits?.length ? tr("split.label", { names: [...new Set(t.splits.map((x) => x.category_name ?? tr("dashboard.uncategorised")))].join(", ") })
+              : t.category_name,
+            transfer ? null : t.account_name].filter(Boolean).join(" · ")}</span>
           {tags.slice(0, 3).map((g) => <span key={g} className="bg-secondary shrink-0 rounded px-1 text-[10px]">#{g}</span>)}
           {t.notes && <NotebookText className="size-3 shrink-0" aria-label={tr("tx.notes")}><title>{t.notes}</title></NotebookText>}
         </div>

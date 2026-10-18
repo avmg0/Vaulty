@@ -80,10 +80,15 @@ export function Dashboard() {
   // This month's spending by category: the five largest, the rest grouped.
   const slices = useMemo(() => {
     const by = new Map<string, { value: number; color?: string | null }>();
+    const add = (name: string, value: number, color?: string | null) => {
+      const e = by.get(name) ?? { value: 0, color };
+      e.value += value; by.set(name, e);
+    };
     for (const x of month) if (x.type === "expense") {
-      const name = x.masked ? t("hidden.category") : x.category_name || t("dashboard.uncategorised");
-      const e = by.get(name) ?? { value: 0, color: x.category_color };
-      e.value += x.amount; by.set(name, e);
+      if (x.masked) add(t("hidden.category"), x.amount);
+      // A split counts each part under its own category.
+      else if (x.splits?.length) for (const p of x.splits) add(p.category_name || t("dashboard.uncategorised"), p.amount, p.category_color);
+      else add(x.category_name || t("dashboard.uncategorised"), x.amount, x.category_color);
     }
     const sorted = [...by.entries()].sort((a, b) => b[1].value - a[1].value).slice(0, 5);
     // Categories without a colour of their own get one nobody else is using.

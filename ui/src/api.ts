@@ -127,12 +127,19 @@ export type Transaction = {
   notes?: string | null;
   /** Comma-separated, e.g. "trip, goa". */
   tags?: string | null;
+  /** Present when the amount is split across several categories. */
+  splits?: SplitPart[] | null;
   /** 1 when the transaction lives in the Hidden section. */
   hidden?: number;
   /** True when the details were withheld: only amount, date, type and account are real. */
   masked?: boolean;
 };
 export type AppInfo = { version: string; demo: boolean; demo_password: string | null };
+export type SplitPart = { category_id: string | null; category_name?: string | null; category_icon?: string | null; category_color?: string | null; amount: number; memo?: string | null };
+/** What the app sends to save a transaction. Split amounts are decimal strings. */
+export type TransactionInput = Omit<Partial<Transaction>, "amount" | "hidden" | "splits"> & {
+  amount: string | number; splits?: { category_id?: string | null; amount: string; memo?: string }[];
+};
 export type HiddenStatus = { unlocked: boolean; seconds_left: number; count: number; biometric: boolean };
 
 export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
@@ -237,9 +244,9 @@ export const api = {
     getAll: (filters?: { accountId?: string; categoryId?: string; type?: string; visibility?: Visibility; startDate?: string; endDate?: string; limit?: number;
       hidden?: "only" | "exclude"; reveal_hidden?: boolean }) =>
       invoke<Transaction[]>("transactions_get_all", { filters }),
-    create: (transaction: Omit<Partial<Transaction>, "amount" | "hidden"> & { amount: string | number; hidden?: boolean }) =>
+    create: (transaction: TransactionInput & { hidden?: boolean }) =>
       invoke<Transaction>("transactions_create", { transaction }),
-    update: (id: string, transaction: Omit<Partial<Transaction>, "amount" | "hidden"> & { amount: string | number }) =>
+    update: (id: string, transaction: TransactionInput) =>
       invoke<Transaction>("transactions_update", { id, transaction }),
     setVisibility: (id: string, visibility: Visibility) => invoke<Transaction>("transactions_set_visibility", { id, visibility }),
     delete: (id: string) => invoke<void>("transactions_delete", { id }),

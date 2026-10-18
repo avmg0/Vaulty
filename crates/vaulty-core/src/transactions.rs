@@ -17,6 +17,47 @@ const SELECT: &str = "
   LEFT JOIN accounts a ON t.account_id = a.id
   LEFT JOIN accounts ta ON t.to_account_id = ta.id";
 
+/// Adds `splits` (category, amount, memo per part) to transactions that are split across
+/// several categories, and `category_name` "Split" so lists don't name just the first part.
+fn attach_splits(conn: &Connection, rows: &mut [Value]) -> Result<()> {
+    let mut stmt = conn.prepare_cached(
+        "SELECT p.entry_id, l.category_id, c.name, c.icon, c.color, ABS(p.amount_minor), p.currency, p.memo
+         FROM postings p JOIN ledger_accounts l ON l.id = p.ledger_account_id LEFT JOIN categories c ON c.id = l.category_id
+         WHERE p.entry_id IN (SELECT p2.entry_id FROM postings p2 JOIN ledger_accounts l2 ON l2.id = p2.ledger_account_id
+                              WHERE l2.kind IN ('income', 'expense') AND p2.entry_id IN (SELECT value FROM json_each(?1))
+                              GROUP BY p2.entry_id HAVING COUNT(*) > 1)
+           AND l.kind IN ('income', 'expense')
+         ORDER BY p.entry_id, p.id")?;
+    let ids: Vec<&str> = rows.iter().filter_map(|r| r["id"].as_str()).collect();
+    if ids.is_empty() { return Ok(()); }
+    let ids = serde_json::to_string(&ids)?;
+    let mut by_entry: std::collections::HashMap<String, Vec<Value>> = std::collections::HashMap::new();
+    let found = stmt.query_map([&ids], |r| {
+        let cur: String = r.get(6)?;
+        let minor: i64 = r.get(5)?;
+        Ok((r.get::<_, String>(0)?, json!({
+            "category_id": r.get::<_, Option<String>>(1)?, "category_name": r.get::<_, Option<String>>(2)?,
+            "category_icon": r.get::<_, Option<String>>(3)?, "category_color": r.get::<_, Option<String>>(4)?,
+            "amount_minor": minor, "amount": money::to_decimal(minor, &cur), "memo": r.get::<_, Option<String>>(7)?,
+        })))
+    })?;
+    for f in found { let (id, v) = f?; by_entry.entry(id).or_default().push(v); }
+    if by_entry.is_empty() { return Ok(()); }
+    for row in rows.iter_mut() {
+        let Some(id) = row["id"].as_str() else { continue };
+        if let Some(parts) = by_entry.remove(id) {
+            if let Some(o) = row.as_object_mut() {
+                o.insert("splits".into(), Value::Array(parts));
+                o.insert("category_id".into(), Value::Null);
+                o.insert("category_name".into(), json!("Split"));
+                o.insert("category_icon".into(), Value::Null);
+                o.insert("category_color".into(), Value::Null);
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn get_all(conn: &Connection, filters: Option<&Value>) -> Result<Vec<Value>> {
     let mut sql = format!("{SELECT} WHERE 1=1");
     let mut params: Vec<Value> = Vec::new();
@@ -44,12 +85,18 @@ pub fn get_all(conn: &Connection, filters: Option<&Value>) -> Result<Vec<Value>>
         sql.push_str(" LIMIT ?");
         params.push(json!(limit));
     }
-    query(conn, &sql, &params)
+    let mut rows = query(conn, &sql, &params)?;
+    attach_splits(conn, &mut rows)?;
+    Ok(rows)
 }
 
 /// One transaction with the joined names the UI and the family view need.
 pub fn get_one(conn: &Connection, id: &str) -> Result<Option<Value>> {
-    query_one(conn, &format!("{SELECT} WHERE t.id = ?"), &[json!(id)])
+    let Some(row) = query_one(conn, &format!("{SELECT} WHERE t.id = ?"), &[json!(id)])? else { return Ok(None) };
+    let mut rows = [row];
+    attach_splits(conn, &mut rows)?;
+    let [row] = rows;
+    Ok(Some(row))
 }
 
 /// Everything the owner has marked shared or public, for (re)publishing. Hidden transactions are
@@ -67,7 +114,7 @@ pub fn mask(mut row: Value) -> Value {
     if row.get("hidden").and_then(Value::as_i64) != Some(1) { return row; }
     if let Some(o) = row.as_object_mut() {
         o.insert("merchant".into(), json!(MASK));
-        for k in ["description", "notes", "tags", "receipt_path", "category_id", "category_icon", "category_color"] { o.insert(k.into(), Value::Null); }
+        for k in ["description", "notes", "tags", "receipt_path", "category_id", "category_icon", "category_color", "splits"] { o.insert(k.into(), Value::Null); }
         o.insert("category_name".into(), json!("Hidden"));
         o.insert("masked".into(), json!(true));
     }
@@ -151,25 +198,47 @@ fn postings_for(conn: &Connection, t: &Value) -> Result<(&'static str, Vec<Posti
         }
         _ => {
             let income = kind == "income";
-            let category_ledger = match str_field(t, "category_id") {
-                Some(cat) => {
-                    let (id, k) = ledger::for_category(conn, cat)?;
-                    if (k == Kind::Income) != income {
-                        return Err(Error::Invalid(format!("that category is for {}", if income { "expenses" } else { "income" })));
+            let category_ledger = |cat: Option<&str>| -> Result<String> {
+                match cat {
+                    Some(cat) => {
+                        let (id, k) = ledger::for_category(conn, cat)?;
+                        if (k == Kind::Income) != income {
+                            return Err(Error::Invalid(format!("that category is for {}", if income { "expenses" } else { "income" })));
+                        }
+                        Ok(id)
                     }
-                    id
+                    None => ledger::system_account(
+                        conn,
+                        ledger::PERSONAL_WORKSPACE,
+                        if income { System::UncategorizedIncome } else { System::UncategorizedExpense },
+                    ),
                 }
-                None => ledger::system_account(
-                    conn,
-                    ledger::PERSONAL_WORKSPACE,
-                    if income { System::UncategorizedIncome } else { System::UncategorizedExpense },
-                )?,
             };
-            if income {
-                vec![p(account_ledger, amount), p(category_ledger, -amount)]
-            } else {
-                vec![p(category_ledger, amount), p(account_ledger, -amount)]
-            }
+            // Category side: one posting, or one per split part. The sign is flipped for income.
+            let sign = if income { -1 } else { 1 };
+            let mut postings = match t.get("splits").and_then(Value::as_array).filter(|a| !a.is_empty()) {
+                None => vec![p(category_ledger(str_field(t, "category_id"))?, sign * amount)],
+                Some(parts) => {
+                    if parts.len() < 2 { return Err(Error::Invalid("a split needs at least two parts".into())); }
+                    if parts.len() > 50 { return Err(Error::Invalid("a split can have at most 50 parts".into())); }
+                    let mut total = 0i64;
+                    let mut out = Vec::with_capacity(parts.len());
+                    for part in parts {
+                        let a = money::parse_minor(part.get("amount").unwrap_or(&Value::Null), &currency)?;
+                        if a <= 0 { return Err(Error::Invalid("every split part needs an amount greater than zero".into())); }
+                        total += a;
+                        let memo = str_field(part, "memo").map(str::trim).filter(|m| !m.is_empty()).map(|m| m.chars().take(200).collect::<String>());
+                        out.push(Posting { memo, ..p(category_ledger(str_field(part, "category_id"))?, sign * a) });
+                    }
+                    if total != amount {
+                        return Err(Error::Invalid(format!("the split parts add up to {}, not the total of {}",
+                            money::to_decimal(total, &currency), money::to_decimal(amount, &currency))));
+                    }
+                    out
+                }
+            };
+            postings.push(p(account_ledger, -sign * amount));
+            postings
         }
     };
     Ok((kind, postings))
