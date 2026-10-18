@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import i18n from "@/i18n";
 import { ImagePlus, Minus, Plus } from "lucide-react";
 import type { CardDesign, CardLook } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { Segmented } from "@/components/Segmented";
 
 type Mode = "preset" | "solid" | "gradient" | "image";
 const MODES: { id: Mode; label: string }[] = [
-  { id: "preset", label: "Finishes" }, { id: "solid", label: "Colour" }, { id: "gradient", label: "Gradient" }, { id: "image", label: "Image" },
+  { id: "preset", label: "finishes" }, { id: "solid", label: "colour" }, { id: "gradient", label: "gradient" }, { id: "image", label: "image" },
 ];
 const QUICK = ["#0f172a", "#1e3a8a", "#0e7490", "#047857", "#7c3aed", "#be123c", "#c2410c", "#f5f5f4"];
 
@@ -75,17 +76,17 @@ export function LookEditor({ value, onChange }: { value: CardLook; onChange: (l:
 
   return (
     <div className="space-y-3">
-      <Segmented role="tablist" label="Background type" value={mode} onChange={switchMode} className="flex w-full" itemClassName="text-xs"
-        options={MODES.map((m) => ({ value: m.id, label: m.label }))} />
+      <Segmented role="tablist" label={i18n.t("look.type")} value={mode} onChange={switchMode} className="flex w-full" itemClassName="text-xs"
+        options={MODES.map((m) => ({ value: m.id, label: i18n.t(`look.${m.label}`) }))} />
 
       {mode === "preset" && (
         <div className="grid grid-cols-4 gap-2">
           {(Object.keys(DESIGNS) as CardDesign[]).map((k) => {
             const active = "preset" in value && value.preset === k;
             return (
-              <button key={k} type="button" onClick={() => emit({ mode: "preset", preset: k })} aria-pressed={active} title={DESIGNS[k].label}
+              <button key={k} type="button" onClick={() => emit({ mode: "preset", preset: k })} aria-pressed={active} title={i18n.t(`look.preset.${k}`)}
                 className={cn("aspect-[1.586] rounded-md ring-offset-2 ring-offset-background transition", active ? "ring-2 ring-ring" : "hover:scale-105")}
-                style={{ background: DESIGNS[k].face }}><span className="sr-only">{DESIGNS[k].label}</span></button>
+                style={{ background: DESIGNS[k].face }}><span className="sr-only">{i18n.t(`look.preset.${k}`)}</span></button>
             );
           })}
         </div>
@@ -94,7 +95,7 @@ export function LookEditor({ value, onChange }: { value: CardLook; onChange: (l:
       {mode === "solid" && (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <ColourInput value={solid} onChange={(c) => { setSolid(c); emit({ solid: c }); }} label="Card colour" />
+            <ColourInput value={solid} onChange={(c) => { setSolid(c); emit({ solid: c }); }} label={i18n.t("look.cardColour")} />
             <div className="flex flex-wrap gap-1.5">
               {QUICK.map((c) => (
                 <button key={c} type="button" aria-label={c} onClick={() => { setSolid(c); emit({ solid: c }); }}
@@ -109,20 +110,20 @@ export function LookEditor({ value, onChange }: { value: CardLook; onChange: (l:
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             {grad.colors.map((c, i) => (
-              <ColourInput key={i} value={c} label={`Colour ${i + 1}`} onChange={(v) => {
+              <ColourInput key={i} value={c} label={i18n.t("look.colourN", { n: i + 1 })} onChange={(v) => {
                 const g = { ...grad, colors: grad.colors.map((x, j) => (j === i ? v : x)) }; setGrad(g); emit({ grad: g });
               }} />
             ))}
             {grad.colors.length < 3 ? (
-              <Button type="button" variant="outline" size="icon" className="size-8" aria-label="Add a colour"
+              <Button type="button" variant="outline" size="icon" className="size-8" aria-label={i18n.t("look.addColour")}
                 onClick={() => { const g = { ...grad, colors: [...grad.colors, "#db2777"] }; setGrad(g); emit({ grad: g }); }}><Plus /></Button>
             ) : (
-              <Button type="button" variant="outline" size="icon" className="size-8" aria-label="Remove the last colour"
+              <Button type="button" variant="outline" size="icon" className="size-8" aria-label={i18n.t("look.removeColour")}
                 onClick={() => { const g = { ...grad, colors: grad.colors.slice(0, 2) }; setGrad(g); emit({ grad: g }); }}><Minus /></Button>
             )}
           </div>
           <div className="space-y-1">
-            <div className="flex justify-between text-xs"><Label htmlFor="angle">Direction</Label><span className="text-muted-foreground tabular-nums">{grad.angle}°</span></div>
+            <div className="flex justify-between text-xs"><Label htmlFor="angle">{i18n.t("look.direction")}</Label><span className="text-muted-foreground tabular-nums">{grad.angle}°</span></div>
             <input id="angle" type="range" min={0} max={360} step={5} value={grad.angle} className="w-full accent-[var(--primary)]"
               onChange={(e) => { const g = { ...grad, angle: Number(e.target.value) }; setGrad(g); emit({ grad: g }); }} />
           </div>
@@ -132,12 +133,12 @@ export function LookEditor({ value, onChange }: { value: CardLook; onChange: (l:
       {mode === "image" && (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => file.current?.click()}><ImagePlus />{image ? "Choose another image" : "Choose an image"}</Button>
-            <span className="text-muted-foreground text-xs">Cropped to card shape. Stays on this device.</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => file.current?.click()}><ImagePlus />{image ? i18n.t("look.another") : i18n.t("look.choose")}</Button>
+            <span className="text-muted-foreground text-xs">{i18n.t("look.cropped")}</span>
           </div>
           {image && (
             <div className="space-y-1">
-              <div className="flex justify-between text-xs"><Label htmlFor="dim">Darken image</Label><span className="text-muted-foreground tabular-nums">{Math.round(dim * 100)}%</span></div>
+              <div className="flex justify-between text-xs"><Label htmlFor="dim">{i18n.t("look.darken")}</Label><span className="text-muted-foreground tabular-nums">{Math.round(dim * 100)}%</span></div>
               <input id="dim" type="range" min={0} max={0.8} step={0.05} value={dim} className="w-full accent-[var(--primary)]"
                 onChange={(e) => { const d = Number(e.target.value); setDim(d); emit({ dim: d }); }} />
             </div>
@@ -149,14 +150,14 @@ export function LookEditor({ value, onChange }: { value: CardLook; onChange: (l:
       {mode !== "preset" && (
         <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-3">
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Text</span>
+            <span className="text-muted-foreground">{i18n.t("look.text")}</span>
             <div className="bg-muted inline-flex rounded-md p-0.5">
               {(["light", "dark"] as const).map((v) => (
                 <button key={v} type="button" onClick={() => { setInk(v); emit({ ink: v }); }} aria-pressed={currentInk === v}
                   className={cn("rounded px-2 py-0.5 capitalize", currentInk === v ? "bg-background font-medium shadow-sm" : "text-muted-foreground")}>{v}</button>
               ))}
             </div>
-            {ink && <button type="button" className="text-muted-foreground underline-offset-2 hover:underline" onClick={() => { setInk(null); emit({ ink: null }); }}>Auto</button>}
+            {ink && <button type="button" className="text-muted-foreground underline-offset-2 hover:underline" onClick={() => { setInk(null); emit({ ink: null }); }}>{i18n.t("look.auto")}</button>}
           </div>
           <label className="flex items-center gap-2 text-xs">
             <Switch checked={pattern} onCheckedChange={(p) => { setPattern(p); emit({ pattern: p }); }} />Engraved lines
@@ -186,7 +187,7 @@ async function cropToCard(file: File): Promise<{ src: string; lum: number }> {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new Image();
       i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error("That file isn't an image Vaulty can read."));
+      i.onerror = () => reject(new Error(i18n.t("accounts.notImage")));
       i.src = url;
     });
     const W = 856, H = 540;

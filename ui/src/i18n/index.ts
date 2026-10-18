@@ -10,7 +10,7 @@ import hi from "./locales/hi.json";
  */
 export const LANGUAGES = [
   { code: "en", native: "English", dir: "ltr", complete: true },
-  { code: "hi", native: "हिन्दी", dir: "ltr", complete: false },
+  { code: "hi", native: "हिन्दी", dir: "ltr", complete: true },
 ] as const;
 export type LanguageCode = (typeof LANGUAGES)[number]["code"];
 

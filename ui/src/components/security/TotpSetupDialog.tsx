@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import i18n from "@/i18n";
 import { Loader2 } from "lucide-react";
 import { api, errorText, type TotpEnrollment } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -43,45 +44,45 @@ export function TotpSetupDialog({ open, onOpenChange, userName, onEnabled }: { o
         {stage.kind === "password" && (
           <>
             <DialogHeader>
-              <DialogTitle>Turn on two-step verification</DialogTitle>
-              <DialogDescription>You'll need a code from an authenticator app (Google Authenticator, Microsoft Authenticator, Aegis, 1Password…) each time you sign in with your password.</DialogDescription>
+              <DialogTitle>{i18n.t("security.totpTitle")}</DialogTitle>
+              <DialogDescription>{i18n.t("security.totpDesc")}</DialogDescription>
             </DialogHeader>
             <form onSubmit={begin} className="space-y-4">
-              <Input type="password" autoFocus placeholder="Current password" value={pw} onChange={(e) => setPw(e.target.value)} required />
+              <Input type="password" autoFocus placeholder={i18n.t("security.currentPassword")} value={pw} onChange={(e) => setPw(e.target.value)} required />
               {error && <p className="text-destructive text-sm">{error}</p>}
-              <DialogFooter><Button disabled={busy}>{busy && <Loader2 className="animate-spin" />}Continue</Button></DialogFooter>
+              <DialogFooter><Button disabled={busy}>{busy && <Loader2 className="animate-spin" />}{i18n.t("security.continue")}</Button></DialogFooter>
             </form>
           </>
         )}
         {stage.kind === "scan" && (
           <>
             <DialogHeader>
-              <DialogTitle>Scan with your authenticator app</DialogTitle>
-              <DialogDescription>Then enter the 6-digit code it shows.</DialogDescription>
+              <DialogTitle>{i18n.t("security.scanTitle")}</DialogTitle>
+              <DialogDescription>{i18n.t("security.scanDesc")}</DialogDescription>
             </DialogHeader>
             <form onSubmit={confirm} className="space-y-4">
               <div className="flex justify-center">
-                <img src={`data:image/png;base64,${stage.enrollment.qr_png_base64}`} alt="QR code for your authenticator app"
+                <img src={`data:image/png;base64,${stage.enrollment.qr_png_base64}`} alt={i18n.t("security.qrAlt")}
                   className="size-48 rounded-lg bg-white p-2" style={{ imageRendering: "pixelated" }} />
               </div>
               <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs">Can't scan? Enter this key manually</Label>
+                <Label className="text-muted-foreground text-xs">{i18n.t("security.manualKey")}</Label>
                 <div className="bg-muted rounded-md px-3 py-2 font-mono text-xs break-all select-all">{stage.enrollment.secret_base32.match(/.{1,4}/g)?.join(" ")}</div>
               </div>
               <CodeInput value={code} onChange={setCode} />
               {error && <p className="text-destructive text-sm">{error}</p>}
-              <DialogFooter><Button disabled={busy || code.length < 6}>{busy && <Loader2 className="animate-spin" />}Verify & turn on</Button></DialogFooter>
+              <DialogFooter><Button disabled={busy || code.length < 6}>{busy && <Loader2 className="animate-spin" />}{i18n.t("security.verifyOn")}</Button></DialogFooter>
             </form>
           </>
         )}
         {stage.kind === "codes" && (
           <>
             <DialogHeader>
-              <DialogTitle>Save your backup codes</DialogTitle>
-              <DialogDescription>If you lose your phone, each of these codes lets you sign in once. They won't be shown again.</DialogDescription>
+              <DialogTitle>{i18n.t("security.saveCodes")}</DialogTitle>
+              <DialogDescription>{i18n.t("security.saveCodesDesc")}</DialogDescription>
             </DialogHeader>
             <BackupCodes codes={stage.codes} userName={userName} />
-            <DialogFooter><Button onClick={() => close(false)}>I've saved them</Button></DialogFooter>
+            <DialogFooter><Button onClick={() => close(false)}>{i18n.t("security.savedThem")}</Button></DialogFooter>
           </>
         )}
       </DialogContent>

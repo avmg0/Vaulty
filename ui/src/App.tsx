@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLocale } from "@/hooks/locale";
+import { DEFAULT_DISPLAY, displayFrom, useLocale } from "@/hooks/locale";
 import { api, type SignedInUser, type User } from "@/api";
 import { RecoveryKeyDialog } from "@/components/security/RecoveryKeyDialog";
 import { useIdleLock } from "@/hooks/idle";
@@ -36,7 +36,7 @@ export function App() {
 
   useEffect(() => { api.auth.current().then(setUser).catch(() => setBackendMissing(true)); }, []);
 
-  const { locale, currency, setLocale, setCurrency } = useLocale();
+  const { locale, currency, setLocale, setCurrency, setDisplay } = useLocale();
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const [unlocking, setUnlocking] = useState(false);
   const [locking, setLocking] = useState(false);
@@ -47,8 +47,8 @@ export function App() {
     if (u.recovery_key) setRecoveryKey(u.recovery_key);
     // A new profile starts in the language and currency chosen on this device; an existing one
     // brings its own (which also becomes this device's default for the sign-in screens).
-    if (fresh) api.settings.update({ locale, currency }).catch(() => {});
-    else api.settings.get().then((s) => { if (s.locale) setLocale(s.locale); if (s.currency) setCurrency(s.currency); }).catch(() => {});
+    if (fresh) { api.settings.update({ locale, currency }).catch(() => {}); setDisplay(DEFAULT_DISPLAY); }
+    else api.settings.get().then((s) => { if (s.locale) setLocale(s.locale); if (s.currency) setCurrency(s.currency); setDisplay(displayFrom(s)); }).catch(() => {});
     setLastUserId(u.id);
     try { localStorage.setItem(LAST_USER_KEY, u.id); } catch { /* ignore */ }
   };

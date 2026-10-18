@@ -112,7 +112,7 @@ export type CardInput = Partial<{
 }>;
 
 /** Subset of user_settings the UI uses. `locale` is BCP 47, e.g. "hi-IN" (language + country). */
-export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string };
+export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string };
 
 /** A bank, card issuer, broker or wallet from the bundled directory. */
 export type Institution = { id: string; name: string; short: string; kind: "bank" | "card" | "broker" | "wallet"; country: string; aliases: string[]; logo?: string };
@@ -130,6 +130,7 @@ export type Transaction = {
   /** True when the details were withheld: only amount, date, type and account are real. */
   masked?: boolean;
 };
+export type AppInfo = { version: string; demo: boolean; demo_password: string | null };
 export type HiddenStatus = { unlocked: boolean; seconds_left: number; count: number; biometric: boolean };
 
 export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
@@ -143,6 +144,9 @@ export type FeedFilter = { startDate?: string; endDate?: string; ownerId?: strin
 export const errorText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : String(e));
 
 export const api = {
+  app: {
+    info: () => invoke<AppInfo>("app_info"),
+  },
   users: {
     list: () => invoke<User[]>("users_list"),
     add: (name: string, color: string, role: Role) => invoke<Invite>("users_add", { name, color, role }),

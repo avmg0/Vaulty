@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Input, NativeSelect } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { VisibilityBadge, VisibilityPicker } from "@/components/Visibility";
-import { cn, formatMoney } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { useTheme } from "@/hooks/theme";
 
 type RowProps = {
@@ -43,7 +43,7 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, 
           <div className="text-muted-foreground truncate text-sm font-medium tracking-[0.25em]" aria-label={tr("hidden.category")}>{tr("hidden.mask")}</div>
           <div className="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
             {lead}
-            <span className="truncate">{[t.date, tr("hidden.category"), t.account_name].filter(Boolean).join(" · ")}</span>
+            <span className="truncate">{[formatDate(t.date), tr("hidden.category"), t.account_name].filter(Boolean).join(" · ")}</span>
           </div>
         </div>
         <div className={cn("text-sm font-medium tabular-nums", income && "text-success")}>
@@ -60,10 +60,10 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, 
         {income ? <ArrowUpRight className="size-4" /> : <ArrowDownRight className="size-4" />}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{t.merchant || t.description || t.category_name || "Untitled"}</div>
+        <div className="truncate text-sm font-medium">{t.merchant || t.description || t.category_name || tr("tx.untitled")}</div>
         <div className="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
           {lead}
-          <span className="truncate">{[t.date, t.category_name, t.account_name].filter(Boolean).join(" · ")}</span>
+          <span className="truncate">{[formatDate(t.date), t.category_name, t.account_name].filter(Boolean).join(" · ")}</span>
         </div>
       </div>
       <div className={cn("text-sm font-medium tabular-nums", income && "text-success")}>
@@ -77,7 +77,7 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, 
           {isHidden ? <Eye /> : <EyeOff />}
         </Button>
       )}
-      {onDelete && <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={onDelete} title="Delete"><Trash2 /></Button>}
+      {onDelete && <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={onDelete} title={tr("tx.delete")} aria-label={tr("tx.delete")}><Trash2 /></Button>}
     </div>
   );
 }
@@ -163,28 +163,28 @@ export function Transactions() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">
           <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-4" />
-          <Input placeholder="Search merchant, category, account…" className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Input placeholder={tr("tx.search")} className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {tab === "all" && <>
         <NativeSelect className="w-32" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">All types</option><option value="expense">Expenses</option><option value="income">Income</option>
+          <option value="">{tr("tx.allTypes")}</option><option value="expense">{tr("tx.expenses")}</option><option value="income">{tr("tx.incomes")}</option>
         </NativeSelect>
         <NativeSelect className="w-40" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-          <option value="">All accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+          <option value="">{tr("tx.allAccounts")}</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </NativeSelect>
-        <NativeSelect className="w-32" value={visibility} onChange={(e) => setVisibility(e.target.value as "" | Visibility)} aria-label="Visibility">
-          <option value="">Any visibility</option><option value="private">Private</option><option value="shared">Shared</option><option value="public">Public</option>
+        <NativeSelect className="w-32" value={visibility} onChange={(e) => setVisibility(e.target.value as "" | Visibility)} aria-label={tr("tx.visibility")}>
+          <option value="">{tr("tx.anyVisibility")}</option><option value="private">{tr("visibility.private")}</option><option value="shared">{tr("visibility.shared")}</option><option value="public">{tr("visibility.public")}</option>
         </NativeSelect>
         </>}
         <Dialog open={open} onOpenChange={openDialog}>
-          <DialogTrigger asChild><Button disabled={!accounts.length} title={accounts.length ? "" : "Add an account first"}><Plus />Add</Button></DialogTrigger>
+          <DialogTrigger asChild><Button disabled={!accounts.length} title={accounts.length ? "" : tr("tx.needAccount")}><Plus />{tr("tx.add")}</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>New transaction</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{tr("tx.newTitle")}</DialogTitle></DialogHeader>
             <form onSubmit={create} className="grid gap-4">
               <Segmented value={kind} onChange={setKind} className="flex w-full" itemClassName="py-1.5"
-                options={[{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }]} label="Type" />
+                options={[{ value: "expense", label: tr("tx.expense") }, { value: "income", label: tr("tx.income") }]} label={tr("tx.type")} />
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2"><Label htmlFor="amount">Amount</Label>
+                <div className="grid gap-2"><Label htmlFor="amount">{tr("tx.amount")}</Label>
                   {/* The amount box flashes the colour of the chosen type. */}
                   <motion.div key={kind} className="rounded-md"
                     initial={{ boxShadow: `0 0 0 0px ${kind === "income" ? "var(--success)" : "var(--destructive)"}` }}
@@ -193,14 +193,14 @@ export function Transactions() {
                     <Input id="amount" name="amount" type="number" step="0.01" min="0" required autoFocus />
                   </motion.div>
                 </div>
-                <div className="grid gap-2"><Label htmlFor="date">Date</Label><Input id="date" name="date" type="date" defaultValue={today} required /></div>
+                <div className="grid gap-2"><Label htmlFor="date">{tr("tx.date")}</Label><Input id="date" name="date" type="date" defaultValue={today} required /></div>
               </div>
-              <div className="grid gap-2"><Label htmlFor="merchant">Merchant / description</Label><Input id="merchant" name="merchant" /></div>
+              <div className="grid gap-2"><Label htmlFor="merchant">{tr("tx.merchant")}</Label><Input id="merchant" name="merchant" /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2"><Label htmlFor="account">Account</Label>
+                <div className="grid gap-2"><Label htmlFor="account">{tr("tx.account")}</Label>
                   <NativeSelect id="account" name="account">{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</NativeSelect></div>
-                <div className="grid gap-2"><Label htmlFor="category">Category</Label>
-                  <NativeSelect id="category" name="category"><option value="">Uncategorised</option>
+                <div className="grid gap-2"><Label htmlFor="category">{tr("tx.category")}</Label>
+                  <NativeSelect id="category" name="category"><option value="">{tr("dashboard.uncategorised")}</option>
                     {categories.filter((c) => c.type === kind).map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</NativeSelect></div>
               </div>
               <label className="flex items-start justify-between gap-4 rounded-lg border p-3">
@@ -210,13 +210,13 @@ export function Transactions() {
               </label>
               {!hideNew && (
                 <div className="grid gap-2">
-                  <Label>Who can see this</Label>
+                  <Label>{tr("tx.whoCanSee")}</Label>
                   <VisibilityPicker value={newVisibility} onChange={setNewVisibility} />
                   <SharingHint prefs={prefs} visibility={newVisibility} />
                 </div>
               )}
               {error && <p className="text-destructive text-sm">{error}</p>}
-              <DialogFooter><Button type="submit">Save</Button></DialogFooter>
+              <DialogFooter><Button type="submit">{tr("common.save")}</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
@@ -224,7 +224,7 @@ export function Transactions() {
       {tab === "hidden" ? <HiddenSection query={q} reload={reloadHidden} onChange={load} hideBalances={hideBalances} onToggle={toggleHidden} /> : (
       <Card className="py-2">
         <CardContent className="divide-y">
-          {filtered.length === 0 && <p className="text-muted-foreground py-10 text-center text-sm">No transactions match.</p>}
+          {filtered.length === 0 && <p className="text-muted-foreground py-10 text-center text-sm">{tr("tx.noMatch")}</p>}
           <AnimatedList>
             {filtered.map((t) => (
               <AnimatedItem key={t.id}>
@@ -243,10 +243,11 @@ export function Transactions() {
 
 /** Explains what the chosen visibility will actually do given the member's sharing settings. */
 function SharingHint({ prefs, visibility }: { prefs: SharingPrefs | null; visibility: Visibility }) {
+  const { t } = useTranslation();
   if (visibility === "private" || !prefs) return null;
   let text: string | null = null;
-  if (!prefs.enabled) text = "Family sharing is off, so this stays private until you turn it on in Settings.";
-  else if (visibility === "shared" && prefs.shared_with.length === 0) text = "You haven't picked anyone to share with yet (Settings → Family sharing).";
+  if (!prefs.enabled) text = t("tx.sharingOff");
+  else if (visibility === "shared" && prefs.shared_with.length === 0) text = t("tx.noOneYet");
   if (!text) return null;
   return <p className="text-muted-foreground flex items-start gap-1.5 text-xs"><Info className="mt-0.5 size-3.5 shrink-0" />{text}</p>;
 }
@@ -343,7 +344,7 @@ function HiddenSection({ query, reload, onChange, hideBalances, onToggle }: {
           <Button variant="outline" size="sm" onClick={lock}><Lock />{t("hidden.lockNow")}</Button>
         </div>
         <div className="divide-y">
-          {shown.length === 0 && <p className="text-muted-foreground py-10 text-center text-sm">{query ? "No transactions match." : t("hidden.empty")}</p>}
+          {shown.length === 0 && <p className="text-muted-foreground py-10 text-center text-sm">{query ? t("tx.noMatch") : t("hidden.empty")}</p>}
           <AnimatedList>
             {shown.map((r) => (
               <AnimatedItem key={r.id}>

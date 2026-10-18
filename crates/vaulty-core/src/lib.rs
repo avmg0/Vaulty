@@ -6,6 +6,7 @@ pub mod categories;
 mod crypto;
 pub use crypto::Key;
 pub mod db;
+pub mod demo;
 pub mod error;
 pub mod export;
 pub mod history;

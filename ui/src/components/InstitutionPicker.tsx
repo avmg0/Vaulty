@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import i18n from "@/i18n";
 import { Check, ChevronsUpDown, Search, X } from "lucide-react";
 import { api, type Institution } from "@/api";
 import { InstitutionBadge } from "@/components/InstitutionBadge";
 import { cn } from "@/lib/utils";
 
-const KIND_LABEL: Record<Institution["kind"], string> = { bank: "Bank", card: "Card issuer", broker: "Broker", wallet: "Wallet" };
+const kindLabel = (k: Institution["kind"]) => i18n.t(`institution.kind.${k}`);
 
 /** Searchable picker over the bundled bank / institution directory. */
 export function InstitutionPicker({ value, onChange, currency }: { value: Institution | null; onChange: (i: Institution | null) => void; currency?: string }) {
@@ -34,12 +35,12 @@ export function InstitutionPicker({ value, onChange, currency }: { value: Instit
           <>
             <InstitutionBadge short={value.short} institutionLogo={value.logo} name={value.name} className="size-6 rounded-md" />
             <span className="flex-1 truncate">{value.name}</span>
-            <span role="button" tabIndex={0} aria-label="Clear" onClick={(e) => { e.stopPropagation(); onChange(null); }}
+            <span role="button" tabIndex={0} aria-label={i18n.t("institution.clear")} onClick={(e) => { e.stopPropagation(); onChange(null); }}
               className="text-muted-foreground hover:text-foreground"><X className="size-4" /></span>
           </>
         ) : (
           <>
-            <span className="text-muted-foreground flex-1 px-1">Choose a bank (optional)</span>
+            <span className="text-muted-foreground flex-1 px-1">{i18n.t("institution.choose")}</span>
             <ChevronsUpDown className="text-muted-foreground size-4" />
           </>
         )}
@@ -48,11 +49,11 @@ export function InstitutionPicker({ value, onChange, currency }: { value: Instit
         <div className="bg-popover absolute z-30 mt-1 w-full rounded-md border shadow-md">
           <div className="flex items-center gap-2 border-b px-2">
             <Search className="text-muted-foreground size-4" />
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search banks, cards, brokers…"
+            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={i18n.t("institution.search")}
               className="h-9 flex-1 bg-transparent text-sm outline-none" />
           </div>
           <ul role="listbox" className="max-h-64 overflow-y-auto p-1">
-            {results.length === 0 && <li className="text-muted-foreground px-2 py-3 text-center text-sm">No match. You can leave this empty.</li>}
+            {results.length === 0 && <li className="text-muted-foreground px-2 py-3 text-center text-sm">{i18n.t("institution.noMatch")}</li>}
             {results.map((i) => (
               <li key={i.id} role="option" aria-selected={value?.id === i.id}>
                 <button type="button" onClick={() => { onChange(i); setOpen(false); setQ(""); }}
@@ -60,7 +61,7 @@ export function InstitutionPicker({ value, onChange, currency }: { value: Instit
                   <InstitutionBadge short={i.short} institutionLogo={i.logo} name={i.name} className="size-7 rounded-md" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm">{i.name}</span>
-                    <span className="text-muted-foreground block text-xs">{KIND_LABEL[i.kind]} · {i.country === "XX" ? "International" : i.country}</span>
+                    <span className="text-muted-foreground block text-xs">{kindLabel(i.kind)} · {i.country === "XX" ? i18n.t("institution.international") : i.country}</span>
                   </span>
                   {value?.id === i.id && <Check className="size-4" />}
                 </button>

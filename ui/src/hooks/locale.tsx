@@ -1,7 +1,24 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import i18n, { LANGUAGES, isLanguage, type LanguageCode } from "@/i18n";
 import { COUNTRY_CURRENCY } from "@/i18n/regions";
-import { setNumberLocale } from "@/lib/utils";
+import { DEFAULT_FORMATS, setFormatPrefs, setNumberLocale, type FormatPrefs } from "@/lib/utils";
+import { MONTH_IDS, type FiscalStart, type WeekStart } from "@/lib/formats";
+
+/** Per-profile display choices (dates, negatives, decimals, week and financial-year start). */
+export type DisplayPrefs = FormatPrefs & { weekStart: WeekStart; fiscalStart: FiscalStart };
+export const DEFAULT_DISPLAY: DisplayPrefs = { ...DEFAULT_FORMATS, weekStart: "auto", fiscalStart: "auto" };
+
+/** Display prefs from saved settings; anything unexpected (e.g. an old value) means "auto". */
+export function displayFrom(s: { date_format?: string; negative_format?: string; decimals?: string; start_of_week?: string; fiscal_year_start?: string }): DisplayPrefs {
+  const pick = <T extends string>(v: string | undefined, allowed: readonly T[], fallback: T): T => (allowed as readonly string[]).includes(v ?? "") ? (v as T) : fallback;
+  return {
+    dateFormat: pick(s.date_format, ["auto", "dmy", "mdy", "ymd"] as const, "auto"),
+    negative: pick(s.negative_format, ["minus", "parentheses"] as const, "minus"),
+    decimals: pick(s.decimals, ["auto", "0", "2"] as const, "auto"),
+    weekStart: pick(s.start_of_week, ["auto", "sunday", "monday", "saturday"] as const, "auto"),
+    fiscalStart: pick(s.fiscal_year_start, ["auto", ...MONTH_IDS] as const, "auto"),
+  };
+}
 
 const KEY = "vaulty.locale";
 const CURRENCY_KEY = "vaulty.currency";
@@ -30,6 +47,8 @@ type Ctx = {
   currency: string;
   setLocale: (locale: string) => void;
   setCurrency: (currency: string) => void;
+  display: DisplayPrefs;
+  setDisplay: (p: DisplayPrefs) => void;
 };
 const LocaleCtx = createContext<Ctx | null>(null);
 
@@ -46,6 +65,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   const { language: lang, country } = splitLocale(locale);
   const [currency, setCurrencyState] = useState(() => { try { return localStorage.getItem(CURRENCY_KEY) ?? currencyFor(country); } catch { return currencyFor(country); } });
   const language: LanguageCode = isLanguage(lang) ? lang : "en";
+  const [display, setDisplay] = useState<DisplayPrefs>(DEFAULT_DISPLAY);
   const dir = LANGUAGES.find((l) => l.code === language)?.dir ?? "ltr";
 
   const setLocale = useCallback((l: string) => {
@@ -59,6 +79,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   // Applied during render so the first paint already uses the right language and number format.
   setNumberLocale(locale);
+  setFormatPrefs(display);
   if (i18n.language !== language) void i18n.changeLanguage(language);
 
   useEffect(() => {
@@ -66,8 +87,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     document.documentElement.dir = dir;
   }, [locale, dir]);
 
-  const value = useMemo(() => ({ locale, language, country, dir, currency, setLocale, setCurrency }),
-    [locale, language, country, dir, currency, setLocale, setCurrency]);
+  const value = useMemo(() => ({ locale, language, country, dir, currency, setLocale, setCurrency, display, setDisplay }),
+    [locale, language, country, dir, currency, setLocale, setCurrency, display]);
   return <LocaleCtx.Provider value={value}>{children}</LocaleCtx.Provider>;
 }
 

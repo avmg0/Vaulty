@@ -5,19 +5,27 @@ import { cn } from "@/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { SPRING, useMotion } from "@/lib/motion";
 import { Segmented } from "@/components/Segmented";
+import { useTranslation } from "react-i18next";
 
-export const VISIBILITY: Record<Visibility, { label: string; icon: LucideIcon; desc: string }> = {
-  private: { label: "Private", icon: Lock, desc: "Only you" },
-  shared: { label: "Shared", icon: Users, desc: "You and the people you chose" },
-  public: { label: "Public", icon: Globe, desc: "Everyone in the family with sharing on" },
+/** Icons per visibility; names and descriptions are `visibility.<id>` and `visibility.<id>Desc`. */
+export const VISIBILITY: Record<Visibility, { icon: LucideIcon }> = {
+  private: { icon: Lock },
+  shared: { icon: Users },
+  public: { icon: Globe },
 };
+function useVisibilityText() {
+  const { t } = useTranslation();
+  return (v: Visibility) => ({ label: t(`visibility.${v}`), desc: t(`visibility.${v}Desc`) });
+}
 const ORDER: Visibility[] = ["private", "shared", "public"];
 
 /** Segmented control used in forms and settings. */
 export function VisibilityPicker({ value, onChange, disabled }: { value: Visibility; onChange: (v: Visibility) => void; disabled?: boolean }) {
+  const text = useVisibilityText();
+  const { t } = useTranslation();
   return (
-    <Segmented value={value} onChange={onChange} disabled={disabled} className="flex w-full" itemClassName="py-1.5" label="Who can see this"
-      options={ORDER.map((v) => { const { label, icon: Icon, desc } = VISIBILITY[v]; return { value: v, title: desc, label: <><Icon className="size-3.5" />{label}</> }; })} />
+    <Segmented value={value} onChange={onChange} disabled={disabled} className="flex w-full" itemClassName="py-1.5" label={t("tx.whoCanSee")}
+      options={ORDER.map((v) => { const { icon: Icon } = VISIBILITY[v]; const { label, desc } = text(v); return { value: v, title: desc, label: <><Icon className="size-3.5" />{label}</> }; })} />
   );
 }
 
@@ -31,13 +39,15 @@ export function VisibilityBadge({ value, onChange }: { value: Visibility; onChan
     document.addEventListener("mousedown", close);
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
-  const { icon: Icon, label } = VISIBILITY[value];
+  const text = useVisibilityText();
+  const { icon: Icon } = VISIBILITY[value];
+  const { label, desc } = text(value);
   const { move } = useMotion();
   const tone = value === "private" ? "text-muted-foreground" : value === "shared" ? "text-primary" : "text-success";
 
   return (
     <div ref={ref} className="relative">
-      <button type="button" disabled={!onChange} onClick={() => setOpen((o) => !o)} title={`${label}: ${VISIBILITY[value].desc}`}
+      <button type="button" disabled={!onChange} onClick={() => setOpen((o) => !o)} title={`${label}: ${desc}`}
         className={cn("grid size-7 place-items-center rounded-md", tone, onChange && "hover:bg-accent")}>
         {/* The icon morphs when visibility changes: the old one turns away, the new one turns in. */}
         <AnimatePresence mode="popLayout" initial={false}>
@@ -52,7 +62,7 @@ export function VisibilityBadge({ value, onChange }: { value: Visibility; onChan
       {open && onChange && (
         <div className="bg-popover absolute right-0 z-20 mt-1 w-60 rounded-md border p-1 shadow-md">
           {ORDER.map((v) => {
-            const o = VISIBILITY[v];
+            const o = { ...VISIBILITY[v], ...text(v) };
             return (
               <button key={v} type="button" onClick={() => { setOpen(false); if (v !== value) onChange(v); }}
                 className="hover:bg-accent flex w-full items-start gap-2 rounded-sm px-2 py-1.5 text-left">

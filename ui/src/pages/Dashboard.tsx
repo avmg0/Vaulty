@@ -7,7 +7,7 @@ import { ProgressBar } from "@/components/ProgressBar";
 import { Skeleton, SkeletonRows } from "@/components/Skeleton";
 import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCompactMoney, formatMoney, formatNumber } from "@/lib/utils";
+import { formatCompactMoney, formatDate, formatMoney, formatNumber } from "@/lib/utils";
 import { BarChart } from "@/components/charts/BarChart";
 import { Donut, type Slice } from "@/components/charts/Donut";
 import { Sparkline } from "@/components/charts/Sparkline";
@@ -67,7 +67,7 @@ export function Dashboard() {
     const k = iso(m).slice(0, 7);
     const inMonth = half.filter((x) => keyOf(x.date) === k);
     const tot = (ty: string) => inMonth.filter((x) => x.type === ty).reduce((a, x) => a + x.amount, 0);
-    return { label: new Intl.DateTimeFormat(locale, { month: "short" }).format(m), income: tot("income"), spending: tot("expense") };
+    return { label: formatDate(m, { month: "short" }), income: tot("income"), spending: tot("expense") };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [half, locale]);
   const trend = useMemo(() => {

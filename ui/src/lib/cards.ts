@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import type { CardKind, CardNetwork } from "@/api";
 
 /** Mirrors vaulty-core cards::detect_network (keep in sync; the Rust side has the tests). */
@@ -42,12 +43,15 @@ export function nextDay(dayOfMonth: number, from = new Date()) {
   return { date: d, days };
 }
 
+/** Day of the month as an ordinal in the interface language ("20th", "20 तारीख"). */
 export function ordinal(n: number) {
-  const s = ["th", "st", "nd", "rd"], v = n % 100;
-  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  return i18n.t("cards.day", { count: n, ordinal: true });
 }
 
-export const KIND_LABEL: Record<CardKind, string> = { credit: "Credit", debit: "Debit", prepaid: "Prepaid", gift: "Gift card", other: "Other" };
+/** Card type names, read from the translation files so they follow the interface language. */
+export const KIND_LABEL: Record<CardKind, string> = new Proxy({} as Record<CardKind, string>, {
+  get: (_, k: string) => i18n.t(`cards.kind.${k}`),
+});
 
 /** "XXXX XXXX XXXX 4242" (Amex: "XXXX XXXXXX X4242"). Never more than the last 4 digits. */
 export function maskedNumber(network: CardNetwork | null, last4: string | null) {

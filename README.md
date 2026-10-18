@@ -70,4 +70,23 @@ cargo tauri dev
   `sudo install -Dm644 src-tauri/packaging/com.vaulty.app.policy /usr/share/polkit-1/actions/`
   (the .deb and .rpm bundles do this automatically).
 
+### Demo mode
+Run with sample data instead of your own: `VAULTY_DEMO=1 cargo tauri dev` (or pass `--demo` to a
+built app). Vaulty builds a fresh household in a temporary folder on every launch: John Doe
+(salaried, with a credit card and two hidden transactions), Jane Doe (freelancer) and Jenny Doe
+(child), each with six months of made-up transactions. The password for all three is shown on the
+sign-in screen. Your real data folder is never opened in demo mode. Use it for screenshots, bug
+reports and trying changes.
+
+### Checks
+Every push and pull request runs `.github/workflows/checks.yml` on macOS, Windows and Linux. To run
+the same checks locally:
+```
+npm --prefix ui run build && npm --prefix ui run i18n:check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+cargo install --locked cargo-deny cargo-audit   # once
+cargo deny check && cargo audit
+```
+
 See **ROADMAP.md** for phases, architecture decisions and feature ideas.

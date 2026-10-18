@@ -16,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { CodeInput } from "@/components/CodeInput";
 import { ColorPicker, PROFILE_COLORS, UserAvatar } from "@/components/UserAvatar";
 import { cn } from "@/lib/utils";
+import { useAppInfo } from "@/hooks/appInfo";
 
 type Step =
   | { kind: "pick" }
@@ -112,6 +113,7 @@ function useSubmit() {
 
 function ProfilePicker({ users, onPick }: { users: User[]; onPick: (u: User) => void }) {
   const { t } = useTranslation();
+  const info = useAppInfo();
   const { move, fade } = useMotion();
   return (
     <Card>
@@ -131,7 +133,9 @@ function ProfilePicker({ users, onPick }: { users: User[]; onPick: (u: User) => 
             {u.active && u.biometric_enabled && <Fingerprint className="text-muted-foreground size-4" />}
           </motion.button>
         ))}
-        <p className="text-muted-foreground pt-2 text-center text-xs">{t("auth.newHere")}</p>
+        {info?.demo
+          ? <p className="mt-2 rounded-md bg-amber-500/10 px-3 py-2 text-center text-xs text-amber-800 dark:text-amber-200">{t("demo.picker")}</p>
+          : <p className="text-muted-foreground pt-2 text-center text-xs">{t("auth.newHere")}</p>}
       </CardContent>
     </Card>
   );
@@ -141,6 +145,7 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode, onForgot }: { use
   const { t } = useTranslation();
   const [pw, setPw] = useState("");
   const { busy, error, run, fails } = useSubmit();
+  const info = useAppInfo();
   useEffect(() => { if (fails) setPw(""); }, [fails]);
 
   const biometric = () => run(async () => onSignedIn(await api.auth.signInBiometric(user.id)));
@@ -171,6 +176,12 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode, onForgot }: { use
             <Shake trigger={fails}>
               <Input type="password" autoFocus={!user.biometric_enabled} placeholder={t("auth.password")} aria-label={t("auth.password")} value={pw} onChange={(e) => setPw(e.target.value)} required />
             </Shake>
+            {info?.demo_password && (
+              <p className="text-muted-foreground text-xs">
+                {t("demo.password")} <code className="bg-muted rounded px-1 py-0.5">{info.demo_password}</code>{" "}
+                <button type="button" className="text-foreground underline underline-offset-4" onClick={() => setPw(info.demo_password!)}>{t("demo.fill")}</button>
+              </p>
+            )}
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button className="w-full" disabled={busy}>{busy ? <Loader2 className="animate-spin" /> : <KeyRound />}{t("auth.unlock")}</Button>
             {user.biometric_enabled && (

@@ -1,4 +1,5 @@
 import { useTheme } from "@/hooks/theme";
+import i18n from "@/i18n";
 import { AnimatePresence, motion } from "motion/react";
 import { useMotion } from "@/lib/motion";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
@@ -171,7 +172,7 @@ export function CardVisual({ card, interactive = false, hideAmounts = false, cla
         role={interactive ? "button" : undefined}
         tabIndex={interactive ? 0 : undefined}
         aria-pressed={interactive ? flipped : undefined}
-        aria-label={interactive ? `${card.name}, ${KIND_LABEL[card.kind]} card${card.last4 ? ` ending ${card.last4}` : ""}. ${flipped ? "Showing details" : "Press to see details"}` : undefined}
+        aria-label={interactive ? `${i18n.t("cards.aria", { name: card.name, kind: i18n.t(`cards.defaultName.${card.kind}`) })}${card.last4 ? i18n.t("cards.ariaEnding", { last4: card.last4 }) : ""}. ${flipped ? i18n.t("cards.showingDetails") : i18n.t("cards.pressDetails")}` : undefined}
         onClick={flip}
         onKeyDown={interactive ? onKey : undefined}
         className={cn("relative aspect-[1.586] w-full rounded-[4.5cqw] [transform-style:preserve-3d] outline-none focus-visible:ring-4 focus-visible:ring-ring/50", interactive && "cursor-pointer")}
@@ -212,7 +213,7 @@ export function CardVisual({ card, interactive = false, hideAmounts = false, cla
               <div className="flex items-end justify-between gap-[3cqw]">
                 <div className="min-w-0">
                   <div className="truncate text-[3.8cqw] opacity-90">{card.name}</div>
-                  {expiry && <div className="text-[2.9cqw] opacity-75">Valid thru <span className="tabular-nums">{expiry}</span></div>}
+                  {expiry && <div className="text-[2.9cqw] opacity-75">{i18n.t("cards.validThru")} <span className="tabular-nums">{expiry}</span></div>}
                 </div>
                 <AnimatePresence mode="popLayout" initial={false}>
                   <motion.span key={card.network ?? "none"} className="shrink-0 text-[4.6cqw] font-semibold italic tracking-tight"
@@ -232,7 +233,7 @@ export function CardVisual({ card, interactive = false, hideAmounts = false, cla
           {card.kind !== "other" && <div className="absolute inset-x-0 top-[11%] h-[17%] bg-black/80" aria-hidden />}
           <div className={cn("relative flex h-full flex-col justify-end gap-[3cqw] p-[6.5cqw]", card.kind !== "other" && "pt-[33%]")}>
             <BackDetails card={card} money={money} />
-            <div className="text-[2.8cqw] opacity-65">Vaulty keeps only the last 4 digits of this card.</div>
+            <div className="text-[2.8cqw] opacity-65">{i18n.t("cards.keepsLast4")}</div>
           </div>
           {glare}
         </div>
@@ -249,24 +250,24 @@ function BackDetails({ card, money }: { card: CardVisualData; money: (n: number 
     case "credit":
       return (
         <>
-          <div className="grid grid-cols-3 gap-[3cqw]">{stat("Owed", money(card.owed))}{stat("Available", money(card.available))}{stat("Limit", money(card.creditLimit))}</div>
+          <div className="grid grid-cols-3 gap-[3cqw]">{stat(i18n.t("cards.owedShort"), money(card.owed))}{stat(i18n.t("cards.available"), money(card.available))}{stat(i18n.t("cards.limitShort"), money(card.creditLimit))}</div>
           <div className="flex justify-between gap-[3cqw] text-[3.4cqw] opacity-85">
-            <span>{card.statementDay ? `Statement on the ${ordinal(card.statementDay)}` : "Statement day not set"}</span>
-            <span>{card.dueDay ? `Due on the ${ordinal(card.dueDay)}` : ""}</span>
+            <span>{card.statementDay ? i18n.t("cards.statementOn", { day: ordinal(card.statementDay) }) : i18n.t("cards.statementNotSet")}</span>
+            <span>{card.dueDay ? i18n.t("cards.dueOn", { day: ordinal(card.dueDay) }) : ""}</span>
           </div>
         </>
       );
     case "debit":
-      return <div className="grid grid-cols-2 gap-[3cqw]">{stat("Linked account", card.accountName ?? "—")}{stat("Balance", money(card.balance))}</div>;
+      return <div className="grid grid-cols-2 gap-[3cqw]">{stat(i18n.t("cards.linked"), card.accountName ?? "—")}{stat(i18n.t("cards.balance"), money(card.balance))}</div>;
     case "prepaid":
     case "gift":
       return (
         <div className="grid grid-cols-2 gap-[3cqw]">
-          {stat(card.kind === "gift" ? "Remaining" : "Balance", money(card.balance))}
-          {stat("Expires", expiryText(card.expiryMonth ?? null, card.expiryYear ?? null) ?? "No expiry set")}
+          {stat(card.kind === "gift" ? i18n.t("cards.remainingShort") : i18n.t("cards.balance"), money(card.balance))}
+          {stat(i18n.t("cards.expires"), expiryText(card.expiryMonth ?? null, card.expiryYear ?? null) ?? i18n.t("cards.noExpiry"))}
         </div>
       );
     default:
-      return <div className="line-clamp-4 text-[3.6cqw] opacity-90">{card.notes || "No notes on this card."}</div>;
+      return <div className="line-clamp-4 text-[3.6cqw] opacity-90">{card.notes || i18n.t("cards.noNotes")}</div>;
   }
 }

@@ -237,138 +237,86 @@ A member can run a small business inside Vaulty without mixing it with personal 
 
 ## Phases
 
-### Phase 0: Foundations (in progress)
-- [x] Tauri v2 workspace, `vaulty-core` crate, migrations, tests
-- [x] Master password (Argon2), lock screen, guarded commands
-- [x] shadcn/ui theme: light, dark and system, accent colours, Lucide icons
-- [x] App shell: collapsible sidebar, page transitions, keyboard shortcuts, hide balances
-- [x] Dashboard, Accounts, Transactions (basic)
-- [x] Family profiles: per-user database, setup codes, roles, admin reset and remove
-- [x] Per-user 2FA (authenticator app + backup codes) and biometric unlock (desktop)
-- [x] Family sharing: Private / Shared / Public visibility, two-sided consent, Family view
-- [x] Money as integer minor units (decision 2)
-- [x] Double-entry ledger core (decision 8): entries and balanced postings, balances derived from postings, existing data converted by migration 0004, backup format v2 (v1 still imports)
-- [ ] Business workspaces on top of the ledger: create and switch workspace, owner capital and drawings (decision 8)
-- [x] Tax region packs: format, loader, validation and the India pack (FY 2026-27, old and new regime) with worked-example tests (decision 7)
-- [x] Tax planner page: compares regimes with your numbers and recommends the lower one
-- [x] Interface languages: English and Hindi (sign-in, navigation, dashboard, settings, tax planner); other screens fall back to English
-- [x] Language and region per profile: any country, every ISO 4217 currency, regional number and date formats
-- [x] Opt-in market ticker: regional lists (India, US, UK), crypto via CoinGecko, custom watchlist via Twelve Data with the user's own key; cached for offline
-- [ ] Translate the remaining screens (Accounts, Transactions, Cards, Family, security settings) and move all dates to the shared formatter
-- [ ] Tax packs translated (regime and deduction names follow the interface language)
-- [ ] More tax packs: US, UK, Canada, Australia, Singapore, UAE; GST/VAT rates; capital gains at special rates
-- [ ] More languages: Tamil, Bengali, Marathi, Telugu, Gujarati, Kannada, Malayalam, Punjabi, Urdu (RTL), Arabic (RTL), Spanish, French, German
-- [ ] Ticker: more providers, more regional lists, and live prices for holdings on the Investments page
-- [x] SQLCipher encryption at rest, recovery keys, parent recovery for children (decision 1)
-- [x] Change history, undo, trash and encrypted safety copies (decision 1b)
-- [x] Motion: rolling amounts, list enter/exit and undo, sliding sidebar highlight, card lift and staggered details; Motion setting (Full / Reduced / Off, following the system)
-- [x] More motion: sign-in (avatar glide, code boxes, shake, recovery key reveal, lock blur, unlock moment), sliding segmented controls, change arrows and progress bars, card look cross-fade and removal, tax totals and badge, family fan-out and "new" dots, history strike-through, ticker price flash, theme cross-fade, skeleton loaders, success ticks
-- [x] Animated chart kit (`ui/src/components/charts`): grouped bars grow in, donut slices draw in, sparklines draw left to right; all ease to new values and follow the Motion setting
-- [x] Dashboard charts: income vs spending (6 months), spending by category (this month), net worth trend
-- [x] Indian short amounts on charts (₹92.5K, ₹4.1L, ₹1.2Cr)
-- [ ] Reports page built on the chart kit; goal rings and calendar motion as those pages arrive
-- [ ] Settings persisted in DB: date and time format, first day of week, fiscal year start, decimals, negative format (language, country and currency done)
-- [ ] CI: `cargo test`, `tsc`, and Tauri builds for all three desktop OSes (GitHub Actions)
+Each phase is a release with a "done when" test. Order: daily use first, security before strangers trust it with real data, mobile and sync before wealth (quick entry happens on the phone), business last (largest and most compliance-heavy). Items from the backlog sections below are pulled into a phase when it starts.
 
-### Phase 1: Core tracking (MVP you'd actually use daily)
-- Transactions:
-  - full edit
-  - tags and notes
-  - smart filters (category, merchant, tags, account, card only, recurring only)
-  - multi-select bulk actions
-  - pagination or virtualised list
-- Categories and sub-categories, with per-category budgets
-- Transfers between accounts (two linked rows, so they don't count as spending)
-- Auto-lock timer; theme and preferences stored per profile
-- Recovery key per member (printable), required once encryption lands
-- Encrypted backup file: export, restore, print recovery sheet
-- Command palette (Ctrl/Cmd+K) and a hotkey editor
+### Already built
+- Tauri v2 workspace, `vaulty-core` crate, migrations, tests
+- Family profiles: per-member encrypted databases (SQLCipher), setup codes, roles, recovery keys, parent recovery for children
+- Two-step verification (any authenticator app, backup codes) and biometric unlock (desktop)
+- Family sharing: Private / Shared / Public, two-sided consent, Family view
+- Money as integer minor units; double-entry ledger core
+- Change history, undo, trash, tamper-evident chain, encrypted safety copies
+- Hidden transactions
+- Cards page, bank and institution directory
+- Tax region packs with the India pack and the Tax planner
+- English and Hindi; any country and currency; regional number formats
+- Opt-in market ticker
+- Motion throughout, animated chart kit, dashboard charts
 
-### Phase 2: Planning & bills
-- **Recurring payments:**
-  - recurrence rules (daily, weekly, monthly, yearly, custom; use RRULE)
-  - generates upcoming instances
-  - mark as paid creates the transaction
-- **Credit cards:**
-  - ✅ Cards page for credit, debit, prepaid/forex, gift and other cards: animated (tilt, glare, flip, stack), network detection, last-4-only storage, expiry
-  - ✅ card backgrounds: preset finishes, solid colour, 2–3 colour gradient, or your own image (cropped, dimmable), with text colour and engraved-line options
-  - ✅ limit, available credit, credit-used ring, statement and due day with countdown
-  - billing cycle and due date reminders
-  - monthly statement generation ("Statement for Dec 2025")
-  - minimum due, paid or unpaid, late-fee warning
-  - EMIs and taxes on the card
-- **Calendar:**
-  - month and day views of bills, recurring items, card dues and investment events
-  - day totals
-  - `.ics` import and export
-- **To-do:** priority, status and due date; can link to a transaction, bill or investment
-- **Statement import:**
-  - CSV and XLSX with a column-mapping wizard
-  - mappings saved per bank as templates
-  - duplicate detection (same date, amount and merchant within ±1 day)
-- **Exports:**
-  - XLSX with sheets for Transactions, Recurring, Cards, Investments, Tasks and Summary
-  - PDF monthly report (summary, charts and detail)
-  - JSON
-- **Reports:**
-  - monthly summary and category breakdown
-  - trends
-  - budget vs actual
-  - year-over-year comparison
-  - custom date range
-- **Notifications:** bill due, card due, budget threshold, low balance (OS notifications via `tauri-plugin-notification`)
+### Phase 0: Finish the foundations (built; waiting for the first green run on GitHub)
+- [x] Automatic checks on every change (`.github/workflows/checks.yml`) on macOS, Windows and Linux: clippy with warnings as errors, tests, TypeScript build, translation check; `cargo deny` (licences, sources, advisories), `cargo audit`, `npm audit`. Actions pinned to commits. Formatting with rustfmt is left out for now (it would reformat most files)
+- [x] Demo mode (`--demo` or `VAULTY_DEMO=1`): John, Jane and Jenny Doe with six months of sample data each, in a throwaway folder
+- [x] Every screen translated (English and Hindi, 658 strings); dates through the shared formatter; ordinal days per language ("20th", "20 तारीख")
+- [x] Formats per profile: date order, negative amounts (minus or brackets), decimal places, first day of the week, financial-year start; each "Automatic" by default, following the profile's language and country
+- [ ] Error messages from the Rust side are still English only
+- **Done when:** every check passes on all three systems.
 
-### Phase 3: Wealth
-- **Investments:**
-  - holdings (buy price, quantity, current value)
-  - events (SIP, dividend, bonus, maturity)
-  - XIRR
-  - allocation chart
-- Goals and calculators: emergency fund, retirement, home, education, vacation, debt payoff (snowball and avalanche)
-- Insurance policies: premium schedule, renewal reminders, nominees, attached policy PDF
-- Net-worth timeline (monthly snapshots)
-- Journal:
-  - monthly financial journal
-  - decision log
-  - investment thesis
-  - bill negotiation history
-  - notes on transactions
-- Documents vault with a built-in PDF viewer (pdf.js); files encrypted on disk
-- Anomaly detection, rule-based first:
-  - spend > 2.5σ above the category's 6-month mean
-  - a new merchant with a large amount
-  - a duplicate charge
-- PDF statement import:
-  - text-based PDFs via `pdf-extract`, plus per-bank parsers
-  - "convert PDF to CSV" falls out of this
+### Phase 1: Daily use (v0.1, family alpha)
+- [ ] Full transaction editing, tags, notes, splits; transfers between accounts
+- [ ] Categories and sub-categories with budgets
+- [ ] Recurring payments and bills (RRULE), upcoming instances, "mark as paid"
+- [ ] CSV / XLSX statement import: column mapping saved per bank, duplicate detection
+- [ ] Auto-categorisation rules that learn from corrections
+- [ ] Quick add from anywhere, with plain-language entry ("250 swiggy yesterday")
+- [ ] Password-protected backups and a printable recovery sheet
+- [ ] Command palette (Ctrl/Cmd+K); filters, bulk actions, a fast long list
+- **Done when:** the family uses it for a month instead of a spreadsheet.
 
-### Phase 4: Business, family, online
-- **Business** (workspaces and ledger from decision 8; tax rules from region packs):
-  - quotes → invoices → payments, with GST/VAT lines; recurring invoices and late-payment reminders
-  - payment QR on invoices: UPI (India), EPC/SEPA QR (EU), PayNow (Singapore), Pix (Brazil)
-  - client and vendor directory; receivables and payables ageing
-  - profit & loss, balance sheet, cash flow; bank reconciliation
-  - tax summaries per region pack (GST/VAT returns, Schedule C, SA103…) and a tax-filing export
-  - exports for accountants: Tally (India), QuickBooks / Xero CSV, Excel, PDF
-  - receipt capture with on-device OCR
-  - time tracking for freelancers, billed straight into invoices
-  - mileage log and home-office expenses
-  - tax-deductible donation tracking
-- **Family:** (profiles and roles are already done; these extend them)
-  - a shared household budget DB that members can opt into
-  - kids' allowance accounts (virtual balances that a parent tops up)
-  - finer permissions on shared data (view or edit)
-- **Online mode** (all opt-in; device sync is decision 4):
-  - optional encrypted backup to the member's own cloud drive
-  - FX rates for multi-currency
-  - update checker (`tauri-plugin-updater`)
-  - calendar sync (Google, Apple, Outlook) last
+### Phase 2: Security before public release (v0.5, public beta)
+- [ ] Threat model and `SECURITY.md` (decision 1c, parts 1 and 7)
+- [ ] Harden the app shell: content security policy, isolation pattern, size and rate limits (1c, part 3)
+- [ ] Fuzz tests for importers, property tests for the ledger and keys (1c, part 2)
+- [ ] Signed releases and updater; release-chain protection (1c, part 5)
+- [ ] Biometric item bound at the OS level; external fingerprint copies (1c, parts 4 and 8)
+- [ ] Accessibility pass; senior mode
+- [ ] OWASP ASVS self-review, then a first external audit (1c, part 6)
+- **Done when:** signed installers are on GitHub Releases and audit findings are fixed.
 
-### Phase 5: Mobile
-- iOS and Android builds from the same codebase (Tauri v2 mobile)
-- Pairing and sync with the desktop over local Wi-Fi (decision 4)
-- Responsive layout: the sidebar becomes a bottom tab bar
-- Biometric unlock and quick-add widget
+### Phase 3: Planning and reminders (v0.6)
+- [ ] Calendar: bills, card dues, document expiry, bank holidays; `.ics` import and export
+- [ ] OS notifications: bill and card due, budget threshold, low balance
+- [ ] Cards: statements, minimum due, benefits tracker, best card for today
+- [ ] Reports page on the chart kit; cash-flow forecast; "safe to spend"
+- [ ] Lend and borrow tracker; subscription detector; price-rise alerts
+- [ ] To-do linked to bills and transactions
+- [ ] Shared recovery key (any 2 of 3 family members)
+- [ ] XLSX and PDF report exports
+- **Done when:** no bill or card payment is missed.
+
+### Phase 4: Mobile and sync (v0.8)
+- [ ] iOS and Android builds; mobile layout with a bottom tab bar
+- [ ] Pairing and same-Wi-Fi sync, in the build order of decision 4
+- [ ] Quick-add widget; biometric unlock on the phone
+- [ ] Pentest of pairing and sync
+- **Done when:** something added on a phone appears on the desktop, and conflicts are handled.
+
+### Phase 5: Wealth and tax (v1.0)
+- [ ] Investments: holdings, events, XIRR, allocation; AMFI NAVs; CAS import
+- [ ] Goals and calculators; insurance; net-worth timeline
+- [ ] Emergency kit, nominee tracking, documents vault, journal
+- [ ] Tax planner filled from transactions; TDS and advance tax; HRA rent receipts; Form 16 import
+- [ ] Second country's tax pack
+- [ ] PDF statement import; anomaly detection
+- **Done when:** net worth is complete and the tax planner fills itself in.
+
+### Phase 6: Business (v1.x)
+- [ ] Business workspaces (decision 8), then GST invoices with PDF and email, then payments and receivables, then purchase bills and GST returns, then stock and payroll (see "Business: invoicing and beyond")
+- [ ] Edit log that can't be turned off, signed checkpoints, retention (decision 1c, parts 8 and 9)
+- [ ] Pentest before email sending and e-invoicing go live
+- **Done when:** a small business can invoice, get paid and hand its books to an accountant.
+
+### Ongoing
+- More languages and tax packs, the private on-device assistant, family and kids features, "Vaulty Wrapped", online extras (FX rates, cloud backup).
 
 ---
 

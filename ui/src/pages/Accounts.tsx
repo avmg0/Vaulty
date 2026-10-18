@@ -12,20 +12,24 @@ import { Input, NativeSelect } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatMoney } from "@/lib/utils";
 import { useTheme } from "@/hooks/theme";
+import { useTranslation } from "react-i18next";
 
+/** Account types; labels are `accounts.type.<id>` in the translation files. */
 export const ACCOUNT_TYPES = {
-  checking: { label: "Checking / Savings", icon: Landmark },
-  cash: { label: "Cash", icon: Banknote },
-  credit: { label: "Credit card", icon: CreditCard },
-  investment: { label: "Investment", icon: LineChart },
-  business: { label: "Business", icon: Building2 },
-  prepaid: { label: "Prepaid card", icon: Ticket },
-  gift_card: { label: "Gift card", icon: Gift },
-  other: { label: "Other", icon: Wallet },
+  checking: { icon: Landmark },
+  cash: { icon: Banknote },
+  credit: { icon: CreditCard },
+  investment: { icon: LineChart },
+  business: { icon: Building2 },
+  prepaid: { icon: Ticket },
+  gift_card: { icon: Gift },
+  other: { icon: Wallet },
 } as const;
+const typeLabel = (t: (k: string) => string, type: string) => type in ACCOUNT_TYPES ? t(`accounts.type.${type}`) : type;
 
 export function Accounts() {
   const { hideBalances } = useTheme();
+  const { t } = useTranslation();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [open, setOpen] = useState(false);
   const [newType, setNewType] = useState<keyof typeof ACCOUNT_TYPES>("checking");
@@ -45,7 +49,7 @@ export function Accounts() {
     try {
       await api.accounts.update(logoTarget, { logo: await toSquarePng(file, 128) });
       load();
-    } catch (err) { setError(errorText(err)); }
+    } catch (err) { setError(err instanceof Error && err.message === "not-an-image" ? t("accounts.notImage") : errorText(err)); }
     setLogoTarget(null);
   };
   useEffect(() => { load(); }, []);
@@ -68,36 +72,36 @@ export function Accounts() {
     <div className="space-y-4">
       <div className="flex justify-end">
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild><Button><Plus />Add account</Button></DialogTrigger>
+          <DialogTrigger asChild><Button><Plus />{t("accounts.add")}</Button></DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>New account</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>{t("accounts.newTitle")}</DialogTitle></DialogHeader>
             <form onSubmit={create} className="grid gap-4">
-              <div className="grid gap-2"><Label htmlFor="name">Name</Label><Input id="name" name="name" placeholder="HDFC Savings" required /></div>
+              <div className="grid gap-2"><Label htmlFor="name">{t("accounts.name")}</Label><Input id="name" name="name" placeholder={t("accounts.namePlaceholder")} required /></div>
               <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2"><Label htmlFor="type">Type</Label>
-                  <NativeSelect id="type" name="type" value={newType} onChange={(e) => setNewType(e.target.value as keyof typeof ACCOUNT_TYPES)}>{Object.entries(ACCOUNT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</NativeSelect>
+                <div className="grid gap-2"><Label htmlFor="type">{t("accounts.typeLabel")}</Label>
+                  <NativeSelect id="type" name="type" value={newType} onChange={(e) => setNewType(e.target.value as keyof typeof ACCOUNT_TYPES)}>{Object.entries(ACCOUNT_TYPES).map(([k]) => <option key={k} value={k}>{typeLabel(t, k)}</option>)}</NativeSelect>
                 </div>
-                <div className="grid gap-2"><Label htmlFor="currency">Currency</Label><CurrencyPicker id="currency" value={currency} onChange={setCurrency} /></div>
+                <div className="grid gap-2"><Label htmlFor="currency">{t("accounts.currency")}</Label><CurrencyPicker id="currency" value={currency} onChange={setCurrency} /></div>
               </div>
               {showInstitution && (
                 <div className="grid gap-2">
-                  <Label>{isCard ? "Card issuer" : newType === "investment" ? "Broker or bank" : "Bank"}</Label>
+                  <Label>{isCard ? t("accounts.issuer") : newType === "investment" ? t("accounts.broker") : t("accounts.bank")}</Label>
                   <InstitutionPicker value={institution} onChange={setInstitution} currency={currency} />
                 </div>
               )}
               <div className="grid gap-2">
-                <Label htmlFor="balance">{isCard ? "Amount currently owed" : "Opening balance"}</Label>
+                <Label htmlFor="balance">{isCard ? t("accounts.owedNow") : t("accounts.opening")}</Label>
                 <Input id="balance" name="balance" type="number" step="0.01" min={isCard ? "0" : undefined} defaultValue="0" />
-                {isCard && <p className="text-muted-foreground text-xs">Card balances count against your net worth.</p>}
+                {isCard && <p className="text-muted-foreground text-xs">{t("accounts.cardNote")}</p>}
               </div>
               {error && <p className="text-destructive text-sm">{error}</p>}
-              <DialogFooter><Button type="submit">Create account</Button></DialogFooter>
+              <DialogFooter><Button type="submit">{t("accounts.create")}</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
       {accounts.length === 0 && (
-        <Card><CardContent className="text-muted-foreground py-10 text-center text-sm">No accounts yet. Add your bank, cash or card accounts to start tracking.</CardContent></Card>
+        <Card><CardContent className="text-muted-foreground py-10 text-center text-sm">{t("accounts.empty")}</CardContent></Card>
       )}
       <input ref={fileInput} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden"
         onChange={(e) => { onLogoFile(e.target.files?.[0]); e.target.value = ""; }} />
@@ -115,23 +119,23 @@ export function Accounts() {
                 <div className="min-w-0 flex-1">
                   <CardTitle className="truncate">{a.name}</CardTitle>
                   <CardDescription className="truncate">
-                    {[a.institution, ACCOUNT_TYPES[a.type as keyof typeof ACCOUNT_TYPES]?.label ?? a.type].filter(Boolean).join(" · ")}
+                    {[a.institution, typeLabel(t, a.type)].filter(Boolean).join(" · ")}
                   </CardDescription>
                 </div>
                 <div className="flex opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
                   {a.logo ? (
-                    <Button variant="ghost" size="icon" title="Remove your logo" onClick={() => api.accounts.update(a.id, { logo: null }).then(load)}><ImageMinus /></Button>
+                    <Button variant="ghost" size="icon" title={t("accounts.removeLogo")} onClick={() => api.accounts.update(a.id, { logo: null }).then(load)}><ImageMinus /></Button>
                   ) : (
-                    <Button variant="ghost" size="icon" title="Use your own logo image" onClick={() => pickLogo(a.id)}><ImagePlus /></Button>
+                    <Button variant="ghost" size="icon" title={t("accounts.ownLogo")} onClick={() => pickLogo(a.id)}><ImagePlus /></Button>
                   )}
-                  <Button variant="ghost" size="icon" title="Archive" onClick={() => api.accounts.delete(a.id).then(load)}><Trash2 /></Button>
+                  <Button variant="ghost" size="icon" title={t("accounts.archive")} onClick={() => api.accounts.delete(a.id).then(load)}><Trash2 /></Button>
                 </div>
               </CardHeader>
               <CardContent>
                 {a.ledger_kind === "liability" ? (
                   <>
                     <div className="text-2xl font-semibold tabular-nums">{formatMoney(Math.max(0, -a.current_balance), a.currency, hideBalances)}</div>
-                    <div className="text-muted-foreground text-xs">{a.current_balance > 0 ? `In credit by ${formatMoney(a.current_balance, a.currency, hideBalances)}` : "Owed"}</div>
+                    <div className="text-muted-foreground text-xs">{a.current_balance > 0 ? t("accounts.inCredit", { amount: formatMoney(a.current_balance, a.currency, hideBalances) }) : t("accounts.owed")}</div>
                   </>
                 ) : (
                   <div className="text-2xl font-semibold tabular-nums">{formatMoney(a.current_balance, a.currency, hideBalances)}</div>
@@ -152,7 +156,7 @@ async function toSquarePng(file: File, size: number): Promise<string> {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const i = new Image();
       i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error("That file isn't an image Vaulty can read."));
+      i.onerror = () => reject(new Error("not-an-image"));
       i.src = url;
     });
     const canvas = document.createElement("canvas");

@@ -44,6 +44,8 @@ impl Session {
 
 struct AppState {
     data_dir: PathBuf,
+    /// Running with sample data in a throwaway folder (`--demo` or `VAULTY_DEMO=1`).
+    demo: bool,
     registry: Mutex<Registry>,
     session: Mutex<Option<Session>>,
     pending: Mutex<Option<(SecondFactor, Instant)>>,
@@ -732,14 +734,66 @@ fn db_size(s: S) -> Result<String> {
     Ok(db::file_size_label(&s.user_db_path(&me.id)))
 }
 
+// ============================================================ demo mode
+
+/// Password for every sample profile. Only ever used for the throwaway demo folder.
+const DEMO_PASSWORD: &str = "vaulty-demo";
+
+fn demo_requested() -> bool {
+    std::env::args().any(|a| a == "--demo") || std::env::var("VAULTY_DEMO").is_ok_and(|v| v == "1")
+}
+
+/// Builds a fresh demo household in `dir` (wiping any earlier demo there): John Doe (admin,
+/// salaried), Jane Doe (freelancer) and Jenny Doe (child), each with six months of sample data.
+fn build_demo(dir: &std::path::Path) -> Result<Registry> {
+    if dir.exists() { std::fs::remove_dir_all(dir)?; }
+    std::fs::create_dir_all(dir.join("users"))?;
+    let registry = Registry::open(&dir.join("registry.db"))?;
+    let today = chrono::Local::now().date_naive();
+    let seed = |keys: &Unlocked, persona| -> Result<()> {
+        let conn = db::open(&dir.join("users").join(format!("{}.db", keys.user_id)), &keys.data_key)?;
+        vaulty_core::demo::seed(&conn, persona, today)
+    };
+    let admin = registry.create_first_admin("John Doe", "#2563eb", DEMO_PASSWORD)?;
+    seed(&admin, vaulty_core::demo::Persona::Earner)?;
+    for (name, color, role, persona) in [("Jane Doe", "#7c3aed", Role::Member, vaulty_core::demo::Persona::Freelancer),
+                                         ("Jenny Doe", "#e11d48", Role::Child, vaulty_core::demo::Persona::Child)] {
+        let invite = registry.add_user(&admin, name, color, role)?;
+        let member = registry.claim_profile(&invite.user.id, &invite.setup_code, DEMO_PASSWORD)?;
+        seed(&member, persona)?;
+    }
+    Ok(registry)
+}
+
+#[derive(Serialize)]
+struct AppInfo {
+    version: &'static str,
+    demo: bool,
+    demo_password: Option<&'static str>,
+}
+
+#[tauri::command]
+fn app_info(s: S) -> AppInfo {
+    AppInfo { version: env!("CARGO_PKG_VERSION"), demo: s.demo, demo_password: s.demo.then_some(DEMO_PASSWORD) }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
-            let data_dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(data_dir.join("users"))?;
-            let registry = Registry::open(&data_dir.join("registry.db"))?;
+            let demo = demo_requested();
+            let (data_dir, registry) = if demo {
+                let dir = std::env::temp_dir().join("vaulty-demo");
+                let registry = build_demo(&dir)?;
+                (dir, registry)
+            } else {
+                let dir = app.path().app_data_dir()?;
+                std::fs::create_dir_all(dir.join("users"))?;
+                let registry = Registry::open(&dir.join("registry.db"))?;
+                (dir, registry)
+            };
             app.manage(AppState {
+                demo,
                 data_dir,
                 registry: Mutex::new(registry),
                 session: Mutex::new(None),
@@ -748,7 +802,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            users_list, session_current, setup_first_admin, claim_profile,
+            app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,
             users_add, users_reset, users_erase, users_remove, profile_update, sign_in_recovery, recovery_key_new,
@@ -763,4 +817,28 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running Vaulty");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn demo_household_signs_in_with_sample_data() {
+        let dir = std::env::temp_dir().join(format!("vaulty-demo-test-{}", std::process::id()));
+        let registry = build_demo(&dir).unwrap();
+        let users = registry.list().unwrap();
+        assert_eq!(users.iter().map(|u| u.name.as_str()).collect::<Vec<_>>(), ["John Doe", "Jane Doe", "Jenny Doe"]);
+        for u in &users {
+            let PasswordOutcome::SignedIn(keys) = registry.sign_in_with_password(&u.id, DEMO_PASSWORD).unwrap() else { panic!("no second factor in demo") };
+            let conn = db::open(&dir.join("users").join(format!("{}.db", u.id)), &keys.data_key).unwrap();
+            assert!(!transactions::list(&conn, None, false).unwrap().is_empty(), "{} has sample data", u.name);
+        }
+        // Building again starts from scratch. (Close the first one: Windows can't delete open files.)
+        drop(registry);
+        let again = build_demo(&dir).unwrap();
+        assert_eq!(again.list().unwrap().len(), 3);
+        drop(again);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

@@ -4,7 +4,8 @@ import { Check, Fingerprint, KeyRound, Loader2, LockKeyhole, Monitor, Moon, Shie
 import { useTranslation } from "react-i18next";
 import { LANGUAGES } from "@/i18n";
 import { COUNTRIES } from "@/i18n/regions";
-import { currencyFor, useDisplayNames, useLocale } from "@/hooks/locale";
+import { currencyFor, useDisplayNames, useLocale, type DisplayPrefs } from "@/hooks/locale";
+import { MONTH_IDS, resolveFiscalStart, resolveWeekStart } from "@/lib/formats";
 import { CurrencyPicker } from "@/components/CurrencyPicker";
 import { MarketCard } from "@/components/MarketCard";
 import { SnapshotsCard } from "@/components/SnapshotsCard";
@@ -31,15 +32,16 @@ import { FamilySharingCard } from "@/components/FamilySharingCard";
 import { useTheme, type Accent, type Theme } from "@/hooks/theme";
 import { useSession } from "@/hooks/session";
 import { Logo } from "@/components/Logo";
-import { cn, formatDate, formatMoney } from "@/lib/utils";
+import { cn, formatDate, formatDateAs, formatMoney } from "@/lib/utils";
 
 const THEMES: { id: Theme; icon: typeof Sun }[] = [{ id: "system", icon: Monitor }, { id: "light", icon: Sun }, { id: "dark", icon: Moon }];
-const ACCENTS: { id: Accent; label: string; swatch: string }[] = [
-  { id: "neutral", label: "Default (grey with Vaulty-blue logo)", swatch: "bg-[linear-gradient(135deg,#52525b_50%,#235BAA_50%)]" },
-  { id: "black", label: "Black (white in dark mode)", swatch: "bg-black dark:bg-white border border-zinc-300 dark:border-zinc-600" },
-  { id: "blue", label: "Blue", swatch: "bg-blue-600" }, { id: "green", label: "Green", swatch: "bg-green-600" },
-  { id: "violet", label: "Violet", swatch: "bg-violet-600" }, { id: "orange", label: "Orange", swatch: "bg-orange-500" },
-  { id: "rose", label: "Rose", swatch: "bg-rose-600" },
+/** Names are `settings.accent.<id>` in the translation files. */
+const ACCENTS: { id: Accent; swatch: string }[] = [
+  { id: "neutral", swatch: "bg-[linear-gradient(135deg,#52525b_50%,#235BAA_50%)]" },
+  { id: "black", swatch: "bg-black dark:bg-white border border-zinc-300 dark:border-zinc-600" },
+  { id: "blue", swatch: "bg-blue-600" }, { id: "green", swatch: "bg-green-600" },
+  { id: "violet", swatch: "bg-violet-600" }, { id: "orange", swatch: "bg-orange-500" },
+  { id: "rose", swatch: "bg-rose-600" },
 ];
 
 export function Settings() {
@@ -47,6 +49,7 @@ export function Settings() {
     <div className="max-w-3xl space-y-6">
       <ProfileCard />
       <LanguageRegionCard />
+      <FormatsCard />
       <SecurityCard />
       <SnapshotsCard />
       <FamilySharingCard />
@@ -154,6 +157,70 @@ function LanguageRegionCard() {
   );
 }
 
+/** Dates, negative amounts, decimals, week start and financial year. Saved to the profile. */
+function FormatsCard() {
+  const { t } = useTranslation();
+  const { locale, country, currency, display, setDisplay } = useLocale();
+  const [error, setError] = useState("");
+  const sample = new Date(2026, 9, 17);
+  // A Sunday, so weekday names line up: index 0 = Sunday … 6 = Saturday.
+  const weekday = (i: number) => new Intl.DateTimeFormat(locale, { weekday: "long" }).format(new Date(2026, 9, 18 + i));
+  const month = (i: number) => new Intl.DateTimeFormat(locale, { month: "long" }).format(new Date(2026, i, 1));
+  const WEEK_INDEX = { sunday: 0, monday: 1, saturday: 6 } as const;
+  const autoWeek = resolveWeekStart("auto", locale), autoFiscal = resolveFiscalStart("auto", country);
+
+  const save = (patch: Partial<DisplayPrefs>) => {
+    const next = { ...display, ...patch };
+    setDisplay(next); setError("");
+    api.settings.update({ date_format: next.dateFormat, negative_format: next.negative, decimals: next.decimals, start_of_week: next.weekStart, fiscal_year_start: next.fiscalStart })
+      .catch((e) => setError(errorText(e)));
+  };
+  const field = (id: string, label: string, value: string, onChange: (v: string) => void, options: [string, string][]) => (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      <select id={id} className={SELECT} value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+      </select>
+    </div>
+  );
+  // Examples are shown as each choice would format them.
+  const ex = (order: DisplayPrefs["dateFormat"]) => formatDateAs(sample, order);
+  const autoLabel = (shown: string) => t("formats.auto", { example: shown });
+
+  return (
+    <Card>
+      <CardHeader><CardTitle>{t("formats.title")}</CardTitle><CardDescription>{t("formats.desc")}</CardDescription></CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {field("date-order", t("formats.date"), display.dateFormat, (v) => save({ dateFormat: v as DisplayPrefs["dateFormat"] }), [
+            ["auto", autoLabel(ex("auto"))],
+            ["dmy", ex("dmy")], ["mdy", ex("mdy")], ["ymd", ex("ymd")],
+          ])}
+          {field("negatives", t("formats.negative"), display.negative, (v) => save({ negative: v as DisplayPrefs["negative"] }), [
+            ["minus", t("formats.minus", { example: `−${formatMoney(1234.5, currency).replace(/^[-−]/, "")}` })],
+            ["parentheses", t("formats.parentheses", { example: `(${formatMoney(1234.5, currency)})` })],
+          ])}
+          {field("decimals", t("formats.decimals"), display.decimals, (v) => save({ decimals: v as DisplayPrefs["decimals"] }), [
+            ["auto", t("formats.decimalsAuto")], ["0", t("formats.decimals0")], ["2", t("formats.decimals2")],
+          ])}
+          {field("week-start", t("formats.weekStart"), display.weekStart, (v) => save({ weekStart: v as DisplayPrefs["weekStart"] }), [
+            ["auto", autoLabel(weekday(WEEK_INDEX[autoWeek]))],
+            ["sunday", weekday(0)], ["monday", weekday(1)], ["saturday", weekday(6)],
+          ])}
+          {field("fiscal-start", t("formats.fiscal"), display.fiscalStart, (v) => save({ fiscalStart: v as DisplayPrefs["fiscalStart"] }), [
+            ["auto", autoLabel(month(MONTH_IDS.indexOf(autoFiscal)))],
+            ...MONTH_IDS.map((m, i) => [m, month(i)] as [string, string]),
+          ])}
+        </div>
+        <div className="bg-muted/50 rounded-lg px-3 py-2 text-sm tabular-nums">
+          {t("formats.preview", { date: formatDate(sample), amount: formatMoney(-1234.5, currency) })}
+        </div>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 function SecurityCard() {
   const { user } = useSession();
   const [status, setStatus] = useState<SecurityStatus | null>(null);
@@ -162,6 +229,7 @@ function SecurityCard() {
   const [autoLock, setAutoLock] = useState(getAutoLockMinutes);
   const [newCodes, setNewCodes] = useState<string[] | null>(null);
   const [bioError, setBioError] = useState("");
+  const { t } = useTranslation();
   const refresh = () => api.security.status().then(setStatus);
   useEffect(() => { refresh(); }, []);
 
@@ -170,20 +238,20 @@ function SecurityCard() {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Sign-in & security</CardTitle><CardDescription>These settings apply only to your profile.</CardDescription></CardHeader>
+      <CardHeader><CardTitle>{t("security.title")}</CardTitle><CardDescription>{t("security.desc")}</CardDescription></CardHeader>
       <CardContent className="space-y-4">
-        <Row icon={KeyRound} label="Password" desc="Used to unlock your profile.">
-          <Button variant="outline" size="sm" onClick={() => setDialog("password")}>Change</Button>
+        <Row icon={KeyRound} label={t("security.password")} desc={t("security.passwordDesc")}>
+          <Button variant="outline" size="sm" onClick={() => setDialog("password")}>{t("common.change")}</Button>
         </Row>
         <Separator />
-        <Row icon={ShieldCheck} label="Two-step verification"
-          desc={status.totp_enabled ? <>On · {status.backup_codes_remaining} backup codes left</> : "Ask for a code from an authenticator app after your password."}>
-          {status.totp_enabled && <Button variant="ghost" size="sm" onClick={() => setDialog("codes")}>New backup codes</Button>}
+        <Row icon={ShieldCheck} label={t("security.twoStep")}
+          desc={status.totp_enabled ? t("security.twoStepOn", { count: status.backup_codes_remaining }) : t("security.twoStepOff")}>
+          {status.totp_enabled && <Button variant="ghost" size="sm" onClick={() => setDialog("codes")}>{t("security.newCodes")}</Button>}
           <Switch checked={status.totp_enabled} onCheckedChange={(on) => setDialog(on ? "totp-on" : "totp-off")} />
         </Row>
         <Separator />
-        <Row icon={Fingerprint} label={`Unlock with ${bio}`}
-          desc={!status.biometric_available ? "Not available on this device yet." : status.biometric_enabled ? "On for this device. Skips password and 2FA here." : "Unlock without typing your password on this device."}>
+        <Row icon={Fingerprint} label={t("security.unlockWith", { method: bio })}
+          desc={!status.biometric_available ? t("security.bioUnavailable") : status.biometric_enabled ? t("security.bioOn") : t("security.bioOff")}>
           <Switch disabled={!status.biometric_available} checked={status.biometric_enabled}
             onCheckedChange={async (on) => {
               setBioError("");
@@ -193,48 +261,48 @@ function SecurityCard() {
         </Row>
         {bioError && <p className="text-destructive text-sm">{bioError}</p>}
         <Separator />
-        <Row icon={LockKeyhole} label="Recovery key"
+        <Row icon={LockKeyhole} label={t("security.recoveryKey")}
           desc={user.role === "child"
-            ? "Unlocks your data if you forget your password. A parent can also reset it for you."
-            : "Unlocks your data if you forget your password. Nobody else can recover your data, so keep it somewhere safe."}>
-          <Button variant="outline" size="sm" onClick={() => setDialog("recovery")}>New key</Button>
+            ? t("security.recoveryChild")
+            : t("security.recoveryAdult")}>
+          <Button variant="outline" size="sm" onClick={() => setDialog("recovery")}>{t("security.newKey")}</Button>
         </Row>
         <Separator />
-        <Row icon={Timer} label="Lock automatically" desc="After this long without using Vaulty on this device, or when you come back to it.">
+        <Row icon={Timer} label={t("security.autoLock")} desc={t("security.autoLockDesc")}>
           <select className="border-input dark:bg-input/30 h-8 rounded-md border bg-transparent px-2 text-sm" value={autoLock}
-            onChange={(e) => { const m = Number(e.target.value); setAutoLock(m); setAutoLockMinutes(m); }} aria-label="Lock automatically">
-            {AUTO_LOCK_CHOICES.map((m) => <option key={m} value={m}>{m === 0 ? "Never" : m === 1 ? "1 minute" : `${m} minutes`}</option>)}
+            onChange={(e) => { const m = Number(e.target.value); setAutoLock(m); setAutoLockMinutes(m); }} aria-label={t("security.autoLock")}>
+            {AUTO_LOCK_CHOICES.map((m) => <option key={m} value={m}>{m === 0 ? t("security.never") : t("security.minutes", { count: m })}</option>)}
           </select>
         </Row>
         <Separator />
-        {["Screenshot protection", "Blur in app switcher"].map((l) => (
-          <Row key={l} label={l}><Badge variant="secondary">Coming soon</Badge></Row>
+        {[t("security.screenshot"), t("security.blur")].map((l) => (
+          <Row key={l} label={l}><Badge variant="secondary">{t("common.comingSoon")}</Badge></Row>
         ))}
       </CardContent>
 
       <ChangePasswordDialog open={dialog === "password"} onOpenChange={(o) => setDialog(o ? "password" : null)} />
       <PasswordDialog open={dialog === "recovery"} onOpenChange={(o) => setDialog(o ? "recovery" : null)}
-        title="Create a new recovery key?" description="Your current recovery key stops working. You'll see the new one once, so have somewhere ready to save it."
-        confirmLabel="Create new key" action={async (pw) => setRecoveryKey(await api.security.newRecoveryKey(pw))} />
+        title={t("security.newKeyTitle")} description={t("security.newKeyDesc")}
+        confirmLabel={t("security.newKeyButton")} action={async (pw) => setRecoveryKey(await api.security.newRecoveryKey(pw))} />
       <RecoveryKeyDialog recoveryKey={recoveryKey} isNew child={user.role === "child"} onDone={() => setRecoveryKey(null)} />
       <TotpSetupDialog open={dialog === "totp-on"} onOpenChange={(o) => setDialog(o ? "totp-on" : null)} userName={user.name} onEnabled={refresh} />
       <PasswordDialog open={dialog === "totp-off"} onOpenChange={(o) => setDialog(o ? "totp-off" : null)} destructive
-        title="Turn off two-step verification?" description="Your password alone will unlock your profile, and your backup codes will stop working."
-        confirmLabel="Turn off" action={async (pw) => { await api.security.totpDisable(pw); refresh(); }} />
+        title={t("security.totpOffTitle")} description={t("security.totpOffDesc")}
+        confirmLabel={t("security.turnOff")} action={async (pw) => { await api.security.totpDisable(pw); refresh(); }} />
       <PasswordDialog open={dialog === "codes"} onOpenChange={(o) => setDialog(o ? "codes" : null)}
-        title="Generate new backup codes" description="Your old backup codes will stop working."
-        confirmLabel="Generate" action={async (pw) => { setNewCodes(await api.security.regenerateBackupCodes(pw)); refresh(); }} />
+        title={t("security.genTitle")} description={t("security.genDesc")}
+        confirmLabel={t("security.generate")} action={async (pw) => { setNewCodes(await api.security.regenerateBackupCodes(pw)); refresh(); }} />
       <PasswordDialog open={dialog === "bio-on"} onOpenChange={(o) => setDialog(o ? "bio-on" : null)}
-        title={`Turn on ${bio}`} description={`Confirm your password, then approve the ${bio} prompt. Anyone who can pass ${bio} on this computer will be able to open your profile.`}
+        title={t("security.bioTitle", { method: bio })} description={t("security.bioDesc", { method: bio })}
         action={async (pw) => {
           try { await api.security.biometricEnable(pw); } catch (e) { setBioError(errorText(e)); throw e; }
           refresh();
         }} />
       <Dialog open={!!newCodes} onOpenChange={(o) => !o && setNewCodes(null)}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Your new backup codes</DialogTitle><DialogDescription>Each works once. They won't be shown again.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{t("security.newCodesTitle")}</DialogTitle><DialogDescription>{t("security.newCodesDesc")}</DialogDescription></DialogHeader>
           {newCodes && <BackupCodes codes={newCodes} userName={user.name} />}
-          <DialogFooter><Button onClick={() => setNewCodes(null)}>Done</Button></DialogFooter>
+          <DialogFooter><Button onClick={() => setNewCodes(null)}>{t("members.done")}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>
@@ -245,22 +313,23 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
   const [cur, setCur] = useState(""), [next, setNext] = useState(""), [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const reset = () => { setCur(""); setNext(""); setConfirm(""); setError(""); };
+  const { t } = useTranslation();
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (next !== confirm) return setError("New passwords don't match.");
+    if (next !== confirm) return setError(t("security.mismatch"));
     setBusy(true); setError("");
     try { await api.security.changePassword(cur, next); reset(); onOpenChange(false); } catch (err) { setError(errorText(err)); } finally { setBusy(false); }
   };
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o); }}>
       <DialogContent className="sm:max-w-sm">
-        <DialogHeader><DialogTitle>Change password</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{t("security.changePassword")}</DialogTitle></DialogHeader>
         <form onSubmit={submit} className="space-y-3">
-          <Input type="password" autoFocus placeholder="Current password" value={cur} onChange={(e) => setCur(e.target.value)} required />
-          <Input type="password" placeholder="New password (8+ characters)" minLength={8} value={next} onChange={(e) => setNext(e.target.value)} required />
-          <Input type="password" placeholder="Confirm new password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+          <Input type="password" autoFocus placeholder={t("security.currentPassword")} value={cur} onChange={(e) => setCur(e.target.value)} required />
+          <Input type="password" placeholder={t("security.newPassword")} minLength={8} value={next} onChange={(e) => setNext(e.target.value)} required />
+          <Input type="password" placeholder={t("security.confirmPassword")} value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
           {error && <p className="text-destructive text-sm">{error}</p>}
-          <DialogFooter><Button disabled={busy}>{busy && <Loader2 className="animate-spin" />}Change password</Button></DialogFooter>
+          <DialogFooter><Button disabled={busy}>{busy && <Loader2 className="animate-spin" />}{t("security.changePassword")}</Button></DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -294,7 +363,7 @@ function AppearanceCard() {
         <div className="space-y-2"><Label>{t("settings.appearance.accent")}</Label>
           <div className="flex items-center gap-2">
             {ACCENTS.map((a) => (
-              <m.button key={a.id} onClick={() => setAccent(a.id)} title={a.label} aria-label={a.label} aria-pressed={accent === a.id}
+              <m.button key={a.id} onClick={() => setAccent(a.id)} title={t(`settings.accent.${a.id}`)} aria-label={t(`settings.accent.${a.id}`)} aria-pressed={accent === a.id}
                 animate={accent === a.id ? { scale: [1, 1.18, 1] } : { scale: 1 }} transition={move({ duration: 0.3 })}
                 whileHover={{ scale: 1.08 }} whileTap={{ scale: 0.92 }}
                 className={cn("grid size-8 place-items-center rounded-full text-white ring-offset-2 ring-offset-background transition-shadow", a.swatch, accent === a.id && "ring-2 ring-ring")}>

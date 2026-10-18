@@ -1,3 +1,4 @@
+import i18n from "@/i18n";
 import { cn } from "@/lib/utils";
 
 /** Placeholder shaped like the content it stands in for, with a soft shimmer. */
@@ -8,7 +9,7 @@ export function Skeleton({ className }: { className?: string }) {
 /** A few transaction-like rows. */
 export function SkeletonRows({ rows = 4 }: { rows?: number }) {
   return (
-    <div className="divide-y" aria-busy="true" aria-label="Loading">
+    <div className="divide-y" aria-busy="true" aria-label={i18n.t("common.loading")}>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-3 py-3">
           <Skeleton className="size-8 rounded-full" />

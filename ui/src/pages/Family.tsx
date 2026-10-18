@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Skeleton, SkeletonRows } from "@/components/Skeleton";
 import { ChevronLeft, ChevronRight, Globe, Layers, Loader2, Lock, Settings2, Users, UsersRound } from "lucide-react";
 import { api, errorText, type FamilyItem, type FamilyMember, type FeedView, type SharingPrefs, type Transaction } from "@/api";
@@ -12,24 +13,23 @@ import { AnimatedMoney } from "@/components/AnimatedMoney";
 import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
 import { motion } from "motion/react";
 import { useGrowIn, useMotion } from "@/lib/motion";
-import { cn, formatMoney, getNumberLocale } from "@/lib/utils";
+import { cn, formatDate, formatMoney } from "@/lib/utils";
 import { TransactionRow } from "./Transactions";
 import { FamilyMembers } from "./FamilyMembers";
 
 type Tab = "private" | FeedView;
-const TABS: { id: Tab; label: string; icon: typeof Lock; hint: string }[] = [
-  { id: "all", label: "All", icon: Layers, hint: "Everything you can see: your shared and public items, plus what others share with you" },
-  { id: "private", label: "Private", icon: Lock, hint: "Only you can see these" },
-  { id: "shared", label: "Shared", icon: Users, hint: "Shared with specific people" },
-  { id: "public", label: "Public", icon: Globe, hint: "Visible to the whole family" },
+/** Labels and hints are `family.tab.<id>` and `family.hint.<id>`. */
+const TABS: { id: Tab; icon: typeof Lock }[] = [
+  { id: "all", icon: Layers }, { id: "private", icon: Lock }, { id: "shared", icon: Users }, { id: "public", icon: Globe },
 ];
 
 export function Family({ onOpenSettings }: { onOpenSettings: () => void }) {
   const [section, setSection] = useState<"view" | "members">("view");
+  const { t } = useTranslation();
   return (
     <div className="space-y-4">
       <Segmented role="tablist" value={section} onChange={setSection} itemClassName="py-1.5"
-        options={[{ value: "view", label: <><Layers className="size-4" />Family view</> }, { value: "members", label: <><UsersRound className="size-4" />Members</> }]} />
+        options={[{ value: "view", label: <><Layers className="size-4" />{t("family.view")}</> }, { value: "members", label: <><UsersRound className="size-4" />{t("family.members")}</> }]} />
       {section === "view" ? <FamilyView onOpenSettings={onOpenSettings} /> : <FamilyMembers />}
     </div>
   );
@@ -40,7 +40,7 @@ function monthBounds(offset: number) {
   const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  return { startDate: iso(first), endDate: iso(last), label: first.toLocaleDateString(getNumberLocale(), { month: "long", year: "numeric" }) };
+  return { startDate: iso(first), endDate: iso(last), label: formatDate(first, { month: "long", year: "numeric" }) };
 }
 
 type Row = FamilyItem;
@@ -48,6 +48,7 @@ type Row = FamilyItem;
 function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { user } = useSession();
   const { hideBalances } = useTheme();
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState<SharingPrefs | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [tab, setTab] = useState<Tab>("all");
@@ -87,11 +88,11 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
       <Card className="mx-auto mt-6 max-w-lg">
         <CardContent className="flex flex-col items-center gap-3 py-8 text-center">
           <div className="bg-secondary grid size-12 place-items-center rounded-xl"><Users className="size-5" /></div>
-          <div className="font-semibold">Family sharing is off for you</div>
+          <div className="font-semibold">{t("family.offTitle")}</div>
           <p className="text-muted-foreground max-w-sm text-sm">
-            Turn it on to see the expenses your family chooses to share, and to share yours. Each person decides for themselves; nothing is shared until they do.
+            {t("family.offBody")}
           </p>
-          <Button onClick={onOpenSettings}><Settings2 />Open sharing settings</Button>
+          <Button onClick={onOpenSettings}><Settings2 />{t("family.openSettings")}</Button>
         </CardContent>
       </Card>
     );
@@ -101,18 +102,18 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Segmented role="tablist" value={tab} onChange={(v) => { setTab(v); setOwner(null); }} itemClassName="py-1.5"
-          options={TABS.map((t) => ({ value: t.id, title: t.hint, label: <><t.icon className="size-3.5" />{t.label}</> }))} />
+          options={TABS.map((x) => ({ value: x.id, title: t(`family.hint.${x.id}`), label: <><x.icon className="size-3.5" />{t(`family.tab.${x.id}`)}</> }))} />
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setMonth((m) => m - 1)} aria-label="Previous month"><ChevronLeft /></Button>
+          <Button variant="ghost" size="icon" onClick={() => setMonth((m) => m - 1)} aria-label={t("family.prevMonth")}><ChevronLeft /></Button>
           <div className="w-36 text-center text-sm font-medium">{range.label}</div>
-          <Button variant="ghost" size="icon" onClick={() => setMonth((m) => Math.min(0, m + 1))} disabled={month === 0} aria-label="Next month"><ChevronRight /></Button>
+          <Button variant="ghost" size="icon" onClick={() => setMonth((m) => Math.min(0, m + 1))} disabled={month === 0} aria-label={t("family.nextMonth")}><ChevronRight /></Button>
         </div>
       </div>
 
       <Card className="gap-3">
         <CardHeader>
-          <CardTitle>Spent in {range.label}</CardTitle>
-          <CardDescription>{TABS.find((t) => t.id === tab)!.hint}</CardDescription>
+          <CardTitle>{t("family.spentIn", { month: range.label })}</CardTitle>
+          <CardDescription>{t(`family.hint.${tab}`)}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {rows === null ? <Skeleton className="h-9 w-40" /> : <AnimatedMoney value={grand} currency={currency} hidden={hideBalances} className="text-3xl font-semibold tabular-nums" />}
@@ -120,13 +121,13 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
             <>
               <SplitBar parts={totals.map(([id, v]) => ({ key: id, value: v, color: byId[id]?.color ?? "#71717a", label: byId[id]?.name }))} total={grand} />
               <div className="flex flex-wrap gap-2">
-                <Chip active={!owner} onClick={() => setOwner(null)}>Everyone</Chip>
+                <Chip active={!owner} onClick={() => setOwner(null)}>{t("family.everyone")}</Chip>
                 {totals.map(([id, v]) => {
                   const m = byId[id];
                   return (
                     <Chip key={id} active={owner === id} onClick={() => setOwner(owner === id ? null : id)}>
                       <UserAvatar name={m?.name ?? "?"} color={m?.color ?? "#71717a"} className="size-5 text-[10px]" />
-                      {id === user.id ? "You" : m?.name ?? "Removed member"}
+                      {id === user.id ? t("family.you") : m?.name ?? t("family.removed")}
                       <span className="text-muted-foreground tabular-nums">{formatMoney(v, currency, hideBalances)}</span>
                     </Chip>
                   );
@@ -143,7 +144,7 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
           {error && <p className="text-destructive py-6 text-center text-sm">{error}</p>}
           {rows !== null && !error && visible.length === 0 && (
             <p className="text-muted-foreground py-10 text-center text-sm">
-              {tab === "private" ? "No private transactions this month." : "Nothing shared for this month yet."}
+              {tab === "private" ? t("family.noPrivate") : t("family.noShared")}
             </p>
           )}
           <AnimatedList>
@@ -156,7 +157,7 @@ function FamilyView({ onOpenSettings }: { onOpenSettings: () => void }) {
                   lead={<span className="flex shrink-0 items-center gap-1 font-medium text-foreground/80">
                     {fresh.has(key) && <NewDot />}
                     <UserAvatar name={m?.name ?? "?"} color={m?.color ?? "#71717a"} className="size-4 text-[8px]" />
-                    {r.owner_id === user.id ? "You" : m?.name ?? "Removed member"} ·
+                    {r.owner_id === user.id ? t("family.you") : m?.name ?? t("family.removed")} ·
                   </span>} />
               </AnimatedItem>
             );
@@ -200,8 +201,9 @@ function useFreshItems(rows: Row[] | null, me: string) {
 /** "New" marker that fades after a few seconds. */
 function NewDot() {
   const { fade } = useMotion();
+  const { t } = useTranslation();
   return (
-    <motion.span className="bg-primary size-1.5 shrink-0 rounded-full" title="New" aria-label="New"
+    <motion.span className="bg-primary size-1.5 shrink-0 rounded-full" title={t("family.new")} aria-label={t("family.new")}
       initial={{ opacity: 0, scale: 0 }} animate={{ opacity: [0, 1, 1, 0], scale: [0, 1.4, 1, 1] }}
       transition={{ ...fade({ duration: 6, times: [0, 0.05, 0.85, 1] }) }} />
   );

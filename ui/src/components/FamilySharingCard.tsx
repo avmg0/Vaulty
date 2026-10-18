@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Skeleton } from "@/components/Skeleton";
 import { Check, Globe, Loader2, Lock, Users } from "lucide-react";
 import { api, errorText, type FamilyMember, type SharingPrefs } from "@/api";
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 /** Each member's own consent and audience for Family sharing. */
 export function FamilySharingCard() {
   const { user } = useSession();
+  const { t } = useTranslation();
   const [prefs, setPrefs] = useState<SharingPrefs | null>(null);
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [saving, setSaving] = useState(false);
@@ -44,23 +46,23 @@ export function FamilySharingCard() {
       <CardHeader>
         <div className="flex items-center justify-between gap-4">
           <div className="space-y-1.5">
-            <CardTitle className="flex items-center gap-2">Family sharing {saving && <Loader2 className="text-muted-foreground size-4 animate-spin" />}</CardTitle>
-            <CardDescription>Share chosen expenses with your family, and see what they share with you. Nothing is shared until you turn this on.</CardDescription>
+            <CardTitle className="flex items-center gap-2">{t("sharing.title")} {saving && <Loader2 className="text-muted-foreground size-4 animate-spin" />}</CardTitle>
+            <CardDescription>{t("sharing.desc")}</CardDescription>
           </div>
-          <Switch checked={prefs.enabled} disabled={!available} onCheckedChange={(enabled) => { if (enabled) setFan((n) => n + 1); save({ ...prefs, enabled }); }} aria-label="Family sharing" />
+          <Switch checked={prefs.enabled} disabled={!available} onCheckedChange={(enabled) => { if (enabled) setFan((n) => n + 1); save({ ...prefs, enabled }); }} aria-label={t("sharing.title")} />
         </div>
         {!available && (
           <p className="text-muted-foreground pt-2 text-xs">
-            The family store is encrypted with a shared key. You'll get it the next time another family member signs in on this device.
+            {t("sharing.notReady")}
           </p>
         )}
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid gap-3 text-sm sm:grid-cols-3">
           {[
-            { icon: Lock, title: "Private", text: "Only you. The default for everything." },
-            { icon: Users, title: "Shared", text: "You plus the people you pick below, e.g. parents." },
-            { icon: Globe, title: "Public", text: "Everyone in the family who has sharing on." },
+            { icon: Lock, title: t("visibility.private"), text: t("sharing.privateText") },
+            { icon: Users, title: t("visibility.shared"), text: t("sharing.sharedText") },
+            { icon: Globe, title: t("visibility.public"), text: t("sharing.publicText") },
           ].map((x, i) => (
             // Turning sharing on fans the three levels out, left to right.
             <motion.div key={`${x.title}-${fan}`} className="bg-muted/50 rounded-lg p-3"
@@ -74,14 +76,14 @@ export function FamilySharingCard() {
 
         <div className={cn("space-y-5", !prefs.enabled && "pointer-events-none opacity-50")} aria-disabled={!prefs.enabled}>
           <div className="space-y-2">
-            <Label>Default for new transactions</Label>
+            <Label>{t("sharing.default")}</Label>
             <VisibilityPicker value={prefs.default_visibility} onChange={(default_visibility) => save({ ...prefs, default_visibility })} disabled={!prefs.enabled} />
-            <p className="text-muted-foreground text-xs">You can still change it for each transaction.</p>
+            <p className="text-muted-foreground text-xs">{t("sharing.defaultHint")}</p>
           </div>
           <Separator />
           <div className="space-y-2">
-            <Label>Who can see your Shared items</Label>
-            {members.length === 0 && <p className="text-muted-foreground text-sm">No other family members on this device yet.</p>}
+            <Label>{t("sharing.who")}</Label>
+            {members.length === 0 && <p className="text-muted-foreground text-sm">{t("sharing.noOthers")}</p>}
             <div className="grid gap-2 sm:grid-cols-2">
               {members.map((m) => {
                 const on = prefs.shared_with.includes(m.id);
@@ -92,7 +94,7 @@ export function FamilySharingCard() {
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">{m.name}</div>
                       <div className="text-muted-foreground text-xs">
-                        {!m.active ? "Not set up yet" : m.sharing_enabled ? "Sharing on" : "Sharing off · won't see it until they turn it on"}
+                        {!m.active ? t("sharing.notSetUp") : m.sharing_enabled ? t("sharing.on") : t("sharing.offFor")}
                       </div>
                     </div>
                     <div className={cn("grid size-5 place-items-center rounded border", on && "bg-primary border-primary text-primary-foreground")}>{on && <Check className="size-3.5" />}</div>
@@ -103,7 +105,7 @@ export function FamilySharingCard() {
           </div>
         </div>
         {error && <p className="text-destructive text-sm">{error}</p>}
-        {prefs.enabled && <Badge variant="outline" className="text-muted-foreground">Turning this off withdraws everything you've shared, immediately.</Badge>}
+        {prefs.enabled && <Badge variant="outline" className="text-muted-foreground">{t("sharing.withdraw")}</Badge>}
       </CardContent>
     </Card>
   );

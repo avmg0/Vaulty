@@ -6,8 +6,10 @@ use serde_json::{json, Value};
 const EDITABLE: &[&str] = &[
     "theme", "currency", "locale", "date_format", "start_of_week", "fiscal_year_start",
     "negative_format", "transaction_sort", "auto_clear_clipboard", "spellcheck_enabled",
-    "font_size", "interface_font", "monospace_font",
+    "font_size", "interface_font", "monospace_font", "decimals",
 ];
+
+const MONTHS: &[&str] = &["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
 pub fn get(conn: &Connection) -> Result<Value> {
     Ok(query_one(conn, "SELECT * FROM user_settings WHERE id = 'default'", &[])?.unwrap_or_else(|| json!({})))
@@ -45,8 +47,24 @@ fn check(key: &str, v: &Value) -> Result<()> {
             _ => bad("expected a 3-letter ISO 4217 code such as INR"),
         },
         "start_of_week" => match v.as_str() {
-            Some("sunday" | "monday" | "saturday") => Ok(()),
-            _ => bad("expected sunday, monday or saturday"),
+            Some("auto" | "sunday" | "monday" | "saturday") => Ok(()),
+            _ => bad("expected auto, sunday, monday or saturday"),
+        },
+        "date_format" => match v.as_str() {
+            Some("auto" | "dmy" | "mdy" | "ymd") => Ok(()),
+            _ => bad("expected auto, dmy, mdy or ymd"),
+        },
+        "fiscal_year_start" => match v.as_str() {
+            Some(m) if m == "auto" || MONTHS.contains(&m) => Ok(()),
+            _ => bad("expected auto or a month name such as april"),
+        },
+        "negative_format" => match v.as_str() {
+            Some("minus" | "parentheses") => Ok(()),
+            _ => bad("expected minus or parentheses"),
+        },
+        "decimals" => match v.as_str() {
+            Some("auto" | "0" | "2") => Ok(()),
+            _ => bad("expected auto, 0 or 2"),
         },
         _ => Ok(()),
     }
