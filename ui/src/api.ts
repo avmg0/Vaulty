@@ -116,7 +116,13 @@ export type UserSettings = { locale: string; currency: string; date_format: stri
 
 /** A bank, card issuer, broker or wallet from the bundled directory. */
 export type Institution = { id: string; name: string; short: string; kind: "bank" | "card" | "broker" | "wallet"; country: string; aliases: string[]; logo?: string };
-export type Category = { id: string; name: string; type: "income" | "expense"; icon?: string; color?: string; is_system: number };
+export type Category = { id: string; name: string; type: "income" | "expense"; icon?: string; color?: string; is_system: number; parent_id?: string | null };
+export type CategoryInput = { name: string; type: "income" | "expense"; icon?: string; color?: string; parent_id?: string | null };
+export type BudgetLine = {
+  id: string; name: string; type: "income" | "expense"; icon: string | null; color: string | null; parent_id: string | null; is_system: boolean;
+  budget: number | null; spent: number; other_currencies: number;
+};
+export type BudgetMonth = { month: string; currency: string; categories: BudgetLine[]; uncategorised_expense: number; uncategorised_income: number };
 export type Visibility = "private" | "shared" | "public";
 export type Transaction = {
   id: string; account_id: string; to_account_id?: string; category_id?: string; type: "income" | "expense" | "transfer";
@@ -196,7 +202,17 @@ export const api = {
     update: (id: string, account: Partial<NewAccount>) => invoke<Account>("accounts_update", { id, account }),
     delete: (id: string) => invoke<void>("accounts_delete", { id }),
   },
-  categories: { getAll: () => invoke<Category[]>("categories_get_all") },
+  categories: {
+    getAll: () => invoke<Category[]>("categories_get_all"),
+    create: (category: CategoryInput) => invoke<Category>("categories_create", { category }),
+    update: (id: string, category: CategoryInput) => invoke<Category>("categories_update", { id, category }),
+    delete: (id: string) => invoke<void>("categories_delete", { id }),
+  },
+  budgets: {
+    month: (month: string) => invoke<BudgetMonth>("budgets_month", { month }),
+    /** `amount` "" or null removes the budget. */
+    set: (categoryId: string, amount: string | null) => invoke<unknown>("budgets_set", { categoryId, amount }),
+  },
   /** Per-user preferences stored in the user's own database. */
   settings: {
     get: () => invoke<UserSettings>("settings_get"),

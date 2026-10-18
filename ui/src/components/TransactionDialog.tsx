@@ -65,7 +65,12 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
   }, [open, initial]);
 
   const isHidden = editing ? initial?.hidden === 1 : hide;
-  const kindCategories = categories.filter((c) => c.type === kind);
+  // Parents first, each followed by its sub-categories (indented in the list).
+  const kindCategories = (() => {
+    const all = categories.filter((c) => c.type === kind);
+    const top = all.filter((c) => !c.parent_id || !all.some((p) => p.id === c.parent_id));
+    return top.flatMap((p) => [{ ...p, depth: 0 }, ...all.filter((c) => c.parent_id === p.id).map((c) => ({ ...c, depth: 1 }))]);
+  })();
   const currency = accounts.find((a) => a.id === accountId)?.currency ?? "INR";
   // What's still to assign, in minor units (positive: some left; negative: too much).
   const left = parts ? toMinor(amount) - parts.reduce((s, x) => s + toMinor(x.amount), 0) : 0;
@@ -128,7 +133,7 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
                 <div className="flex items-center justify-between"><Label htmlFor="category">{t("tx.category")}</Label>
                   <button type="button" className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs" onClick={startSplit}><Split className="size-3" />{t("split.start")}</button></div>
                 <NativeSelect id="category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">{t("dashboard.uncategorised")}</option>
-                  {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</NativeSelect></div>
+                  {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.depth ? "\u00a0\u00a0\u00a0\u00a0" : ""}{c.icon} {c.name}</option>)}</NativeSelect></div>
             ) : <div />}
           </div>
           {kind !== "transfer" && parts && (
@@ -141,7 +146,7 @@ export function TransactionDialog({ open, onOpenChange, initial, accounts, categ
                 <div key={i} className="grid grid-cols-[1fr_6.5rem_auto] items-center gap-2">
                   <NativeSelect aria-label={t("tx.category")} value={x.category_id} onChange={(e) => setPart(i, { category_id: e.target.value })}>
                     <option value="">{t("dashboard.uncategorised")}</option>
-                    {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+                    {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.depth ? "\u00a0\u00a0\u00a0\u00a0" : ""}{c.icon} {c.name}</option>)}
                   </NativeSelect>
                   <Input aria-label={t("tx.amount")} type="number" step="0.01" min="0" value={x.amount} onChange={(e) => setPart(i, { amount: e.target.value })} />
                   <button type="button" className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={parts.length <= 2}

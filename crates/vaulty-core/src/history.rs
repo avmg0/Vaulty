@@ -20,7 +20,7 @@ use serde_json::{json, Map, Value};
 const TRACKED: &[&str] = &[
     "accounts", "cards", "categories", "entries", "postings", "ledger_accounts", "workspaces",
     "calendar_events", "goals", "investments", "investment_events", "journal_entries",
-    "recurring_payments", "tasks", "user_settings", "hotkeys",
+    "recurring_payments", "tasks", "user_settings", "hotkeys", "budgets",
 ];
 
 pub const TRASH_DAYS: i64 = 30;
@@ -403,7 +403,7 @@ fn describe(conn: &Connection, batch: i64) -> Result<Value> {
         "SELECT at, action, undo_of, undone_by FROM change_batches WHERE id = ?", [batch], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?;
     let list = changes(conn, batch)?;
     // The "main" row: the first change on a table people think in terms of.
-    let main = list.iter().find(|c| matches!(c.tbl.as_str(), "entries" | "accounts" | "cards" | "categories" | "goals" | "tasks" | "calendar_events" | "investments" | "recurring_payments" | "journal_entries"))
+    let main = list.iter().find(|c| matches!(c.tbl.as_str(), "entries" | "accounts" | "cards" | "categories" | "budgets" | "goals" | "tasks" | "calendar_events" | "investments" | "recurring_payments" | "journal_entries"))
         .or_else(|| list.first());
     let (kind, title, op) = main.map(|c| {
         let row = c.after.as_ref().or(c.before.as_ref());
@@ -413,6 +413,7 @@ fn describe(conn: &Connection, batch: i64) -> Result<Value> {
             "entries" => pick(&["merchant", "description"]).unwrap_or_else(|| "Transaction".into()),
             "journal_entries" | "tasks" | "calendar_events" => pick(&["title"]).unwrap_or_default(),
             "user_settings" => String::new(),
+            "budgets" => pick(&["category_id"]).and_then(|cat| conn.query_row("SELECT name FROM categories WHERE id = ?", [cat], |r| r.get(0)).ok()).unwrap_or_default(),
             _ => pick(&["name", "symbol"]).unwrap_or_default(),
         };
         (c.tbl.clone(), title, c.op.clone())

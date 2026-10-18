@@ -1,11 +1,11 @@
 import {
   LayoutDashboard, ArrowLeftRight, Wallet, CreditCard, Repeat, TrendingUp, Target, Shield,
-  CalendarDays, ListTodo, NotebookPen, BarChart3, Calculator, History, Upload, FileText, Briefcase, Users, Settings,
+  CalendarDays, ListTodo, PiggyBank, NotebookPen, BarChart3, Calculator, History, Upload, FileText, Briefcase, Users, Settings,
   type LucideIcon,
 } from "lucide-react";
 
 export type PageId =
-  | "dashboard" | "transactions" | "accounts" | "cards" | "recurring" | "investments" | "goals"
+  | "dashboard" | "transactions" | "accounts" | "cards" | "budgets" | "recurring" | "investments" | "goals"
   | "insurance" | "tax" | "calendar" | "tasks" | "journal" | "reports" | "import" | "documents"
   | "business" | "family" | "settings" | "history";
 
@@ -22,6 +22,7 @@ export const NAV: { group: "overview" | "money" | "wealth" | "planner" | "data" 
     { id: "transactions", icon: ArrowLeftRight, phase: 1 },
     { id: "accounts", icon: Wallet, phase: 1 },
     { id: "cards", icon: CreditCard, phase: 1 },
+    { id: "budgets", icon: PiggyBank, phase: 1 },
     { id: "recurring", icon: Repeat, phase: 2 },
   ]},
   { group: "wealth", items: [

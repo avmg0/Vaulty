@@ -427,6 +427,13 @@ fn biometric_disable(s: S) -> Result<()> {
 #[tauri::command] fn categories_update(s: S, id: String, category: Value) -> Result<Value> { s.act("category.update", |c| categories::update(c, &id, &category)) }
 #[tauri::command] fn categories_delete(s: S, id: String) -> Result<()> { s.act("category.delete", |c| categories::delete(c, &id)) }
 
+/// Each category's budget and what was spent in `month` (YYYY-MM).
+#[tauri::command] fn budgets_month(s: S, month: String) -> Result<Value> { s.data(|c| vaulty_core::budgets::month(c, &month)) }
+/// Sets a category's monthly budget; null or 0 removes it.
+#[tauri::command] fn budgets_set(s: S, category_id: String, amount: Value) -> Result<Option<Value>> {
+    s.act("budget.set", |c| vaulty_core::budgets::set(c, &category_id, &amount))
+}
+
 /// Hidden transactions come back masked (amount, date and account only) unless the caller asks
 /// with `reveal_hidden` and the Hidden section is unlocked.
 #[tauri::command]
@@ -809,7 +816,7 @@ pub fn run() {
             security_status, password_change, totp_begin, totp_confirm, totp_disable,
             backup_codes_regenerate, biometric_enable, biometric_disable,
             accounts_get_all, accounts_create, accounts_update, accounts_delete,
-            categories_get_all, categories_create, categories_update, categories_delete,
+            categories_get_all, categories_create, categories_update, categories_delete, budgets_month, budgets_set,
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,

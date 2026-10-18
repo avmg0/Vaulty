@@ -29,7 +29,8 @@
     "collapse": "Collapse sidebar (Ctrl+B)",
     "expand": "Expand sidebar (Ctrl+B)",
     "lock": "Lock / switch profile (Ctrl+L)",
-    "history": "History"
+    "history": "History",
+    "budgets": "Budgets"
   },
   "role": {
     "admin": "Admin",
@@ -295,7 +296,9 @@
         "create": "Added transaction",
         "update": "Edited transaction",
         "delete": "Deleted transaction",
-        "visibility": "Changed who can see a transaction"
+        "visibility": "Changed who can see a transaction",
+        "hide": "Moved a transaction to Hidden",
+        "unhide": "Moved a transaction back to the main list"
       },
       "settings": {
         "update": "Changed settings"
@@ -304,6 +307,12 @@
       "undo": "Undid a change",
       "app": {
         "update": "Vaulty updated your data"
+      },
+      "budget": {
+        "set": "Changed a budget"
+      },
+      "demo": {
+        "seed": "Added sample data"
       }
     },
     "check": {
@@ -811,5 +820,40 @@
     "left": "{{amount}} left to assign",
     "over": "{{amount}} too much",
     "label": "Split: {{names}}"
+  },
+  "budgets": {
+    "thisMonth": "This month",
+    "addCategory": "Add category",
+    "addIncomeCategory": "Add",
+    "budgeted": "Budgeted",
+    "spentAll": "Spent",
+    "left": "Left to spend",
+    "over": "Over budget",
+    "none": "No budgets yet. Click \"Set a budget\" on any category below.",
+    "paceOver": "Over budget for the month.",
+    "paceAhead_one": "Spending faster than the month so far · {{count}} day left",
+    "paceAhead_other": "Spending faster than the month so far · {{count}} days left",
+    "paceOk_one": "On track · {{count}} day left",
+    "paceOk_other": "On track · {{count}} days left",
+    "spending": "Spending by category",
+    "spendingDesc": "Sub-categories count towards their parent. Split transactions count each part where it belongs.",
+    "income": "Income",
+    "incomeDesc": "What came in this month, by category.",
+    "editCategory": "Edit category",
+    "monthly": "Monthly budget for {{name}}",
+    "set": "Set a budget",
+    "leftOf": "{{left}} left of {{budget}}",
+    "overOf": "{{over}} over {{budget}}",
+    "editTitle": "Edit {{name}}",
+    "newTitle": "New category",
+    "builtIn": "Built-in categories keep their name. You can change the icon, colour and where it sits.",
+    "icon": "Icon",
+    "ownIcon": "Or type your own",
+    "parent": "Inside",
+    "topLevel": "Top level (no parent)",
+    "hasChildren": "It has sub-categories, so it stays at the top level.",
+    "delete": "Delete",
+    "create": "Add category",
+    "deleteHint": "Its transactions become uncategorised; its sub-categories move to the top level."
   }
 }
