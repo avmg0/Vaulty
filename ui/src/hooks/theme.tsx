@@ -6,6 +6,7 @@ export type Theme = "light" | "dark" | "system";
 export type Accent = "neutral" | "black" | "blue" | "green" | "violet" | "orange" | "rose";
 /** What the person picked. "full" still gives way to the system's reduce-motion setting. */
 export type MotionPref = "full" | "reduced" | "off";
+export type HiddenInMain = "masked" | "off";
 /** What actually applies after taking the system setting into account. */
 export type MotionLevel = MotionPref;
 
@@ -13,6 +14,8 @@ type Ctx = {
   theme: Theme; setTheme: (t: Theme) => void;
   accent: Accent; setAccent: (a: Accent) => void;
   hideBalances: boolean; setHideBalances: (v: boolean) => void;
+  /** How hidden transactions appear outside the Hidden section on this device. */
+  hiddenInMain: HiddenInMain; setHiddenInMain: (v: HiddenInMain) => void;
   motionPref: MotionPref; setMotionPref: (m: MotionPref) => void;
   motion: MotionLevel;
 };
@@ -27,6 +30,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => read("vaulty.theme", "system"));
   const [accent, setAccentState] = useState<Accent>(() => read("vaulty.accent", "neutral"));
   const [hideBalances, setHideBalances] = useState(() => read<string>("vaulty.hide", "0") === "1");
+  const [hiddenInMain, setHiddenInMain] = useState<HiddenInMain>(() => read<HiddenInMain>("vaulty.hiddenMain", "masked"));
   const [motionPref, setMotionPref] = useState<MotionPref>(() => read("vaulty.motion", "full"));
   const [systemReduce, setSystemReduce] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
   const motion: MotionLevel = motionPref === "off" ? "off" : motionPref === "reduced" || systemReduce ? "reduced" : "full";
@@ -70,9 +74,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [accent]);
 
   useEffect(() => write("vaulty.hide", hideBalances ? "1" : "0"), [hideBalances]);
+  useEffect(() => write("vaulty.hiddenMain", hiddenInMain), [hiddenInMain]);
 
   return (
-    <ThemeCtx.Provider value={{ theme, setTheme, accent, setAccent, hideBalances, setHideBalances, motionPref, setMotionPref, motion }}>
+    <ThemeCtx.Provider value={{ theme, setTheme, accent, setAccent, hideBalances, setHideBalances, hiddenInMain, setHiddenInMain, motionPref, setMotionPref, motion }}>
       {/* Motion components skip movement (keeping fades) unless motion is "full". */}
       <MotionConfig reducedMotion={motion === "full" ? "never" : "always"}>{children}</MotionConfig>
     </ThemeCtx.Provider>

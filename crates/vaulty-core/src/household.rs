@@ -154,7 +154,9 @@ impl Household {
     pub fn publish(&self, owner_id: &str, row: &Value) -> Result<()> {
         let id = row["id"].as_str().ok_or_else(|| Error::Invalid("transaction without id".into()))?;
         let vis = Visibility::parse(row["visibility"].as_str().unwrap_or("private"))?;
-        if vis == Visibility::Private || !self.prefs(owner_id)?.enabled {
+        // Hidden transactions are never shared, whatever their visibility says.
+        let hidden = row.get("hidden").and_then(Value::as_i64) == Some(1);
+        if vis == Visibility::Private || hidden || !self.prefs(owner_id)?.enabled {
             return self.withdraw(owner_id, id);
         }
         self.conn.execute(

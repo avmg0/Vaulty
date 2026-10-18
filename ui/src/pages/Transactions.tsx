@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowDownRight, ArrowUpRight, Info, Plus, Search, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { ArrowDownRight, ArrowUpRight, Eye, EyeOff, Fingerprint, Info, Loader2, Lock, Plus, Search, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Switch } from "@/components/ui/switch";
 import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
 import { Segmented } from "@/components/Segmented";
 import { motion } from "motion/react";
 import { useMotion } from "@/lib/motion";
 import { AnimatedMoney } from "@/components/AnimatedMoney";
-import { api, DATA_RESTORED, errorText, type Account, type Category, type SharingPrefs, type Transaction, type Visibility } from "@/api";
+import { api, DATA_RESTORED, errorText, type Account, type Category, type HiddenStatus, type SharingPrefs, type Transaction, type Visibility } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -16,16 +18,42 @@ import { cn, formatMoney } from "@/lib/utils";
 import { useTheme } from "@/hooks/theme";
 
 type RowProps = {
-  t: Pick<Transaction, "type" | "amount" | "date" | "merchant" | "description" | "category_name" | "account_name" | "currency" | "visibility">;
+  t: Pick<Transaction, "type" | "amount" | "date" | "merchant" | "description" | "category_name" | "account_name" | "currency" | "visibility" | "hidden" | "masked">;
   hidden: boolean;
   /** Shown before the date line, e.g. who the item belongs to in the family view. */
   lead?: ReactNode;
   onDelete?: () => void;
   onVisibilityChange?: (v: Visibility) => void;
+  /** Moves the transaction into the Hidden section, or back out of it. */
+  onToggleHidden?: () => void;
+  /** Keeps a masked row's amount in line with rows that show action buttons. */
+  reserveActions?: boolean;
 };
 
-export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange }: RowProps) {
+export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, onToggleHidden, reserveActions }: RowProps) {
+  const { t: tr } = useTranslation();
   const income = t.type === "income";
+  const isHidden = t.hidden === 1 || !!t.masked;
+  // Masked rows keep amount, date and account; everything that says what it was is withheld.
+  if (t.masked) {
+    return (
+      <div className="group flex items-center gap-3 py-2.5" title={tr("hidden.maskedHint")}>
+        <div className="bg-muted text-muted-foreground grid size-8 shrink-0 place-items-center rounded-full"><EyeOff className="size-4" /></div>
+        <div className="min-w-0 flex-1">
+          <div className="text-muted-foreground truncate text-sm font-medium tracking-[0.25em]" aria-label={tr("hidden.category")}>{tr("hidden.mask")}</div>
+          <div className="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
+            {lead}
+            <span className="truncate">{[t.date, tr("hidden.category"), t.account_name].filter(Boolean).join(" · ")}</span>
+          </div>
+        </div>
+        <div className={cn("text-sm font-medium tabular-nums", income && "text-success")}>
+          {income ? "+" : "−"}<AnimatedMoney value={t.amount} currency={t.currency || "INR"} hidden={hidden} />
+        </div>
+        <span className="text-muted-foreground grid size-7 place-items-center"><EyeOff className="size-3.5" /></span>
+        {reserveActions && <span className="w-[4.25rem] shrink-0" aria-hidden />}
+      </div>
+    );
+  }
   return (
     <div className="group flex items-center gap-3 py-2.5">
       <div className={cn("grid size-8 shrink-0 place-items-center rounded-full", income ? "bg-success/15 text-success" : "bg-secondary text-muted-foreground")}>
@@ -41,14 +69,25 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange }
       <div className={cn("text-sm font-medium tabular-nums", income && "text-success")}>
         {income ? "+" : "−"}<AnimatedMoney value={t.amount} currency={t.currency || "INR"} hidden={hidden} />
       </div>
-      <VisibilityBadge value={t.visibility ?? "private"} onChange={onVisibilityChange} />
-      {onDelete && <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100" onClick={onDelete} title="Delete"><Trash2 /></Button>}
+      {/* Hidden transactions are never shared, so their visibility doesn't apply. */}
+      {!isHidden && <VisibilityBadge value={t.visibility ?? "private"} onChange={onVisibilityChange} />}
+      {onToggleHidden && (
+        <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={onToggleHidden}
+          title={isHidden ? tr("hidden.unhide") : tr("hidden.hideTitle")} aria-label={isHidden ? tr("hidden.unhide") : tr("hidden.hideTitle")}>
+          {isHidden ? <Eye /> : <EyeOff />}
+        </Button>
+      )}
+      {onDelete && <Button variant="ghost" size="icon" className="size-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={onDelete} title="Delete"><Trash2 /></Button>}
     </div>
   );
 }
 
 export function Transactions() {
-  const { hideBalances } = useTheme();
+  const { t: tr } = useTranslation();
+  const { hideBalances, hiddenInMain } = useTheme();
+  const [tab, setTab] = useState<"all" | "hidden">("all");
+  const [hiddenCount, setHiddenCount] = useState(0);
+  const [hideNew, setHideNew] = useState(false);
   const { fade } = useMotion();
   const [rows, setRows] = useState<Transaction[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -63,14 +102,17 @@ export function Transactions() {
   const [newVisibility, setNewVisibility] = useState<Visibility>("private");
   const [error, setError] = useState("");
 
-  const load = () =>
-    api.transactions.getAll({ type: type || undefined, accountId: accountId || undefined, visibility: visibility || undefined }).then(setRows);
+  const load = () => {
+    api.hidden.status().then((h) => setHiddenCount(h.count)).catch(() => {});
+    return api.transactions.getAll({ type: type || undefined, accountId: accountId || undefined, visibility: visibility || undefined,
+      hidden: hiddenInMain === "off" ? "exclude" : undefined }).then(setRows);
+  };
   useEffect(() => {
     load();
     // After an undo or restore, reload in place so the restored row slides back in.
     window.addEventListener(DATA_RESTORED, load);
     return () => window.removeEventListener(DATA_RESTORED, load);
-  }, [type, accountId, visibility]);
+  }, [type, accountId, visibility, hiddenInMain, tab]);
   useEffect(() => {
     api.accounts.getAll().then(setAccounts);
     api.categories.getAll().then(setCategories);
@@ -83,7 +125,7 @@ export function Transactions() {
   }, [rows, q]);
 
   const openDialog = (o: boolean) => {
-    if (o) { setNewVisibility(prefs?.default_visibility ?? "private"); setError(""); }
+    if (o) { setNewVisibility(prefs?.default_visibility ?? "private"); setHideNew(tab === "hidden"); setError(""); }
     setOpen(o);
   };
 
@@ -94,11 +136,17 @@ export function Transactions() {
       await api.transactions.create({
         type: kind, amount: String(f.get("amount")), date: String(f.get("date")),
         account_id: String(f.get("account")), category_id: String(f.get("category")) || undefined,
-        merchant: String(f.get("merchant")) || undefined, visibility: newVisibility,
+        merchant: String(f.get("merchant")) || undefined, visibility: hideNew ? "private" : newVisibility, hidden: hideNew,
       });
-      setOpen(false); load();
+      setOpen(false); load(); setReloadHidden((n) => n + 1);
     } catch (err) { setError(errorText(err)); }
   }
+  const [reloadHidden, setReloadHidden] = useState(0);
+
+  const toggleHidden = async (row: Transaction) => {
+    try { await api.transactions.setHidden(row.id, !(row.hidden === 1 || row.masked)); } catch { /* the Hidden tab explains locking */ }
+    load(); setReloadHidden((n) => n + 1);
+  };
 
   const changeVisibility = async (id: string, v: Visibility) => {
     await api.transactions.setVisibility(id, v);
@@ -109,11 +157,15 @@ export function Transactions() {
 
   return (
     <div className="space-y-4">
+      <Segmented role="tablist" value={tab} onChange={setTab} label={tr("hidden.lockedTitle")}
+        options={[{ value: "all", label: tr("hidden.tabAll") },
+          { value: "hidden", label: <><EyeOff className="size-3.5" />{tr("hidden.tabHidden")}{hiddenCount > 0 && <span className="text-muted-foreground tabular-nums">{hiddenCount}</span>}</> }]} />
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-56 flex-1">
           <Search className="text-muted-foreground absolute top-2.5 left-2.5 size-4" />
           <Input placeholder="Search merchant, category, account…" className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
+        {tab === "all" && <>
         <NativeSelect className="w-32" value={type} onChange={(e) => setType(e.target.value)}>
           <option value="">All types</option><option value="expense">Expenses</option><option value="income">Income</option>
         </NativeSelect>
@@ -123,6 +175,7 @@ export function Transactions() {
         <NativeSelect className="w-32" value={visibility} onChange={(e) => setVisibility(e.target.value as "" | Visibility)} aria-label="Visibility">
           <option value="">Any visibility</option><option value="private">Private</option><option value="shared">Shared</option><option value="public">Public</option>
         </NativeSelect>
+        </>}
         <Dialog open={open} onOpenChange={openDialog}>
           <DialogTrigger asChild><Button disabled={!accounts.length} title={accounts.length ? "" : "Add an account first"}><Plus />Add</Button></DialogTrigger>
           <DialogContent>
@@ -150,17 +203,25 @@ export function Transactions() {
                   <NativeSelect id="category" name="category"><option value="">Uncategorised</option>
                     {categories.filter((c) => c.type === kind).map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</NativeSelect></div>
               </div>
-              <div className="grid gap-2">
-                <Label>Who can see this</Label>
-                <VisibilityPicker value={newVisibility} onChange={setNewVisibility} />
-                <SharingHint prefs={prefs} visibility={newVisibility} />
-              </div>
+              <label className="flex items-start justify-between gap-4 rounded-lg border p-3">
+                <span className="grid gap-0.5"><span className="flex items-center gap-1.5 text-sm font-medium"><EyeOff className="size-3.5" />{tr("hidden.hideSwitch")}</span>
+                  <span className="text-muted-foreground text-xs">{tr("hidden.hideSwitchDesc")}</span></span>
+                <Switch checked={hideNew} onCheckedChange={setHideNew} />
+              </label>
+              {!hideNew && (
+                <div className="grid gap-2">
+                  <Label>Who can see this</Label>
+                  <VisibilityPicker value={newVisibility} onChange={setNewVisibility} />
+                  <SharingHint prefs={prefs} visibility={newVisibility} />
+                </div>
+              )}
               {error && <p className="text-destructive text-sm">{error}</p>}
               <DialogFooter><Button type="submit">Save</Button></DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
+      {tab === "hidden" ? <HiddenSection query={q} reload={reloadHidden} onChange={load} hideBalances={hideBalances} onToggle={toggleHidden} /> : (
       <Card className="py-2">
         <CardContent className="divide-y">
           {filtered.length === 0 && <p className="text-muted-foreground py-10 text-center text-sm">No transactions match.</p>}
@@ -169,12 +230,13 @@ export function Transactions() {
               <AnimatedItem key={t.id}>
                 <TransactionRow t={t} hidden={hideBalances}
                   onVisibilityChange={(v) => changeVisibility(t.id, v)}
-                  onDelete={() => api.transactions.delete(t.id).then(load)} />
+                  onToggleHidden={t.masked ? undefined : () => toggleHidden(t)} reserveActions
+                  onDelete={t.masked ? undefined : () => api.transactions.delete(t.id).then(load)} />
               </AnimatedItem>
             ))}
           </AnimatedList>
         </CardContent>
-      </Card>
+      </Card>)}
     </div>
   );
 }
@@ -187,4 +249,111 @@ function SharingHint({ prefs, visibility }: { prefs: SharingPrefs | null; visibi
   else if (visibility === "shared" && prefs.shared_with.length === 0) text = "You haven't picked anyone to share with yet (Settings → Family sharing).";
   if (!text) return null;
   return <p className="text-muted-foreground flex items-start gap-1.5 text-xs"><Info className="mt-0.5 size-3.5 shrink-0" />{text}</p>;
+}
+
+const clock = (secs: number) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+
+/**
+ * The Hidden tab. Details arrive from the app only after the member confirms it's them, and it
+ * locks again after a few minutes, when they leave the tab, or when the window is hidden.
+ */
+function HiddenSection({ query, reload, onChange, hideBalances, onToggle }: {
+  query: string; reload: number; onChange: () => void; hideBalances: boolean; onToggle: (t: Transaction) => void;
+}) {
+  const { t } = useTranslation();
+  const { fade } = useMotion();
+  const [status, setStatus] = useState<HiddenStatus | null>(null);
+  const [rows, setRows] = useState<Transaction[]>([]);
+  const [left, setLeft] = useState(0);
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState<"" | "password" | "system">("");
+  const [error, setError] = useState("");
+  const input = useRef<HTMLInputElement>(null);
+
+  const apply = (s: HiddenStatus) => {
+    setStatus(s); setLeft(s.seconds_left);
+    if (s.unlocked) api.transactions.getAll({ hidden: "only", reveal_hidden: true }).then(setRows);
+    else setRows([]);
+  };
+  const refresh = () => api.hidden.status().then(apply);
+  const lock = () => { setRows([]); setStatus((s) => s && { ...s, unlocked: false, seconds_left: 0 }); api.hidden.lock().then(refresh); };
+
+  useEffect(() => { refresh(); }, [reload]);
+  // Leaving the tab or hiding the window locks it.
+  useEffect(() => {
+    const onHide = () => { if (document.hidden) lock(); };
+    document.addEventListener("visibilitychange", onHide);
+    return () => { document.removeEventListener("visibilitychange", onHide); api.hidden.lock(); };
+  }, []);
+  // Countdown to the automatic lock.
+  useEffect(() => {
+    if (!status?.unlocked) return;
+    const id = setInterval(() => setLeft((n) => { if (n <= 1) { clearInterval(id); refresh(); return 0; } return n - 1; }), 1000);
+    return () => clearInterval(id);
+  }, [status?.unlocked]);
+  useEffect(() => { if (status && !status.unlocked) input.current?.focus(); }, [status?.unlocked]);
+
+  const unlock = async (how: "password" | "system", e?: FormEvent) => {
+    e?.preventDefault();
+    setBusy(how); setError("");
+    try { apply(how === "password" ? await api.hidden.unlock(password) : await api.hidden.unlockBiometric()); setPassword(""); }
+    catch (err) { setError(errorText(err)); }
+    finally { setBusy(""); }
+  };
+
+  const shown = useMemo(() => {
+    const s = query.trim().toLowerCase();
+    return s ? rows.filter((r) => [r.merchant, r.description, r.category_name, r.account_name].some((v) => v?.toLowerCase().includes(s))) : rows;
+  }, [rows, query]);
+
+  if (!status) return null;
+  if (!status.unlocked) {
+    return (
+      <Card>
+        <CardContent>
+          <motion.form onSubmit={(e) => unlock("password", e)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={fade({ duration: 0.25 })}
+            className="mx-auto grid max-w-sm justify-items-center gap-4 py-8 text-center">
+            <div className="bg-muted grid size-12 place-items-center rounded-2xl"><Lock className="size-5" /></div>
+            <div className="grid gap-1">
+              <h2 className="text-base font-semibold">{t("hidden.lockedTitle")}</h2>
+              <p className="text-muted-foreground text-sm text-pretty">{t("hidden.lockedDesc")}</p>
+              <p className="text-muted-foreground text-xs">{t("hidden.count", { count: status.count })}</p>
+            </div>
+            <div className="grid w-full gap-2">
+              <Input ref={input} type="password" autoComplete="current-password" placeholder={t("hidden.password")} aria-label={t("hidden.password")}
+                value={password} onChange={(e) => setPassword(e.target.value)} />
+              <Button type="submit" disabled={!password || !!busy}>{busy === "password" ? <Loader2 className="animate-spin" /> : <Eye />}{t("hidden.unlock")}</Button>
+              {status.biometric && (
+                <Button type="button" variant="outline" disabled={!!busy} onClick={() => unlock("system")}>
+                  {busy === "system" ? <Loader2 className="animate-spin" /> : <Fingerprint />}{t("hidden.unlockSystem")}
+                </Button>
+              )}
+            </div>
+            {error && <p className="text-destructive text-sm">{error}</p>}
+          </motion.form>
+        </CardContent>
+      </Card>
+    );
+  }
+  return (
+    <Card className="py-2">
+      <CardContent>
+        <div className="flex items-center justify-between gap-3 border-b pb-2">
+          <span className="text-muted-foreground flex items-center gap-1.5 text-xs tabular-nums"><Eye className="size-3.5" />{t("hidden.locksIn", { time: clock(left) })}</span>
+          <Button variant="outline" size="sm" onClick={lock}><Lock />{t("hidden.lockNow")}</Button>
+        </div>
+        <div className="divide-y">
+          {shown.length === 0 && <p className="text-muted-foreground py-10 text-center text-sm">{query ? "No transactions match." : t("hidden.empty")}</p>}
+          <AnimatedList>
+            {shown.map((r) => (
+              <AnimatedItem key={r.id}>
+                <TransactionRow t={r} hidden={hideBalances} onToggleHidden={() => onToggle(r)}
+                  onDelete={() => api.transactions.delete(r.id).then(() => { onChange(); refresh(); })} />
+              </AnimatedItem>
+            ))}
+          </AnimatedList>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }

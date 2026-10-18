@@ -424,6 +424,9 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - Trip mode: a trip budget, foreign-currency spending, and splitting costs with friends.
 
 ### Privacy and security (Phase 1–2)
+- ✅ Hidden transactions: any transaction can be moved to a Hidden section. Elsewhere it shows as XXXXX with only the amount, date and account (or is left out, per device); totals and balances still count it. The details are masked in Rust, so they never reach the screen until the member re-enters their password or uses Touch ID / Windows Hello. The section locks again after 5 minutes, on leaving the tab, or when the window is hidden. Hidden transactions are never shared with family, their history entries are masked too, and exports need the section unlocked.
+  - [ ] Hidden accounts and cards (same idea, a whole account at once)
+  - [ ] Optional separate PIN for the Hidden section
 - Duress password: a second password that opens a decoy profile with harmless data.
 - Panic shortcut: instantly locks and hides the app.
 - Encrypted, readable export: an export file anyone can open with the password, even if Vaulty no longer exists.

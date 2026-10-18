@@ -334,5 +334,33 @@
     "restored": "Restored",
     "note": "These protect against mistakes, not against losing this device. For that, export a backup and keep it somewhere else.",
     "keep": "Up to 7 daily and 4 weekly copies are kept."
+  },
+  "hidden": {
+    "tabAll": "All",
+    "tabHidden": "Hidden",
+    "mask": "XXXXX",
+    "category": "Hidden",
+    "hide": "Hide",
+    "unhide": "Move back to main list",
+    "hideTitle": "Move to Hidden",
+    "hideSwitch": "Hide this transaction",
+    "hideSwitchDesc": "Only the amount shows in your main list. Hidden transactions are never shared with family.",
+    "lockedTitle": "Hidden transactions",
+    "lockedDesc": "Kept out of your main list, where only their amounts show. Confirm it's you to see the details.",
+    "count_one": "{{count}} hidden transaction",
+    "count_other": "{{count}} hidden transactions",
+    "password": "Your password",
+    "unlock": "Show details",
+    "unlockSystem": "Use Touch ID or Windows Hello",
+    "lockNow": "Lock now",
+    "locksIn": "Locks in {{time}}",
+    "empty": "Nothing hidden yet. Use the eye button on any transaction to move it here.",
+    "maskedHint": "Hidden details. Open the Hidden tab to see them.",
+    "pref": "Hidden transactions in the main list",
+    "prefDesc": "Dashboard totals and balances include them either way.",
+    "prefMasked": "Show as XXXXX",
+    "prefOff": "Leave out",
+    "hiddenToast": "Moved to Hidden",
+    "unhiddenToast": "Moved back to main list"
   }
 }
