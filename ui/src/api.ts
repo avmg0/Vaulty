@@ -124,7 +124,13 @@ export type Transaction = {
   amount: number; amount_minor: number; date: string; to_account_name?: string;
   merchant?: string; description?: string; account_name?: string; category_name?: string; category_icon?: string; category_color?: string | null; currency?: string;
   visibility: Visibility;
+  notes?: string | null;
+  /** 1 when the transaction lives in the Hidden section. */
+  hidden?: number;
+  /** True when the details were withheld: only amount, date, type and account are real. */
+  masked?: boolean;
 };
+export type HiddenStatus = { unlocked: boolean; seconds_left: number; count: number; biometric: boolean };
 
 export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
 export type FamilyMember = User & { sharing_enabled: boolean };
@@ -222,12 +228,21 @@ export const api = {
     search: (query: string, currency?: string, limit = 20) => invoke<Institution[]>("institutions_search", { query, currency, limit }),
   },
   transactions: {
-    getAll: (filters?: { accountId?: string; categoryId?: string; type?: string; visibility?: Visibility; startDate?: string; endDate?: string; limit?: number }) =>
+    getAll: (filters?: { accountId?: string; categoryId?: string; type?: string; visibility?: Visibility; startDate?: string; endDate?: string; limit?: number;
+      hidden?: "only" | "exclude"; reveal_hidden?: boolean }) =>
       invoke<Transaction[]>("transactions_get_all", { filters }),
-    create: (transaction: Omit<Partial<Transaction>, "amount"> & { amount: string | number }) =>
+    create: (transaction: Omit<Partial<Transaction>, "amount" | "hidden"> & { amount: string | number; hidden?: boolean }) =>
       invoke<Transaction>("transactions_create", { transaction }),
     setVisibility: (id: string, visibility: Visibility) => invoke<Transaction>("transactions_set_visibility", { id, visibility }),
     delete: (id: string) => invoke<void>("transactions_delete", { id }),
+    setHidden: (id: string, hidden: boolean) => invoke<Transaction>("transactions_set_hidden", { id, hidden }),
+  },
+  /** The Hidden section: details of hidden transactions are only sent while it is unlocked. */
+  hidden: {
+    status: () => invoke<HiddenStatus>("hidden_status"),
+    unlock: (password: string) => invoke<HiddenStatus>("hidden_unlock", { password }),
+    unlockBiometric: () => invoke<HiddenStatus>("hidden_unlock_biometric"),
+    lock: () => invoke<void>("hidden_lock"),
   },
   sharing: {
     /** `available` is false until another member has signed in once and shared the family key. */

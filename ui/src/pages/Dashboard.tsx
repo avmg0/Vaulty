@@ -81,7 +81,7 @@ export function Dashboard() {
   const slices = useMemo(() => {
     const by = new Map<string, { value: number; color?: string | null }>();
     for (const x of month) if (x.type === "expense") {
-      const name = x.category_name || t("dashboard.uncategorised");
+      const name = x.masked ? t("hidden.category") : x.category_name || t("dashboard.uncategorised");
       const e = by.get(name) ?? { value: 0, color: x.category_color };
       e.value += x.amount; by.set(name, e);
     }

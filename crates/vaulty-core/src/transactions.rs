@@ -52,9 +52,53 @@ pub fn get_one(conn: &Connection, id: &str) -> Result<Option<Value>> {
     query_one(conn, &format!("{SELECT} WHERE t.id = ?"), &[json!(id)])
 }
 
-/// Everything the owner has marked shared or public, for (re)publishing.
+/// Everything the owner has marked shared or public, for (re)publishing. Hidden transactions are
+/// never shared, whatever their visibility says.
 pub fn shareable(conn: &Connection) -> Result<Vec<Value>> {
-    query(conn, &format!("{SELECT} WHERE t.visibility <> 'private'"), &[])
+    query(conn, &format!("{SELECT} WHERE t.visibility <> 'private' AND t.hidden = 0"), &[])
+}
+
+/// What a hidden transaction shows outside the Hidden section.
+pub const MASK: &str = "XXXXX";
+
+/// Hides a hidden transaction's details: merchant, description, notes, tags, category and
+/// receipt. Amount, date, type and account stay, so balances and totals remain right.
+pub fn mask(mut row: Value) -> Value {
+    if row.get("hidden").and_then(Value::as_i64) != Some(1) { return row; }
+    if let Some(o) = row.as_object_mut() {
+        o.insert("merchant".into(), json!(MASK));
+        for k in ["description", "notes", "tags", "receipt_path", "category_id", "category_icon", "category_color"] { o.insert(k.into(), Value::Null); }
+        o.insert("category_name".into(), json!("Hidden"));
+        o.insert("masked".into(), json!(true));
+    }
+    row
+}
+
+/// Transactions as the app shows them. Hidden ones are masked unless `reveal` is true (the
+/// caller checks the member unlocked the Hidden section). Filter `hidden`: "only" or "exclude".
+pub fn list(conn: &Connection, filters: Option<&Value>, reveal: bool) -> Result<Vec<Value>> {
+    let mut rows = get_all(conn, filters)?;
+    match filters.and_then(|f| str_field(f, "hidden")) {
+        Some("only") => rows.retain(|r| r["hidden"] == 1),
+        Some("exclude") => rows.retain(|r| r["hidden"] != 1),
+        _ => {}
+    }
+    Ok(if reveal { rows } else { rows.into_iter().map(mask).collect() })
+}
+
+pub fn is_hidden(conn: &Connection, id: &str) -> Result<bool> {
+    Ok(conn.query_row("SELECT hidden FROM entries WHERE id = ?", [id], |r| r.get::<_, i64>(0)).unwrap_or(0) == 1)
+}
+
+pub fn hidden_count(conn: &Connection) -> Result<i64> {
+    Ok(conn.query_row("SELECT COUNT(*) FROM entries WHERE hidden = 1 AND kind IN ('income', 'expense', 'transfer')", [], |r| r.get(0))?)
+}
+
+/// Moves a transaction into or out of the Hidden section.
+pub fn set_hidden(conn: &Connection, id: &str, hidden: bool) -> Result<Value> {
+    let n = conn.execute("UPDATE entries SET hidden = ? WHERE id = ? AND kind IN ('income', 'expense', 'transfer')", params![hidden as i64, id])?;
+    if n == 0 { return Err(Error::Invalid("no such transaction".into())); }
+    get_one(conn, id)?.ok_or_else(|| Error::Invalid("no such transaction".into()))
 }
 
 /// `visibility` defaults to private when omitted.
@@ -136,8 +180,8 @@ pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
     atomic(conn, |tx| {
         let (kind, postings) = postings_for(tx, t)?;
         tx.execute(
-            "INSERT INTO entries (id, kind, date, time, merchant, description, notes, tags, is_pending, is_cleared, visibility)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO entries (id, kind, date, time, merchant, description, notes, tags, is_pending, is_cleared, visibility, hidden)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 id,
                 kind,
@@ -150,6 +194,7 @@ pub fn create(conn: &Connection, t: &Value) -> Result<Value> {
                 bool_field(t, "is_pending", false),
                 bool_field(t, "is_cleared", true),
                 visibility(t)?,
+                bool_field(t, "hidden", false),
             ],
         )?;
         ledger::post(tx, &id, &postings)?;
