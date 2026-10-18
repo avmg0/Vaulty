@@ -582,6 +582,17 @@ fn transactions_set_hidden(s: S, id: String, hidden: bool) -> Result<Value> {
     Ok(if reveal { row } else { transactions::mask(row) })
 }
 
+/// Applies one change to many transactions as a single undoable action (see `transactions::bulk`).
+#[tauri::command]
+fn transactions_bulk(s: S, ids: Vec<String>, action: Value) -> Result<usize> {
+    for id in &ids { s.guard_hidden(id)?; }
+    s.act_and_share("transaction.bulk", |c, me, h| {
+        let n = transactions::bulk(c, &ids, &action)?;
+        h.republish_all(me, &transactions::shareable(c)?)?;
+        Ok(n)
+    })
+}
+
 /// Remembers the merchant's category for next time (not for hidden or split transactions).
 fn learn_rule(c: &Connection, row: &Value) -> Result<()> {
     if row["hidden"] == 1 || row.get("splits").is_some() { return Ok(()); }
@@ -966,7 +977,7 @@ pub fn run() {
             statement_inspect, statement_preview, statement_import, rules_suggest, rules_list, rules_add, rules_delete, rules_pending, rules_apply, quick_parse,
             recurring_list, recurring_create, recurring_update, recurring_set_active, recurring_delete, recurring_skip, recurring_history, recurring_upcoming, recurring_pay,
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
-            transactions_set_visibility, sharing_get, sharing_update, family_feed,
+            transactions_set_visibility, transactions_bulk, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
             export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
         ])

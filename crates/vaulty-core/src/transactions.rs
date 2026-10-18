@@ -330,3 +330,49 @@ pub fn delete(conn: &Connection, id: &str) -> Result<()> {
     conn.execute("DELETE FROM entries WHERE id = ? AND kind IN ('income', 'expense', 'transfer')", [id])?;
     Ok(())
 }
+
+/// One change applied to many transactions at once (one undoable action in the app).
+/// `action` is one of `{ "category_id": id|null }`, `{ "add_tag": t }`, `{ "remove_tag": t }`,
+/// `{ "visibility": v }`, `{ "hidden": bool }` or `{ "delete": true }`.
+/// Returns how many changed; transfers and split transactions are skipped for categories.
+pub fn bulk(conn: &Connection, ids: &[String], action: &Value) -> Result<usize> {
+    if ids.len() > 5000 { return Err(Error::Invalid("select at most 5000 transactions at a time".into())); }
+    let mut changed = 0;
+    atomic(conn, |tx| {
+        for id in ids {
+            let Some(row) = get_one(tx, id)? else { continue };
+            if let Some(cat) = action.get("category_id") {
+                if row["type"] == "transfer" || row.get("splits").is_some() { continue; }
+                if row["category_id"] == *cat { continue; }
+                let cur = row["currency"].as_str().unwrap_or("INR");
+                let mut t = row.clone();
+                t["amount"] = json!(money::to_string(row["amount_minor"].as_i64().unwrap_or(0), cur));
+                t["category_id"] = cat.clone();
+                update(tx, id, &t)?;
+            } else if let Some(tag) = action.get("add_tag").and_then(Value::as_str) {
+                let joined = format!("{}, {tag}", row["tags"].as_str().unwrap_or(""));
+                let tags = normalize_tags(Some(&json!(joined)))?;
+                if tags.as_deref() == row["tags"].as_str() { continue; }
+                tx.execute("UPDATE entries SET tags = ? WHERE id = ?", params![tags, id])?;
+            } else if let Some(tag) = action.get("remove_tag").and_then(Value::as_str) {
+                let kept: Vec<&str> = row["tags"].as_str().unwrap_or("").split(',').map(str::trim).filter(|t| !t.is_empty() && !t.eq_ignore_ascii_case(tag)).collect();
+                let tags = normalize_tags(Some(&json!(kept.join(","))))?;
+                if tags.as_deref() == row["tags"].as_str() { continue; }
+                tx.execute("UPDATE entries SET tags = ? WHERE id = ?", params![tags, id])?;
+            } else if let Some(v) = action.get("visibility").and_then(Value::as_str) {
+                if row["hidden"] == 1 || row["visibility"] == v { continue; }
+                set_visibility(tx, id, v)?;
+            } else if let Some(h) = action.get("hidden").and_then(Value::as_bool) {
+                if (row["hidden"] == 1) == h { continue; }
+                set_hidden(tx, id, h)?;
+            } else if action.get("delete").and_then(Value::as_bool) == Some(true) {
+                delete(tx, id)?;
+            } else {
+                return Err(Error::Invalid("unknown bulk action".into()));
+            }
+            changed += 1;
+        }
+        Ok(())
+    })?;
+    Ok(changed)
+}

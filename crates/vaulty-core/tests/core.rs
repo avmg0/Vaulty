@@ -127,3 +127,40 @@ fn tags_are_tidied_and_transfers_edit_cleanly() {
     assert_eq!((bal(&a["id"]), bal(&b["id"])), (900.0, 0.0));
     assert!(vaulty_core::ledger::unbalanced_entries(&c).unwrap().is_empty());
 }
+
+#[test]
+fn bulk_changes_in_one_go() {
+    use vaulty_core::{accounts, history, transactions};
+    let c = vaulty_core::db::open_in_memory().unwrap();
+    let a = accounts::create(&c, &json!({ "name": "Bank", "type": "checking", "currency": "INR", "initial_balance": "5000" })).unwrap();
+    let b = accounts::create(&c, &json!({ "name": "Cash", "type": "cash", "currency": "INR" })).unwrap();
+    let mk = |extra: serde_json::Value| {
+        let mut t = json!({ "account_id": a["id"], "type": "expense", "amount": "100", "date": "2026-10-10", "merchant": "Shop" });
+        t.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        transactions::create(&c, &t).unwrap()["id"].as_str().unwrap().to_string()
+    };
+    let plain = mk(json!({ "tags": "a" }));
+    let other = mk(json!({}));
+    let transfer = mk(json!({ "type": "transfer", "to_account_id": b["id"] }));
+    let split = mk(json!({ "splits": [{ "amount": "50" }, { "amount": "50", "category_id": "cat_home" }] }));
+    let ids = vec![plain.clone(), other.clone(), transfer, split];
+
+    let n = history::record(&c, "transaction.bulk", |c| transactions::bulk(c, &ids, &json!({ "category_id": "cat_food" }))).unwrap();
+    assert_eq!(n, 2, "transfer and split skipped");
+    assert_eq!(transactions::get_one(&c, &plain).unwrap().unwrap()["category_id"], "cat_food");
+    assert_eq!(transactions::bulk(&c, &ids, &json!({ "add_tag": "#Trip" })).unwrap(), 4);
+    assert_eq!(transactions::get_one(&c, &plain).unwrap().unwrap()["tags"], "a, Trip");
+    assert_eq!(transactions::bulk(&c, &ids, &json!({ "add_tag": "trip" })).unwrap(), 0, "already tagged");
+    assert_eq!(transactions::bulk(&c, &ids, &json!({ "remove_tag": "a" })).unwrap(), 1);
+    assert_eq!(transactions::bulk(&c, std::slice::from_ref(&other), &json!({ "hidden": true })).unwrap(), 1);
+    assert_eq!(transactions::bulk(&c, &ids, &json!({ "visibility": "public" })).unwrap(), 3, "hidden one stays private");
+    assert!(transactions::bulk(&c, &ids, &json!({ "rename": "x" })).is_err());
+    // Balances are untouched by all of that; the ledger stays balanced.
+    assert_eq!(accounts::get_all(&c).unwrap().into_iter().find(|x| x["id"] == a["id"]).unwrap()["current_balance"].as_f64(), Some(4600.0));
+    assert!(vaulty_core::ledger::unbalanced_entries(&c).unwrap().is_empty());
+    // One undo reverses the whole category change.
+    history::record(&c, "transaction.bulk", |c| transactions::bulk(c, &ids, &json!({ "delete": true }))).unwrap();
+    assert!(transactions::get_all(&c, None).unwrap().is_empty());
+    history::undo_last(&c).unwrap();
+    assert_eq!(transactions::get_all(&c, None).unwrap().len(), 4);
+}

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Eye, EyeOff, Fingerprint, Loader2, Lock, NotebookText, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, CheckSquare, Eye, EyeOff, Fingerprint, Loader2, Lock, NotebookText, Plus, Search, Tag, Trash2, X } from "lucide-react";
+import type { BulkAction } from "@/api";
 import { TransactionDialog } from "@/components/TransactionDialog";
+import { takePendingSearch } from "@/components/CommandPalette";
 import { splitTags } from "@/components/TagInput";
 import { useTranslation } from "react-i18next";
 import { AnimatedItem, AnimatedList } from "@/components/AnimatedList";
@@ -13,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input, NativeSelect } from "@/components/ui/input";
 import { VisibilityBadge } from "@/components/Visibility";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatDate, formatMoney } from "@/lib/utils";
 import { useTheme } from "@/hooks/theme";
 
 type RowProps = {
@@ -96,6 +98,23 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, 
   );
 }
 
+const PAGE = 200;
+const PERIODS = ["", "this-month", "last-month", "last-3", "this-year", "last-year"] as const;
+type Period = (typeof PERIODS)[number];
+const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** Start and end dates for a period, relative to today. */
+function periodRange(p: Period): { startDate?: string; endDate?: string } {
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  switch (p) {
+    case "this-month": return { startDate: ymd(new Date(y, m, 1)) };
+    case "last-month": return { startDate: ymd(new Date(y, m - 1, 1)), endDate: ymd(new Date(y, m, 0)) };
+    case "last-3": return { startDate: ymd(new Date(y, m - 2, 1)) };
+    case "this-year": return { startDate: ymd(new Date(y, 0, 1)) };
+    case "last-year": return { startDate: ymd(new Date(y - 1, 0, 1)), endDate: ymd(new Date(y - 1, 11, 31)) };
+    default: return {};
+  }
+}
+
 export function Transactions() {
   const { t: tr } = useTranslation();
   const { hideBalances, hiddenInMain } = useTheme();
@@ -106,16 +125,24 @@ export function Transactions() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [prefs, setPrefs] = useState<SharingPrefs | null>(null);
-  const [q, setQ] = useState("");
+  // A search handed over by the command palette ("jump to Swiggy").
+  const [q, setQ] = useState(() => takePendingSearch() ?? "");
   const [type, setType] = useState("");
   const [accountId, setAccountId] = useState("");
   const [visibility, setVisibility] = useState<"" | Visibility>("");
+  const [period, setPeriod] = useState<Period>("");
+  const [categoryId, setCategoryId] = useState("");
+  // How many rows are drawn; long lists grow in pages so thousands of rows stay quick.
+  const [limit, setLimit] = useState(PAGE);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const edit = (t: Transaction) => { setEditing(t); setOpen(true); };
 
   const load = () => {
     api.hidden.status().then((h) => setHiddenCount(h.count)).catch(() => {});
     return api.transactions.getAll({ type: type || undefined, accountId: accountId || undefined, visibility: visibility || undefined,
+      categoryId: categoryId || undefined, ...periodRange(period),
       hidden: hiddenInMain === "off" ? "exclude" : undefined }).then(setRows);
   };
   useEffect(() => {
@@ -123,7 +150,9 @@ export function Transactions() {
     // After an undo or restore, reload in place so the restored row slides back in.
     window.addEventListener(DATA_RESTORED, load);
     return () => window.removeEventListener(DATA_RESTORED, load);
-  }, [type, accountId, visibility, hiddenInMain, tab]);
+  }, [type, accountId, visibility, hiddenInMain, tab, period, categoryId]);
+  useEffect(() => { setLimit(PAGE); }, [type, accountId, visibility, period, categoryId, q, tab]);
+  useEffect(() => { if (!selecting) setSelected(new Set()); }, [selecting]);
   useEffect(() => {
     api.accounts.getAll().then(setAccounts);
     api.categories.getAll().then(setCategories);
@@ -137,6 +166,15 @@ export function Transactions() {
     return s ? rows.filter((t) => [t.merchant, t.description, t.category_name, t.account_name, t.to_account_name, t.notes, t.tags].some((v) => v?.toLowerCase().includes(s))) : rows;
   }, [rows, q]);
   const allTags = useMemo(() => [...new Set(rows.flatMap((r) => splitTags(r.tags)))].sort(), [rows]);
+  const shown = filtered.slice(0, limit);
+  const total = useMemo(() => filtered.reduce((acc, x) => acc + (x.type === "income" ? x.amount : x.type === "expense" ? -x.amount : 0), 0), [filtered]);
+  const toggleSelect = (id: string) => setSelected((cur) => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const runBulk = async (action: BulkAction) => {
+    const n = await api.transactions.bulk([...selected], action);
+    setBulkNote(tr("bulk.done", { count: n })); load(); setReloadHidden((x) => x + 1);
+    if ("delete" in action || "hidden" in action) setSelected(new Set());
+  };
+  const [bulkNote, setBulkNote] = useState("");
 
   const [reloadHidden, setReloadHidden] = useState(0);
 
@@ -172,24 +210,50 @@ export function Transactions() {
         </NativeSelect>
         </>}
         <Button disabled={!accounts.length} title={accounts.length ? "" : tr("tx.needAccount")} onClick={() => { setEditing(null); setOpen(true); }}><Plus />{tr("tx.add")}</Button>
+        {tab === "all" && (
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <NativeSelect className="w-40" value={period} onChange={(e) => setPeriod(e.target.value as Period)} aria-label={tr("tx.period")}>
+              {PERIODS.map((p) => <option key={p} value={p}>{tr(`tx.periods.${p || "any"}`)}</option>)}
+            </NativeSelect>
+            <NativeSelect className="w-48" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} aria-label={tr("tx.category")}>
+              <option value="">{tr("tx.anyCategory")}</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            </NativeSelect>
+            <span className="text-muted-foreground ms-1 text-xs tabular-nums">
+              {tr("tx.count", { count: filtered.length })}{filtered.length > 0 && ` · ${tr("tx.net")} ${formatMoney(total, rows[0]?.currency ?? "INR", hideBalances)}`}
+            </span>
+            <Button variant={selecting ? "secondary" : "ghost"} size="sm" className="ms-auto" onClick={() => setSelecting((v) => !v)}><CheckSquare />{selecting ? tr("bulk.done_select") : tr("bulk.select")}</Button>
+          </div>
+        )}
         <TransactionDialog open={open} onOpenChange={setOpen} initial={editing} accounts={accounts} categories={categories} prefs={prefs}
           startHidden={tab === "hidden"} tagSuggestions={allTags} onSaved={() => { load(); setReloadHidden((n) => n + 1); }} />
       </div>
       {tab === "hidden" ? <HiddenSection query={q} reload={reloadHidden} onChange={load} hideBalances={hideBalances} onToggle={toggleHidden} onEdit={edit} /> : (
       <Card className="py-2">
+        {selecting && (
+          <BulkBar count={selected.size} shownIds={shown.filter((x) => !x.masked).map((x) => x.id)} categories={categories} tags={allTags} note={bulkNote}
+            onSelectAll={(ids) => setSelected(new Set(ids))} onClear={() => { setSelected(new Set()); setBulkNote(""); }} onRun={runBulk} />
+        )}
         <CardContent className="divide-y">
           {filtered.length === 0 && <p className="text-muted-foreground py-10 text-center text-sm">{tr("tx.noMatch")}</p>}
           <AnimatedList>
-            {filtered.map((t) => (
-              <AnimatedItem key={t.id}>
-                <TransactionRow t={t} hidden={hideBalances}
+            {shown.map((t) => (
+              <AnimatedItem key={t.id} className="flex items-center gap-2">
+                {selecting && <input type="checkbox" className="size-4 shrink-0 accent-[var(--primary)]" disabled={!!t.masked} checked={selected.has(t.id)}
+                  onChange={() => toggleSelect(t.id)} aria-label={tr("bulk.pick", { name: t.merchant || t.description || "" })} />}
+                <div className="min-w-0 flex-1"><TransactionRow t={t} hidden={hideBalances}
                   onVisibilityChange={(v) => changeVisibility(t.id, v)}
                   onToggleHidden={t.masked ? undefined : () => toggleHidden(t)} reserveActions
                   onEdit={t.masked ? undefined : () => edit(t)}
-                  onDelete={t.masked ? undefined : () => api.transactions.delete(t.id).then(load)} />
+                  onDelete={t.masked ? undefined : () => api.transactions.delete(t.id).then(load)} /></div>
               </AnimatedItem>
             ))}
           </AnimatedList>
+          {filtered.length > shown.length && (
+            <div className="pt-3 text-center">
+              <Button variant="outline" size="sm" onClick={() => setLimit((l) => l + PAGE)}>{tr("tx.showMore", { count: Math.min(PAGE, filtered.length - shown.length), left: filtered.length - shown.length })}</Button>
+            </div>
+          )}
         </CardContent>
       </Card>)}
     </div>
@@ -300,5 +364,47 @@ function HiddenSection({ query, reload, onChange, hideBalances, onToggle, onEdit
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+/** Actions for the selected transactions, applied together as one undoable change. */
+function BulkBar({ count, shownIds, categories, tags, note, onSelectAll, onClear, onRun }: {
+  count: number; shownIds: string[]; categories: Category[]; tags: string[]; note: string;
+  onSelectAll: (ids: string[]) => void; onClear: () => void; onRun: (a: BulkAction) => Promise<void>;
+}) {
+  const { t } = useTranslation();
+  const [tag, setTag] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const run = async (a: BulkAction) => { setBusy(true); setError(""); try { await onRun(a); } catch (e) { setError(errorText(e)); } finally { setBusy(false); setConfirmDelete(false); } };
+  const none = count === 0 || busy;
+  return (
+    <div className="bg-muted/60 mx-4 mb-2 flex flex-wrap items-center gap-2 rounded-lg px-3 py-2 text-sm">
+      <span className="font-medium tabular-nums">{t("bulk.selected", { count })}</span>
+      <button type="button" className="text-muted-foreground hover:text-foreground text-xs underline-offset-4 hover:underline" onClick={() => onSelectAll(shownIds)}>{t("bulk.all", { count: shownIds.length })}</button>
+      {count > 0 && <button type="button" className="text-muted-foreground hover:text-foreground" onClick={onClear} aria-label={t("bulk.clear")}><X className="size-3.5" /></button>}
+      <span className="mx-1 h-4 w-px bg-border" />
+      <NativeSelect className="h-8 w-44 text-xs" disabled={none} value="" aria-label={t("bulk.category")} onChange={(e) => run({ category_id: e.target.value === "__none" ? null : e.target.value })}>
+        <option value="" disabled>{t("bulk.category")}</option>
+        <option value="__none">{t("dashboard.uncategorised")}</option>
+        {categories.map((c) => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+      </NativeSelect>
+      <form className="flex items-center gap-1" onSubmit={(e) => { e.preventDefault(); if (tag.trim()) { run({ add_tag: tag.trim() }); setTag(""); } }}>
+        <Input className="h-8 w-28 text-xs" list="bulk-tags" placeholder={t("bulk.tagPh")} value={tag} onChange={(e) => setTag(e.target.value)} disabled={none} aria-label={t("bulk.addTag")} />
+        <datalist id="bulk-tags">{tags.map((x) => <option key={x} value={x} />)}</datalist>
+        <Button size="sm" variant="outline" className="h-8" disabled={none || !tag.trim()}><Tag />{t("bulk.addTag")}</Button>
+      </form>
+      <NativeSelect className="h-8 w-36 text-xs" disabled={none} value="" aria-label={t("tx.visibility")} onChange={(e) => run({ visibility: e.target.value as Visibility })}>
+        <option value="" disabled>{t("tx.whoCanSee")}</option>
+        <option value="private">{t("visibility.private")}</option><option value="shared">{t("visibility.shared")}</option><option value="public">{t("visibility.public")}</option>
+      </NativeSelect>
+      <Button size="sm" variant="outline" className="h-8" disabled={none} onClick={() => run({ hidden: true })}><EyeOff />{t("hidden.hide")}</Button>
+      {confirmDelete
+        ? <Button size="sm" variant="destructive" className="h-8" disabled={none} onClick={() => run({ delete: true })}>{busy && <Loader2 className="animate-spin" />}{t("bulk.confirmDelete", { count })}</Button>
+        : <Button size="sm" variant="ghost" className="text-destructive h-8" disabled={none} onClick={() => setConfirmDelete(true)}><Trash2 />{t("tx.delete")}</Button>}
+      {busy && <Loader2 className="size-4 animate-spin" />}
+      {(error || note) && <span className={cn("w-full text-xs", error ? "text-destructive" : "text-muted-foreground")}>{error || note}</span>}
+    </div>
   );
 }

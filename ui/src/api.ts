@@ -7,7 +7,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
-  "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_set_hidden$",
+  "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
   "^settings_update$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
@@ -177,6 +177,7 @@ export type ImportRow = {
 export type Rule = { id: string; pattern: string; category_id: string; source: "learned" | "manual"; category_name: string; category_icon: string | null; category_type: "income" | "expense" };
 export type QuickParsed = { kind: "income" | "expense"; amount: string | null; date: string; merchant: string; account_id: string | null; category_id: string | null; understood: [string, string][] };
 export type BackupInfo = { encrypted: boolean; hint: string | null; created_at: string | null };
+export type BulkAction = { category_id: string | null } | { add_tag: string } | { remove_tag: string } | { visibility: Visibility } | { hidden: boolean } | { delete: true };
 export type HiddenStatus = { unlocked: boolean; seconds_left: number; count: number; biometric: boolean };
 
 export type SharingPrefs = { enabled: boolean; default_visibility: Visibility; shared_with: string[] };
@@ -328,6 +329,7 @@ export const api = {
       invoke<Transaction>("transactions_update", { id, transaction }),
     setVisibility: (id: string, visibility: Visibility) => invoke<Transaction>("transactions_set_visibility", { id, visibility }),
     delete: (id: string) => invoke<void>("transactions_delete", { id }),
+    bulk: (ids: string[], action: BulkAction) => invoke<number>("transactions_bulk", { ids, action }),
     setHidden: (id: string, hidden: boolean) => invoke<Transaction>("transactions_set_hidden", { id, hidden }),
   },
   /** The Hidden section: details of hidden transactions are only sent while it is unlocked. */

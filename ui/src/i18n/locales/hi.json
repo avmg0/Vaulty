@@ -298,7 +298,8 @@
         "delete": "लेन-देन हटाया",
         "visibility": "लेन-देन कौन देख सकता है, यह बदला",
         "hide": "लेनदेन छिपे हुए में डाला",
-        "unhide": "लेनदेन मुख्य सूची में वापस लाया"
+        "unhide": "लेनदेन मुख्य सूची में वापस लाया",
+        "bulk": "कई लेनदेन बदले"
       },
       "settings": {
         "update": "सेटिंग्स बदलीं"
@@ -474,7 +475,21 @@
     "notes": "नोट",
     "transferLabel": "ट्रांसफ़र",
     "edit": "बदलें",
-    "transfers": "ट्रांसफ़र"
+    "transfers": "ट्रांसफ़र",
+    "period": "अवधि",
+    "periods": {
+      "any": "कभी भी",
+      "this-month": "इस महीने",
+      "last-month": "पिछले महीने",
+      "last-3": "पिछले 3 महीने",
+      "this-year": "इस साल",
+      "last-year": "पिछले साल"
+    },
+    "anyCategory": "कोई भी श्रेणी",
+    "count_one": "{{count}} लेनदेन",
+    "count_other": "{{count}} लेनदेन",
+    "net": "शुद्ध",
+    "showMore": "{{count}} और दिखाएँ ({{left}} बाक़ी)"
   },
   "visibility": {
     "private": "निजी",
@@ -1071,5 +1086,34 @@
     "plainWarning": "यह पुराना, बिना सुरक्षा वाला बैकअप है। यह फिर भी वापस आ जाएगा।",
     "restoreNote": "पहले एक सुरक्षा कॉपी बनती है, और इसे इतिहास से पलटा जा सकता है।",
     "restored": "{{tx}} लेनदेन और {{acc}} खाते वापस आए।"
+  },
+  "bulk": {
+    "select": "चुनें",
+    "done_select": "हो गया",
+    "pick": "{{name}} चुनें",
+    "selected_one": "{{count}} चुना गया",
+    "selected_other": "{{count}} चुने गए",
+    "all": "दिखाए गए सभी {{count}} चुनें",
+    "clear": "चयन हटाएँ",
+    "category": "श्रेणी तय करें…",
+    "tagPh": "टैग",
+    "addTag": "टैग जोड़ें",
+    "confirmDelete_one": "{{count}} लेनदेन हटाएँ",
+    "confirmDelete_other": "{{count}} लेनदेन हटाएँ",
+    "done_one": "{{count}} लेनदेन बदला। Ctrl+Z से पलटें।",
+    "done_other": "{{count}} लेनदेन बदले। Ctrl+Z से पलटें।"
+  },
+  "palette": {
+    "title": "कहीं भी जाएँ या कुछ भी करें",
+    "hint": "पेज, काम और लेनदेन खोजने के लिए लिखें",
+    "placeholder": "पेज, काम, लेनदेन खोजें…",
+    "go": "जाएँ",
+    "do": "काम",
+    "transactions": "लेनदेन",
+    "nothing": "कुछ नहीं मिला।",
+    "showBalances": "बैलेंस दिखाएँ",
+    "hideBalances": "बैलेंस छिपाएँ",
+    "theme": "लाइट या डार्क बदलें",
+    "lock": "Vaulty लॉक करें"
   }
 }
