@@ -261,15 +261,17 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [ ] Error messages from the Rust side are still English only
 - **Done when:** every check passes on all three systems.
 
-### Phase 1: Daily use (v0.1, family alpha)
-- [ ] Full transaction editing, tags, notes, splits; transfers between accounts
-- [ ] Categories and sub-categories with budgets
-- [ ] Recurring payments and bills (RRULE), upcoming instances, "mark as paid"
-- [ ] CSV / XLSX statement import: column mapping saved per bank, duplicate detection
-- [ ] Auto-categorisation rules that learn from corrections
-- [ ] Quick add from anywhere, with plain-language entry ("250 swiggy yesterday")
-- [ ] Password-protected backups and a printable recovery sheet
-- [ ] Command palette (Ctrl/Cmd+K); filters, bulk actions, a fast long list
+### Phase 1: Daily use (v0.1, family alpha) (built; now the month of real use)
+- [x] Full transaction editing, tags and notes, splits across categories; transfers between accounts
+- [x] Categories and sub-categories with monthly budgets (Budgets page, on-pace hints)
+- [x] Recurring payments and bills: every N days/weeks/months/years, mark paid, skip, pause, auto-pay caught up at sign-in, "Coming up" on the dashboard
+- [x] CSV / XLSX / XLS / ODS statement import: header detection, column mapping saved per account, Indian and international formats, duplicate detection, safety copy and one-step undo
+- [x] Automatic categories: rules learned from your choices, used by import and the add dialog, applied in bulk
+- [x] Quick add (Ctrl/Cmd+J) with plain-language entry ("250 swiggy yesterday", "petrol 2k from card", "कल 300 सब्ज़ी")
+- [x] Password-protected backups (`.vaulty`, open format in docs/BACKUP_FORMAT.md) and a printable recovery sheet
+- [x] Command palette (Ctrl/Cmd+K); period and category filters, bulk actions, lists that grow in pages
+- [ ] Quick add from anywhere: tray / menu-bar icon and an OS-wide shortcut (needs the Tauri tray and global-shortcut plugins, tested on each OS)
+- [ ] Hotkey editor
 - **Done when:** the family uses it for a month instead of a spreadsheet.
 
 ### Phase 2: Security before public release (v0.5, public beta)
@@ -495,3 +497,6 @@ Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. S
 | Ctrl/Cmd + H | Hide or show balances |
 | Ctrl/Cmd + L | Lock / switch profile |
 | Ctrl/Cmd + , | Settings |
+| Ctrl/Cmd + K | Command palette: pages, actions, find a transaction |
+| Ctrl/Cmd + J | Quick add |
+| Ctrl/Cmd + Z | Undo the last change |
