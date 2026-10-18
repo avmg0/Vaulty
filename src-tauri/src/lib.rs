@@ -19,6 +19,8 @@ use vaulty_core::{
 
 /// How long a "password OK, now enter your code" step stays valid.
 const SECOND_FACTOR_TTL: Duration = Duration::from_secs(5 * 60);
+/// How long the Hidden section stays open after unlocking it.
+const HIDDEN_TTL: Duration = Duration::from_secs(5 * 60);
 
 /// Everything unlocked for the signed-in member. Dropping it (sign-out, lock, quit) closes the
 /// databases and wipes the keys from memory.
@@ -30,6 +32,14 @@ struct Session {
     /// been given the family key, which happens the next time another member signs in.
     household: Household,
     household_ready: bool,
+    /// When the Hidden section locks again. `None` while it is locked.
+    hidden_until: Option<Instant>,
+}
+
+impl Session {
+    fn hidden_open(&self) -> bool {
+        self.hidden_until.is_some_and(|t| Instant::now() < t)
+    }
 }
 
 struct AppState {
@@ -102,6 +112,39 @@ impl AppState {
         f(&s.conn)
     }
 
+    fn hidden_open(&self) -> Result<bool> {
+        let guard = self.session.lock().map_err(poisoned)?;
+        Ok(guard.as_ref().is_some_and(Session::hidden_open))
+    }
+
+    /// Exports include hidden transactions in full, so they need the Hidden section unlocked.
+    fn guard_export(&self) -> Result<()> {
+        if !self.hidden_open()? && self.data(transactions::hidden_count)? > 0 {
+            return Err(Error::Auth("Unlock the Hidden section to export: the file will include hidden transactions".into()));
+        }
+        Ok(())
+    }
+
+    /// Refuses to touch a hidden transaction while the Hidden section is locked.
+    fn guard_hidden(&self, id: &str) -> Result<()> {
+        if !self.hidden_open()? && self.data(|c| transactions::is_hidden(c, id))? {
+            return Err(Error::Auth("Unlock the Hidden section to change this transaction".into()));
+        }
+        Ok(())
+    }
+
+    fn open_hidden(&self) -> Result<HiddenStatus> {
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = guard.as_mut().ok_or_else(|| Error::Auth("locked".into()))?;
+        s.hidden_until = Some(Instant::now() + HIDDEN_TTL);
+        HiddenStatus::of(s)
+    }
+
+    fn set_session_biometric(&self, on: bool) -> Result<()> {
+        if let Some(sess) = self.session.lock().map_err(poisoned)?.as_mut() { sess.user.biometric_enabled = on; }
+        Ok(())
+    }
+
     fn current_user(&self) -> Result<UserSummary> {
         let guard = self.session.lock().map_err(poisoned)?;
         guard.as_ref().map(|s| s.user.clone()).ok_or_else(|| Error::Auth("locked".into()))
@@ -126,7 +169,7 @@ impl AppState {
         };
         let recovery_key = keys.new_recovery_key.take();
         *self.pending.lock().map_err(poisoned)? = None;
-        *self.session.lock().map_err(poisoned)? = Some(Session { user: user.clone(), conn, keys, household, household_ready });
+        *self.session.lock().map_err(poisoned)? = Some(Session { user: user.clone(), conn, keys, household, household_ready, hidden_until: None });
         Ok(SignedIn { user, recovery_key })
     }
 
@@ -359,14 +402,15 @@ async fn biometric_enable(s: S<'_>, password: String) -> Result<()> {
         s.registry(|r| r.disable_biometric(&me.id))?;
         return Err(Error::Auth(e));
     }
-    Ok(())
+    s.set_session_biometric(true)
 }
 
 #[tauri::command]
 fn biometric_disable(s: S) -> Result<()> {
     let me = s.current_user()?;
     biometric::delete_token(&me.id);
-    s.registry(|r| r.disable_biometric(&me.id))
+    s.registry(|r| r.disable_biometric(&me.id))?;
+    s.set_session_biometric(false)
 }
 
 // ============================================================ finance data (signed-in user's own DB)
@@ -381,7 +425,75 @@ fn biometric_disable(s: S) -> Result<()> {
 #[tauri::command] fn categories_update(s: S, id: String, category: Value) -> Result<Value> { s.act("category.update", |c| categories::update(c, &id, &category)) }
 #[tauri::command] fn categories_delete(s: S, id: String) -> Result<()> { s.act("category.delete", |c| categories::delete(c, &id)) }
 
-#[tauri::command] fn transactions_get_all(s: S, filters: Option<Value>) -> Result<Vec<Value>> { s.data(|c| transactions::get_all(c, filters.as_ref())) }
+/// Hidden transactions come back masked (amount, date and account only) unless the caller asks
+/// with `reveal_hidden` and the Hidden section is unlocked.
+#[tauri::command]
+fn transactions_get_all(s: S, filters: Option<Value>) -> Result<Vec<Value>> {
+    let wants = filters.as_ref().and_then(|f| f.get("reveal_hidden")).and_then(Value::as_bool).unwrap_or(false);
+    let reveal = wants && s.hidden_open()?;
+    s.data(|c| transactions::list(c, filters.as_ref(), reveal))
+}
+
+// ============================================================ hidden section
+
+#[derive(Serialize)]
+struct HiddenStatus {
+    unlocked: bool,
+    /// Seconds until it locks again.
+    seconds_left: u64,
+    count: i64,
+    biometric: bool,
+}
+
+impl HiddenStatus {
+    fn of(s: &Session) -> Result<Self> {
+        let left = s.hidden_until.filter(|_| s.hidden_open()).map(|t| t.saturating_duration_since(Instant::now()).as_secs()).unwrap_or(0);
+        Ok(HiddenStatus { unlocked: left > 0, seconds_left: left, count: transactions::hidden_count(&s.conn)?, biometric: s.user.biometric_enabled && biometric::available() })
+    }
+}
+
+#[tauri::command]
+fn hidden_status(s: S) -> Result<HiddenStatus> {
+    let guard = s.session.lock().map_err(poisoned)?;
+    HiddenStatus::of(guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?)
+}
+
+#[tauri::command]
+fn hidden_unlock(s: S, password: String) -> Result<HiddenStatus> {
+    let me = s.current_user()?;
+    s.registry(|r| r.confirm_password(&me.id, &password))?;
+    s.open_hidden()
+}
+
+#[tauri::command]
+async fn hidden_unlock_biometric(s: S<'_>) -> Result<HiddenStatus> {
+    let me = s.current_user()?;
+    if !me.biometric_enabled { return Err(Error::Auth("biometric unlock isn't turned on for this profile".into())); }
+    biometric::prompt("Open your hidden transactions").await.map_err(Error::Auth)?;
+    let token = zeroize::Zeroizing::new(biometric::read_token(&me.id).map_err(Error::Auth)?);
+    // Proves the token still unlocks this profile; the keys it yields are dropped (and wiped) at once.
+    drop(s.registry(|r| r.sign_in_with_biometric_token(&me.id, &token))?);
+    s.open_hidden()
+}
+
+#[tauri::command]
+fn hidden_lock(s: S) -> Result<()> {
+    if let Some(sess) = s.session.lock().map_err(poisoned)?.as_mut() { sess.hidden_until = None; }
+    Ok(())
+}
+
+/// Hiding is always allowed; bringing a transaction back into view needs the section unlocked.
+#[tauri::command]
+fn transactions_set_hidden(s: S, id: String, hidden: bool) -> Result<Value> {
+    if !hidden && !s.hidden_open()? { return Err(Error::Auth("Unlock the Hidden section first".into())); }
+    let reveal = s.hidden_open()?;
+    let row = s.act_and_share(if hidden { "transaction.hide" } else { "transaction.unhide" }, |c, me, h| {
+        let row = transactions::set_hidden(c, &id, hidden)?;
+        h.publish(me, &row)?;
+        Ok(row)
+    })?;
+    Ok(if reveal { row } else { transactions::mask(row) })
+}
 
 /// New transactions take the member's default visibility unless the form picked one.
 fn with_default_visibility(h: &Household, user_id: &str, mut t: Value) -> Result<Value> {
@@ -404,6 +516,7 @@ fn transactions_create(s: S, transaction: Value) -> Result<Value> {
 }
 #[tauri::command]
 fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> {
+    s.guard_hidden(&id)?;
     s.act_and_share("transaction.update", |c, me, h| {
         let row = transactions::update(c, &id, &transaction)?;
         h.publish(me, &row)?;
@@ -412,6 +525,7 @@ fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> {
 }
 #[tauri::command]
 fn transactions_set_visibility(s: S, id: String, visibility: String) -> Result<Value> {
+    s.guard_hidden(&id)?;
     s.act_and_share("transaction.visibility", |c, me, h| {
         let row = transactions::set_visibility(c, &id, &visibility)?;
         h.publish(me, &row)?;
@@ -420,6 +534,7 @@ fn transactions_set_visibility(s: S, id: String, visibility: String) -> Result<V
 }
 #[tauri::command]
 fn transactions_delete(s: S, id: String) -> Result<()> {
+    s.guard_hidden(&id)?;
     s.act_and_share("transaction.delete", |c, me, h| {
         transactions::delete(c, &id)?;
         h.withdraw(me, &id)
@@ -470,12 +585,14 @@ fn family_feed(s: S, view: FeedView, filter: Option<FeedFilter>) -> Result<Vec<V
 
 #[tauri::command]
 fn export_json(s: S, path: String) -> Result<()> {
+    s.guard_export()?;
     let v = s.data(export::to_json)?;
     std::fs::write(path, serde_json::to_vec_pretty(&v)?)?;
     Ok(())
 }
 #[tauri::command]
 fn export_csv(s: S, path: String) -> Result<usize> {
+    s.guard_export()?;
     let (text, n) = s.data(export::to_csv)?;
     std::fs::write(path, text)?;
     Ok(n)
@@ -577,7 +694,7 @@ fn snapshots_create(s: S) -> Result<vaulty_core::snapshots::Snapshot> {
 fn snapshots_restore(s: S, name: String) -> Result<()> {
     let mut guard = s.session.lock().map_err(poisoned)?;
     let sess = guard.take().ok_or_else(|| Error::Auth("locked".into()))?;
-    let Session { user, conn, keys, household, household_ready } = sess;
+    let Session { user, conn, keys, household, household_ready, .. } = sess;
     let dir = s.snapshot_dir(&user.id);
     let path = s.user_db_path(&user.id);
     let result = (|| {
@@ -591,7 +708,7 @@ fn snapshots_restore(s: S, name: String) -> Result<()> {
     if result.is_ok() {
         household.republish_all(&user.id, &transactions::shareable(&conn)?)?;
     }
-    *guard = Some(Session { user, conn, keys, household, household_ready });
+    *guard = Some(Session { user, conn, keys, household, household_ready, hidden_until: None });
     result
 }
 
@@ -632,6 +749,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             users_list, session_current, setup_first_admin, claim_profile,
+            hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,
             users_add, users_reset, users_erase, users_remove, profile_update, sign_in_recovery, recovery_key_new,
             security_status, password_change, totp_begin, totp_confirm, totp_disable,

@@ -580,6 +580,12 @@ impl Registry {
 
     /// Returns a fresh device token for the OS keychain. The token wraps the data key, so it is
     /// the only thing (besides the password and recovery key) that can open this member's data.
+    /// Re-checks a signed-in member's password (e.g. to open the Hidden section). Wrong guesses
+    /// count towards the same lockout as signing in.
+    pub fn confirm_password(&self, user_id: &str, password: &str) -> Result<()> {
+        self.verify_password(user_id, password)
+    }
+
     pub fn enable_biometric(&self, user_id: &str, password: &str) -> Result<String> {
         let dk = self.data_key_from_password(user_id, password)?;
         let token = crypto::new_key();

@@ -270,16 +270,17 @@ fn drift(conn: &Connection) -> Result<Vec<Value>> {
             .collect::<std::result::Result<_, _>>()?;
         for (rid, op, after) in logged {
             let current: Option<String> = conn.query_row(&format!("SELECT json_object({obj}) FROM {} WHERE id = ?", ident(t)), [&rid], |r| r.get(0)).optional()?;
-            let strip = |s: &str| -> Option<Value> {
-                let mut v: Value = serde_json::from_str(s).ok()?;
-                if let Some(o) = v.as_object_mut() { o.remove("updated_at"); }
-                Some(v)
+            // Compare only the fields that were recorded: a column added by a later app update
+            // isn't an edit made outside Vaulty.
+            let same = |cur: &str, rec: &str| -> bool {
+                let (Ok(Value::Object(c)), Ok(Value::Object(r))) = (serde_json::from_str::<Value>(cur), serde_json::from_str::<Value>(rec)) else { return cur == rec };
+                r.iter().filter(|(k, _)| k.as_str() != "updated_at").all(|(k, v)| c.get(k) == Some(v))
             };
             let differs = match (op.as_str(), current.as_deref(), after.as_deref()) {
                 ("delete", Some(_), _) => true,
                 ("delete", None, _) => false,
                 (_, None, _) => true,
-                (_, Some(cur), Some(a)) => strip(cur) != strip(a),
+                (_, Some(cur), Some(a)) => !same(cur, a),
                 _ => false,
             };
             if differs { out.push(json!({ "table": t, "id": rid })); }
@@ -408,6 +409,7 @@ fn describe(conn: &Connection, batch: i64) -> Result<Value> {
         let row = c.after.as_ref().or(c.before.as_ref());
         let pick = |keys: &[&str]| keys.iter().find_map(|k| row.and_then(|r| r.get(*k)).and_then(Value::as_str).filter(|s| !s.is_empty()).map(str::to_owned));
         let title = match c.tbl.as_str() {
+            "entries" if entry_hidden(conn, &c.row_id, row) => crate::transactions::MASK.to_string(),
             "entries" => pick(&["merchant", "description"]).unwrap_or_else(|| "Transaction".into()),
             "journal_entries" | "tasks" | "calendar_events" => pick(&["title"]).unwrap_or_default(),
             "user_settings" => String::new(),
@@ -428,6 +430,13 @@ fn describe(conn: &Connection, batch: i64) -> Result<Value> {
         "changes": list.len(), "undo_of": undo_of, "undone": undone_by.is_some(),
         "can_undo": blocked.is_none(), "blocked_reason": blocked,
     }))
+}
+
+/// True when a transaction is hidden now, or was hidden in the recorded row, so history never
+/// shows its details outside the Hidden section.
+fn entry_hidden(conn: &Connection, id: &str, row: Option<&Value>) -> bool {
+    row.and_then(|r| r.get("hidden")).and_then(Value::as_i64) == Some(1)
+        || conn.query_row("SELECT hidden FROM entries WHERE id = ?", [id], |r| r.get::<_, i64>(0)).map(|h| h == 1).unwrap_or(false)
 }
 
 /// Recent actions, newest first.

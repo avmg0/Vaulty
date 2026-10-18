@@ -268,7 +268,7 @@ function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenCha
 }
 
 function AppearanceCard() {
-  const { theme, setTheme, accent, setAccent, hideBalances, setHideBalances, motionPref, setMotionPref, motion } = useTheme();
+  const { theme, setTheme, accent, setAccent, hideBalances, setHideBalances, hiddenInMain, setHiddenInMain, motionPref, setMotionPref, motion } = useTheme();
   const { t } = useTranslation();
   const { move } = useMotion();
   return (
@@ -309,6 +309,10 @@ function AppearanceCard() {
         </div>
         <Row label={t("settings.appearance.hide")} desc={t("settings.appearance.hideDesc")}>
           <Switch checked={hideBalances} onCheckedChange={setHideBalances} />
+        </Row>
+        <Row label={t("hidden.pref")} desc={t("hidden.prefDesc")}>
+          <Segmented value={hiddenInMain} onChange={setHiddenInMain} label={t("hidden.pref")}
+            options={[{ value: "masked", label: t("hidden.prefMasked") }, { value: "off", label: t("hidden.prefOff") }]} />
         </Row>
       </CardContent>
     </Card>
