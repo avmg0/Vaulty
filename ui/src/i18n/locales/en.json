@@ -30,7 +30,8 @@
     "expand": "Expand sidebar (Ctrl+B)",
     "lock": "Lock / switch profile (Ctrl+L)",
     "history": "History",
-    "budgets": "Budgets"
+    "budgets": "Budgets",
+    "skip": "Skip to content"
   },
   "role": {
     "admin": "Admin",
@@ -655,7 +656,8 @@
     "cropped": "Cropped to card shape. Stays on this device.",
     "darken": "Darken image",
     "text": "Text",
-    "auto": "Auto"
+    "auto": "Auto",
+    "engraved": "Engraved lines"
   },
   "institution": {
     "kind": {

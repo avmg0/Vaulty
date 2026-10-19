@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ALL_ITEMS, type PageId } from "@/nav";
 import { QUICK_ADD_EVENT } from "@/components/QuickAdd";
 import { useTheme } from "@/hooks/theme";
+import { rememberFocus, returnFocus } from "@/lib/focus";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 
 /** A search the Transactions page picks up when it opens (set by the palette). */
@@ -28,7 +29,7 @@ export function CommandPalette({ onNavigate, onLock }: { onNavigate: (p: PageId)
   const list = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setOpen((o) => !o); } };
+    const onKey = (e: globalThis.KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setOpen((o) => { if (!o) rememberFocus(); return !o; }); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
@@ -78,7 +79,7 @@ export function CommandPalette({ onNavigate, onLock }: { onNavigate: (p: PageId)
   let lastGroup = "";
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="top-[18%] translate-y-0 gap-0 p-0 sm:max-w-lg" showCloseButton={false}>
+      <DialogContent className="top-[18%] translate-y-0 gap-0 p-0 sm:max-w-lg" showCloseButton={false} onCloseAutoFocus={(e) => { e.preventDefault(); returnFocus(); }}>
         <DialogHeader className="sr-only"><DialogTitle>{t("palette.title")}</DialogTitle><DialogDescription>{t("palette.hint")}</DialogDescription></DialogHeader>
         <div className="flex items-center gap-2 border-b px-3">
           <Search className="text-muted-foreground size-4" />

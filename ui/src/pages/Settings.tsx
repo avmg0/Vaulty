@@ -251,12 +251,12 @@ function SecurityCard() {
         <Row icon={ShieldCheck} label={t("security.twoStep")}
           desc={status.totp_enabled ? t("security.twoStepOn", { count: status.backup_codes_remaining }) : t("security.twoStepOff")}>
           {status.totp_enabled && <Button variant="ghost" size="sm" onClick={() => setDialog("codes")}>{t("security.newCodes")}</Button>}
-          <Switch checked={status.totp_enabled} onCheckedChange={(on) => setDialog(on ? "totp-on" : "totp-off")} />
+          <Switch aria-label={t("security.twoStep")} checked={status.totp_enabled} onCheckedChange={(on) => setDialog(on ? "totp-on" : "totp-off")} />
         </Row>
         <Separator />
         <Row icon={Fingerprint} label={t("security.unlockWith", { method: bio })}
           desc={!status.biometric_available ? t("security.bioUnavailable") : status.biometric_enabled ? t("security.bioOn") : t("security.bioOff")}>
-          <Switch disabled={!status.biometric_available} checked={status.biometric_enabled}
+          <Switch aria-label={t("security.unlockWith", { method: bio })} disabled={!status.biometric_available} checked={status.biometric_enabled}
             onCheckedChange={async (on) => {
               setBioError("");
               if (on) setDialog("bio-on");
@@ -381,7 +381,7 @@ function AppearanceCard() {
           </div>
         </div>
         <Row label={t("settings.appearance.hide")} desc={t("settings.appearance.hideDesc")}>
-          <Switch checked={hideBalances} onCheckedChange={setHideBalances} />
+          <Switch aria-label={t("settings.appearance.hide")} checked={hideBalances} onCheckedChange={setHideBalances} />
         </Row>
         <Row label={t("hidden.pref")} desc={t("hidden.prefDesc")}>
           <Segmented value={hiddenInMain} onChange={setHiddenInMain} label={t("hidden.pref")}

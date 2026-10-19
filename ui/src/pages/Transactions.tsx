@@ -199,10 +199,10 @@ export function Transactions() {
           <Input placeholder={tr("tx.search")} className="pl-8" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {tab === "all" && <>
-        <NativeSelect className="w-32" value={type} onChange={(e) => setType(e.target.value)}>
+        <NativeSelect className="w-32" value={type} onChange={(e) => setType(e.target.value)} aria-label={tr("tx.type")}>
           <option value="">{tr("tx.allTypes")}</option><option value="expense">{tr("tx.expenses")}</option><option value="income">{tr("tx.incomes")}</option><option value="transfer">{tr("tx.transfers")}</option>
         </NativeSelect>
-        <NativeSelect className="w-40" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+        <NativeSelect className="w-40" value={accountId} onChange={(e) => setAccountId(e.target.value)} aria-label={tr("tx.account")}>
           <option value="">{tr("tx.allAccounts")}</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
         </NativeSelect>
         <NativeSelect className="w-32" value={visibility} onChange={(e) => setVisibility(e.target.value as "" | Visibility)} aria-label={tr("tx.visibility")}>

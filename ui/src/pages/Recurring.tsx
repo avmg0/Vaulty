@@ -129,8 +129,9 @@ function Row({ r, hidden, onPay, onEdit, onSkip, onToggle, onDelete }: {
   const Icon = r.type === "income" ? ArrowUpRight : r.type === "transfer" ? ArrowLeftRight : ArrowDownRight;
   const urgent = r.status === "overdue" || r.status === "due" || r.status === "soon";
   return (
-    <div className={cn("group flex items-center gap-3 py-3", r.status === "paused" && "opacity-60")}>
-      <div className={cn("grid size-9 shrink-0 place-items-center rounded-lg text-base", r.type === "income" ? "bg-success/15 text-success" : "bg-secondary")}>
+    <div className="group flex items-center gap-3 py-3">
+      {/* Paused rows fade only the icon: faded text would be too hard to read. "Paused" is said in words. */}
+      <div className={cn("grid size-9 shrink-0 place-items-center rounded-lg text-base", r.type === "income" ? "bg-success/15 text-success" : "bg-secondary", r.status === "paused" && "opacity-40 grayscale")}>
         {r.category_icon ?? <Icon className="size-4" />}
       </div>
       <div className="min-w-0 flex-1">

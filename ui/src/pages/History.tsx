@@ -77,8 +77,8 @@ function Row({ h, restore, onAct }: { h: HistoryItem; restore: boolean; onAct: (
   const { move } = useMotion();
   const isUndo = h.action === "undo";
   return (
-    <div className={cn("flex items-center gap-3 py-3 transition-opacity duration-300", h.undone && "opacity-60")}>
-      <div className="bg-secondary grid size-9 shrink-0 place-items-center rounded-lg"><Icon className="size-4" /></div>
+    <div className="flex items-center gap-3 py-3">
+      <div className={cn("bg-secondary grid size-9 shrink-0 place-items-center rounded-lg transition-opacity duration-300", h.undone && "opacity-40")}><Icon className="size-4" /></div>
       <div className="min-w-0 flex-1">
         <div className="relative w-fit max-w-full truncate text-sm font-medium">
           {label(h)}

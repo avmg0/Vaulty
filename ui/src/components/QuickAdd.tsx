@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/input";
 import { TransactionDialog } from "@/components/TransactionDialog";
 import { useTheme } from "@/hooks/theme";
+import { rememberFocus, returnFocus } from "@/lib/focus";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 
 const LAST_ACCOUNT = "vaulty.quick.account";
@@ -33,7 +34,7 @@ export function QuickAdd() {
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const show = () => setOpen(true);
+    const show = () => { rememberFocus(); setOpen(true); };
     const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") { e.preventDefault(); show(); } };
     window.addEventListener("keydown", onKey);
     window.addEventListener(QUICK_ADD_EVENT, show);
@@ -76,7 +77,7 @@ export function QuickAdd() {
   return (
     <>
       <Dialog open={open && !details} onOpenChange={setOpen}>
-        <DialogContent className="top-[22%] translate-y-0 gap-3 sm:max-w-lg">
+        <DialogContent className="top-[22%] translate-y-0 gap-3 sm:max-w-lg" onCloseAutoFocus={(e) => { e.preventDefault(); returnFocus(); }}>
           <DialogHeader className="sr-only"><DialogTitle>{t("quick.title")}</DialogTitle><DialogDescription>{t("quick.hint")}</DialogDescription></DialogHeader>
           <form onSubmit={save} className="grid gap-3">
             <div className="flex items-center gap-2 border-b pb-2">

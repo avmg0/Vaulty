@@ -160,7 +160,7 @@ export function LookEditor({ value, onChange }: { value: CardLook; onChange: (l:
             {ink && <button type="button" className="text-muted-foreground underline-offset-2 hover:underline" onClick={() => { setInk(null); emit({ ink: null }); }}>{i18n.t("look.auto")}</button>}
           </div>
           <label className="flex items-center gap-2 text-xs">
-            <Switch checked={pattern} onCheckedChange={(p) => { setPattern(p); emit({ pattern: p }); }} />Engraved lines
+            <Switch checked={pattern} onCheckedChange={(p) => { setPattern(p); emit({ pattern: p }); }} />{i18n.t("look.engraved")}
           </label>
         </div>
       )}

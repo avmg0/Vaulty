@@ -123,11 +123,16 @@ function Shell({ signOut }: { signOut: () => void }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      {/* First thing Tab reaches: jumps past the menu straight to the page. */}
+      <a href="#content" onClick={(e) => { e.preventDefault(); document.getElementById("content")?.focus(); }}
+        className="bg-primary text-primary-foreground sr-only z-50 rounded-md text-sm shadow-lg focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:px-4 focus:py-2.5">
+        {t("nav.skip")}
+      </a>
       <Sidebar page={page} onNavigate={setPage} collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header title={t(`nav.${item.id}`)} />
         <TickerBar />
-        <main className="flex-1 overflow-y-auto p-6">
+        <main id="content" tabIndex={-1} className="flex-1 overflow-y-auto p-6 outline-none">
           <div key={SELF_RELOADING.has(page) ? page : `${page}:${version}`} className="page-enter">{body ?? <ComingSoon item={item} />}</div>
         </main>
       </div>

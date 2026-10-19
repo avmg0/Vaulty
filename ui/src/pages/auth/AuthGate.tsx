@@ -62,9 +62,9 @@ export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: SignedInU
 
 function Centered({ children }: { children: ReactNode }) {
   return (
-    <div className="grid min-h-screen place-items-center p-4">
+    <main className="grid min-h-screen place-items-center p-4">
       <div className="page-enter w-full max-w-sm">{children}<LanguageSwitch /></div>
-    </div>
+    </main>
   );
 }
 
@@ -87,7 +87,7 @@ function Brand({ title, desc }: { title: string; desc: ReactNode }) {
   return (
     <CardHeader className="items-center text-center">
       <Logo className="mb-2 w-14" />
-      <CardTitle className="text-xl">{title}</CardTitle>
+      <CardTitle className="text-xl"><h1>{title}</h1></CardTitle>
       <CardDescription>{desc}</CardDescription>
     </CardHeader>
   );
@@ -168,7 +168,7 @@ function PasswordStep({ user, onBack, onSignedIn, onNeedsCode, onForgot }: { use
       <Card>
         <CardHeader className="items-center text-center">
           <UserAvatar name={user.name} color={user.color} className="mb-2 size-14 text-lg" layoutId={`avatar-${user.id}`} />
-          <CardTitle className="text-xl">{t("auth.hi", { name: user.name.split(" ")[0] })}</CardTitle>
+          <CardTitle className="text-xl"><h1>{t("auth.hi", { name: user.name.split(" ")[0] })}</h1></CardTitle>
           <CardDescription>{t("auth.enterPassword")}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -213,7 +213,7 @@ function SecondFactorStep({ user, backup, onToggle, onBack, onDone }: { user: Us
       <Card>
         <CardHeader className="items-center text-center">
           <div className="bg-secondary mb-2 grid size-11 place-items-center rounded-xl"><ShieldCheck className="size-5" /></div>
-          <CardTitle className="text-xl">{t("auth.twoStep")}</CardTitle>
+          <CardTitle className="text-xl"><h1>{t("auth.twoStep")}</h1></CardTitle>
           <CardDescription>
             {backup ? t("auth.enterBackup") : <Trans i18nKey="auth.enterCode" values={{ name: user.name }} components={{ b: <b /> }} />}
           </CardDescription>
@@ -310,7 +310,7 @@ function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; o
       <Card>
         <CardHeader className="items-center text-center">
           <UserAvatar name={user.name} color={user.color} className="mb-2 size-14 text-lg" layoutId={`avatar-${user.id}`} />
-          <CardTitle className="text-xl">{t("auth.setupTitle", { name: user.name })}</CardTitle>
+          <CardTitle className="text-xl"><h1>{t("auth.setupTitle", { name: user.name })}</h1></CardTitle>
           <CardDescription>{t("auth.setupDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -347,7 +347,7 @@ function RecoverStep({ user, onBack, onDone }: { user: User; onBack: () => void;
       <Card>
         <CardHeader className="items-center text-center">
           <div className="bg-secondary mb-2 grid size-11 place-items-center rounded-xl"><KeyRound className="size-5" /></div>
-          <CardTitle className="text-xl">{t("recovery.recoverTitle")}</CardTitle>
+          <CardTitle className="text-xl"><h1>{t("recovery.recoverTitle")}</h1></CardTitle>
           <CardDescription>{t("recovery.recoverDesc")}</CardDescription>
         </CardHeader>
         <CardContent>

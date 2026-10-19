@@ -24,11 +24,11 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
         <Logo className="w-7 shrink-0" />
         {!collapsed && <span className="font-semibold tracking-tight">Vaulty</span>}
         {!collapsed && (
-          <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title={t("nav.collapse")}><PanelLeftClose /></Button>
+          <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title={t("nav.collapse")} aria-label={t("nav.collapse")}><PanelLeftClose /></Button>
         )}
       </div>
       <nav className="isolate flex-1 space-y-4 overflow-y-auto px-2 py-2">
-        {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title={t("nav.expand")}><PanelLeftOpen /></Button>}
+        {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title={t("nav.expand")} aria-label={t("nav.expand")}><PanelLeftOpen /></Button>}
         {NAV.map((g) => (
           <div key={g.group} className="space-y-0.5">
             {!collapsed && <div className="text-muted-foreground px-2.5 pb-1 text-xs font-medium">{t(`nav.group.${g.group}`)}</div>}
@@ -46,7 +46,7 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
               <div className="text-muted-foreground text-xs">{t(`role.${user.role}`)}</div>
             </div>
           )}
-          <Button variant="ghost" size="icon" className="size-8" onClick={signOut} title={t("nav.lock")}><LogOut /></Button>
+          <Button variant="ghost" size="icon" className="size-8" onClick={signOut} title={t("nav.lock")} aria-label={t("nav.lock")}><LogOut /></Button>
         </div>
       </div>
     </aside>
