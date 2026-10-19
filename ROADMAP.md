@@ -258,7 +258,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Demo mode (`--demo` or `VAULTY_DEMO=1`): John, Jane and Jenny Doe with six months of sample data each, in a throwaway folder
 - [x] Every screen translated (English and Hindi, 658 strings); dates through the shared formatter; ordinal days per language ("20th", "20 तारीख")
 - [x] Formats per profile: date order, negative amounts (minus or brackets), decimal places, first day of the week, financial-year start; each "Automatic" by default, following the profile's language and country
-- [ ] Error messages from the Rust side are still English only
+- [x] Error messages from the Rust side are translated (English and Hindi; CI checks every new one)
 - **Done when:** every check passes on all three systems.
 
 ### Phase 1: Daily use (v0.1, family alpha) (built; now the month of real use)
@@ -282,7 +282,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [ ] Biometric item bound at the OS level; external fingerprint copies (1c, parts 4 and 8)
 - [x] Accessibility pass (axe on every page, keyboard-only walk-through); senior mode
 - [x] OWASP ASVS self-review (`docs/ASVS.md`)
-- [ ] Fix the ASVS follow-ups: auto-lock enforced in Rust, common-password check, failed sign-ins shown
+- [x] ASVS follow-ups: auto-lock enforced in Rust, common-password check, failed sign-ins shown, errors translated (all 248 Rust messages, checked in CI)
 - [ ] First external audit (1c, part 6)
 - **Done when:** signed installers are on GitHub Releases and audit findings are fixed.
 

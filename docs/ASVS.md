@@ -26,7 +26,7 @@ Status: **Met** · **Partly** (works, with a known gap) · **Open** (not done ye
 | Requirement | Status | How |
 |---|---|---|
 | Passwords of at least 8 characters, no composition rules, long passphrases allowed | Met | `MIN_PASSWORD_LEN = 8`; up to 1,024 characters (`limits::PASSWORD`) |
-| Passwords checked against common or breached ones | **Open** | No check yet. Plan: bundle a small list of the most common passwords (works offline) |
+| Passwords checked against common or breached ones | Met | New passwords are checked against the 10,000 most common (bundled, works offline), a common word with a few characters added, the person's name, and one repeated character (`passwords.rs`) |
 | Brute-force protection | Met | 5 free attempts, then 30 s doubling to 15 min; applies to sign-in, re-confirmation, 2-step codes and backup codes (`check_throttle`) |
 | Stored with a slow, salted hash | Met | Argon2id, 64 MiB, t=3; older hashes upgraded on next sign-in |
 | Second factor available | Met | TOTP with one-time backup codes (stored as SHA-256 of high-entropy codes) |
@@ -38,7 +38,7 @@ Status: **Met** · **Partly** (works, with a known gap) · **Open** (not done ye
 | Requirement | Status | How |
 |---|---|---|
 | Session ends on lock or sign-out, keys wiped | Met | Keys held only in Rust while unlocked; `zeroize` on lock |
-| Idle timeout | **Partly** | Auto-lock (1–30 min) is timed by the interface. A frozen or tampered window wouldn't lock. Plan: also enforce it in Rust |
+| Idle timeout | Met | Auto-lock (1–30 min, or never) is part of the profile. The window locks on time; Rust also drops the session and wipes the keys a minute later if the window stops reporting activity. Measured by the wall clock, so sleep counts |
 | Re-authentication for sensitive actions | Met | Password re-confirmation for hidden items (re-locks after 5 min), security changes, erasing members |
 | Web cookies and tokens | N/A | No server, no cookies |
 
@@ -75,8 +75,8 @@ Status: **Met** · **Partly** (works, with a known gap) · **Open** (not done ye
 | Requirement | Status | How |
 |---|---|---|
 | No sensitive data in errors or logs | Met | The app writes no logs; errors are short messages |
-| Errors don't reveal internals | **Partly** | A few low-level database or file errors reach the window as their raw text (local only, no secrets, but not friendly). Rust messages are English only |
-| Security events visible to the person | **Open** | Failed sign-ins lock the profile but aren't shown afterwards. Plan: "3 failed attempts since you last signed in" |
+| Errors don't reveal internals | Met | Database, file and format failures are shown as a general message (detail goes to the console only); every other message is translated (`i18n/errors.ts`, checked in CI) |
+| Security events visible to the person | Met | After signing in, the member is told how many wrong passwords or codes were entered since last time and when, with a button to change the password |
 | Tamper-evident record of changes | Met | Hash-chained history with verification |
 
 ## V8 Data protection
@@ -124,12 +124,11 @@ Status: **Met** · **Partly** (works, with a known gap) · **Open** (not done ye
 
 ## What to fix next, in order
 
-1. **Enforce auto-lock in Rust as well as the window** (V3). Highest value: today a frozen window keeps the keys in memory.
-2. **Check new passwords against a bundled list of common passwords** (V2).
-3. **Show failed sign-in attempts after a successful sign-in** (V7).
-4. **OS-bound biometric keys** (V2; already a Phase 2 item).
-5. **Friendlier, translatable errors from Rust** (V7).
-6. **Windows code signing** (V10; see docs/RELEASING.md).
-7. **Data key rotation** (V6; later).
+Done since the first review: auto-lock enforced in Rust, common-password check, failed sign-ins
+shown, translated and friendlier errors.
+
+1. **OS-bound biometric keys** (V2; a Phase 2 item).
+2. **Windows code signing** (V10; see docs/RELEASING.md).
+3. **Data key rotation** (V6; later).
 
 After these, the external audit.
