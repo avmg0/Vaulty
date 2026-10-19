@@ -18,6 +18,7 @@ pub mod ledger;
 pub mod limits;
 pub mod market;
 pub mod money;
+pub mod passwords;
 pub mod profiles;
 pub mod quick;
 pub mod recurring;

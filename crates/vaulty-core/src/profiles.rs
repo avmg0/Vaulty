@@ -124,9 +124,13 @@ fn now() -> i64 {
     chrono::Utc::now().timestamp()
 }
 
-fn check_password_rules(password: &str) -> Result<()> {
+/// Rules for a new password. `name` is the profile's name, which the password shouldn't just be.
+fn check_password_rules(password: &str, name: &str) -> Result<()> {
     if password.chars().count() < MIN_PASSWORD_LEN {
         return Err(Error::Invalid(format!("password must be at least {MIN_PASSWORD_LEN} characters")));
+    }
+    if let Some(why) = crate::passwords::weakness(password, name) {
+        return Err(Error::Invalid(why.into()));
     }
     Ok(())
 }
@@ -205,7 +209,7 @@ impl Registry {
         if !self.is_empty()? {
             return Err(Error::Auth("an admin already exists; ask them to add you".into()));
         }
-        check_password_rules(password)?;
+        check_password_rules(password, name)?;
         let id = crate::rows::new_id();
         let dk = crypto::new_key();
         let tx = self.conn.unchecked_transaction()?;
@@ -262,7 +266,7 @@ impl Registry {
             self.register_failure(user_id)?;
             return Err(Error::Auth("incorrect setup code".into()));
         }
-        check_password_rules(password)?;
+        check_password_rules(password, &self.get(user_id)?.name)?;
         let tx = self.conn.unchecked_transaction()?;
         let dk = match self.unwrap_with_secret(user_id, "setup", &code)? {
             Some(dk) => dk,
@@ -471,7 +475,7 @@ impl Registry {
                 return Err(Error::Auth("that recovery key doesn't match this profile".into()));
             }
         };
-        check_password_rules(new_password)?;
+        check_password_rules(new_password, &self.get(user_id)?.name)?;
         let tx = self.conn.unchecked_transaction()?;
         self.wrap_with_secret(user_id, "password", new_password, &dk)?;
         self.conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", params![crypto::hash_secret(new_password)?, user_id])?;
@@ -520,7 +524,7 @@ impl Registry {
 
     pub fn change_password(&self, user_id: &str, current: &str, new: &str) -> Result<()> {
         let dk = self.data_key_from_password(user_id, current)?;
-        check_password_rules(new)?;
+        check_password_rules(new, &self.get(user_id)?.name)?;
         let tx = self.conn.unchecked_transaction()?;
         self.wrap_with_secret(user_id, "password", new, &dk)?;
         self.conn.execute("UPDATE users SET password_hash = ? WHERE id = ?", params![crypto::hash_secret(new)?, user_id])?;
