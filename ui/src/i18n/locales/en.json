@@ -1328,6 +1328,7 @@
     "e1e3d3524": "show must be an object",
     "e4dd66e8b": "wrapped key is corrupt",
     "e71f60680": "expected off or weekly",
+    "ec7cb3910": "expected true or false",
     "ef8ab9aeb": "transaction without id",
     "e03ae684a": "crypto must be a list",
     "e14ea647b": "shared key is corrupt",
@@ -1342,6 +1343,7 @@
     "ec2addcf0": "unknown bulk action",
     "ee4138092": "snapshot is damaged",
     "e04dca31d": "unknown visibility",
+    "e402fce8d": "expected on or off",
     "e5813adbf": "`type` is required",
     "e593721be": "image is too large",
     "e71af485f": "incorrect password",
@@ -1380,6 +1382,7 @@
     "e03a824c5": "`{{p0}}` is not a 3-letter currency code",
     "e6e8822a1": "unknown or protected setting `{{p0}}`",
     "e87861810": "`{{p0}}` only applies to credit cards",
+    "e91519e32": "couldn't show a notification ({{p0}})",
     "e17dd67dd": "a list can have at most {{p0}} items",
     "e434575f6": "unknown bank or institution `{{p0}}`",
     "eb40f2e2c": "unknown bank or institution `{{p0}}`",
@@ -1532,5 +1535,45 @@
     "exportButton": "Save .ics file",
     "exported_one": "Saved {{count}} date.",
     "exported_other": "Saved {{count}} dates."
+  },
+  "reminders": {
+    "title": "Reminders",
+    "desc": "Notifications for bills, card payments and budgets, so nothing is missed.",
+    "on": "Remind me",
+    "onDesc": "Bills a few days before (as set on each), card payments 3 days before, and budgets at 80% and 100%. While Vaulty is open and you’re signed in.",
+    "amounts": "Show amounts in notifications",
+    "amountsDesc": "Off by default: notifications can appear on a locked screen.",
+    "locked": {
+      "setting": "Remind me while locked",
+      "settingDesc": "Keeps only your payment dates (no names or amounts) outside your encrypted data, to say \"a payment is due today\" while your profile is locked. Vaulty needs to be running.",
+      "title": "A payment is due today",
+      "body": "{{name}}, open Vaulty to see what’s due."
+    },
+    "blocked": "Notifications are turned off for Vaulty in your system settings. Turn them on there to get reminders.",
+    "testHint": "Check that notifications reach you.",
+    "test": {
+      "button": "Send a test",
+      "title": "Reminders are on",
+      "body": "This is how Vaulty will remind you about bills and card payments."
+    },
+    "when": {
+      "today": "today",
+      "in_one": "tomorrow",
+      "in_other": "in {{count}} days",
+      "overdue_one": "1 day overdue",
+      "overdue_other": "{{count}} days overdue"
+    },
+    "bill": "{{name}} is due {{when}}",
+    "transfer": "{{name}} is due {{when}}",
+    "income": "{{name}} expected {{when}}",
+    "card": "Card payment due {{when}}: {{name}}",
+    "budget": {
+      "title": "{{name}}: {{percent}}% of this month’s budget used",
+      "body": "Open Vaulty to see your budgets.",
+      "spent": "{{amount}} spent so far."
+    },
+    "many_one": "{{count}} reminder",
+    "many_other": "{{count}} reminders",
+    "overdue": "{{name}}: {{when}}"
   }
 }

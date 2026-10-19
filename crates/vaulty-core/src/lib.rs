@@ -24,6 +24,7 @@ pub mod passwords;
 pub mod profiles;
 pub mod quick;
 pub mod recurring;
+pub mod reminders;
 pub mod rules;
 pub mod rows;
 pub mod settings;

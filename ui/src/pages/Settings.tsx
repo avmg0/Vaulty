@@ -12,6 +12,7 @@ import { SnapshotsCard } from "@/components/SnapshotsCard";
 import { BackupsCard } from "@/components/BackupsCard";
 import { UpdatesCard } from "@/components/Updates";
 import { HotkeysCard } from "@/components/HotkeysCard";
+import { RemindersCard } from "@/components/Reminders";
 import { SuccessTick } from "@/components/SuccessTick";
 import { Segmented } from "@/components/Segmented";
 import { motion as m } from "motion/react";
@@ -54,6 +55,7 @@ export function Settings() {
       <LanguageRegionCard />
       <FormatsCard />
       <SecurityCard />
+      <RemindersCard />
       <BackupsCard />
       <SnapshotsCard />
       <FamilySharingCard />

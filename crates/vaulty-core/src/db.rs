@@ -23,6 +23,7 @@ pub const DATA_MIGRATIONS: Migrations = &[
     ("0014_rules", include_str!("../migrations/data/0014_rules.sql")),
     ("0015_updates", include_str!("../migrations/data/0015_updates.sql")),
     ("0016_auto_lock", include_str!("../migrations/data/0016_auto_lock.sql")),
+    ("0017_reminders", include_str!("../migrations/data/0017_reminders.sql")),
 ];
 
 /// Device-level family sharing store.
@@ -37,6 +38,7 @@ pub const REGISTRY_MIGRATIONS: Migrations = &[
     ("0002_keys", include_str!("../migrations/registry/0002_keys.sql")),
     ("0003_senior", include_str!("../migrations/registry/0003_senior.sql")),
     ("0004_sign_in_failures", include_str!("../migrations/registry/0004_sign_in_failures.sql")),
+    ("0005_locked_reminders", include_str!("../migrations/registry/0005_locked_reminders.sql")),
 ];
 
 /// Opens (creating if needed) a member's encrypted finance database.

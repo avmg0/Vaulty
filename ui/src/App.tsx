@@ -29,6 +29,7 @@ import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
 import { UpdateNotice } from "@/components/Updates";
 import { CalendarPage } from "@/pages/Calendar";
+import { LockedReminderListener, ReminderWatcher } from "@/components/Reminders";
 import { HotkeysProvider, useHotkey } from "@/hooks/hotkeys";
 import { applySenior } from "@/lib/senior";
 import { History } from "@/pages/History";
@@ -89,10 +90,11 @@ export function App() {
     </div>
   );
   if (user === undefined) return <div className="grid min-h-screen place-items-center"><Loader2 className="text-muted-foreground size-6 animate-spin" /></div>;
-  if (user === null) return <AuthGate onSignedIn={signedIn} lastUserId={lastUserId} />;
+  if (user === null) return <><AuthGate onSignedIn={signedIn} lastUserId={lastUserId} /><LockedReminderListener /></>;
 
   return (
     <SessionProvider value={{ user, setUser, signOut }}>
+      <LockedReminderListener />
       <div className={locking ? "pointer-events-none opacity-0 blur-md transition-[opacity,filter] duration-300" : "transition-[opacity,filter] duration-300"}>
         <Shell key={user.id} signOut={signOut} lockNow={lockNow} />
       </div>
@@ -157,6 +159,7 @@ function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => v
       </div>
       <UndoToaster />
       <UpdateNotice />
+      <ReminderWatcher />
       <QuickAdd />
       <CommandPalette onNavigate={setPage} onLock={signOut} />
     </div>

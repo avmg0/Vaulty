@@ -120,7 +120,7 @@ export type CardInput = Partial<{
 }>;
 
 /** Subset of user_settings the UI uses. `locale` is BCP 47, e.g. "hi-IN" (language + country). */
-export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string; update_check?: "off" | "weekly"; auto_lock_minutes?: number };
+export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string; update_check?: "off" | "weekly"; auto_lock_minutes?: number; notifications?: "on" | "off"; notify_amounts?: number | boolean; notify_locked?: number | boolean };
 
 /** A keyboard shortcut: `keys` like "Mod+Shift+K" ("" = off). */
 export type Hotkey = { action: string; keys: string; default: string; custom: boolean };
@@ -131,6 +131,9 @@ export type CalendarItem = { kind: CalendarKind; date: string; title: string; ti
 export type CalendarEventInput = { title: string; date: string; time: string; type: "custom" | "reminder" | "holiday"; repeat: "none" | "monthly" | "yearly"; amount: string; icon: string; notes: string };
 export type CalendarEvent = { id: string; title: string; date: string; time: string | null; type: CalendarEventInput["type"]; amount: number | null; icon: string | null; notes: string | null; repeat: "monthly" | "yearly" | null };
 export type IcsEvent = { uid: string | null; title: string; date: string; time: string | null; repeat: string | null; notes: string | null };
+
+/** A reminder due now (see crates/vaulty-core/src/reminders.rs). `days` < 0 means overdue. */
+export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null };
 
 /** A newer version found by an update check. */
 export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
@@ -297,6 +300,12 @@ export const api = {
     export: (path: string, from: string, to: string, includeAmounts: boolean) => invoke<number>("calendar_export", { path, from, to, includeAmounts }),
     importPreview: (path: string) => invoke<IcsEvent[]>("calendar_import_preview", { path }),
     import: (path: string, asHolidays: boolean) => invoke<number>("calendar_import", { path, asHolidays }),
+  },
+  reminders: {
+    take: () => invoke<Reminder[]>("reminders_take"),
+    /** `ask` shows the system's permission prompt if it hasn't been answered yet. */
+    permission: (ask = false) => invoke<"granted" | "denied" | "prompt">("notify_permission", { ask }),
+    show: (title: string, body: string) => invoke<void>("notify_show", { title, body }),
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {

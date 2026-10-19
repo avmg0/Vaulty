@@ -17,6 +17,8 @@ Last reviewed: October 2026 (Phase 2).
 | Backup files (`.vaulty`) | wherever the member saves them | Argon2id + XChaCha20-Poly1305, header authenticated |
 | Change history | member's database | tamper-evident SHA-256 chain |
 | Profile list: names, colours, roles, password hashes, wrapped keys, backup-code hashes, lockout counters | `registry.db` (not encrypted) | needed before sign-in; hashes are Argon2id (64 MiB, 3 passes) |
+| Times of wrong sign-in attempts; senior mode | `registry.db` (not encrypted) | times only, to tell the member after signing in |
+| Payment due dates, only for members who turn on "remind me while locked" | `registry.db` (not encrypted) | dates only: no names, payees or amounts; replaced each time reminders are checked |
 
 Not stored anywhere: full card numbers, CVVs, bank passwords, online banking sessions.
 

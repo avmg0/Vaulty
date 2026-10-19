@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 const EDITABLE: &[&str] = &[
     "theme", "currency", "locale", "date_format", "start_of_week", "fiscal_year_start",
     "negative_format", "transaction_sort", "auto_clear_clipboard", "spellcheck_enabled",
-    "font_size", "interface_font", "monospace_font", "decimals", "update_check", "auto_lock_minutes",
+    "font_size", "interface_font", "monospace_font", "decimals", "update_check", "auto_lock_minutes", "notifications", "notify_amounts", "notify_locked",
 ];
 
 const MONTHS: &[&str] = &["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
@@ -65,6 +65,15 @@ fn check(key: &str, v: &Value) -> Result<()> {
         "auto_lock_minutes" => match v.as_i64() {
             Some(0 | 1 | 5 | 15 | 30) => Ok(()),
             _ => bad("expected 0 (never), 1, 5, 15 or 30"),
+        },
+        "notifications" => match v.as_str() {
+            Some("on" | "off") => Ok(()),
+            _ => bad("expected on or off"),
+        },
+        "notify_amounts" | "notify_locked" => match v {
+            Value::Bool(_) => Ok(()),
+            Value::Number(n) if n.as_i64().is_some_and(|n| n == 0 || n == 1) => Ok(()),
+            _ => bad("expected true or false"),
         },
         "update_check" => match v.as_str() {
             Some("off" | "weekly") => Ok(()),

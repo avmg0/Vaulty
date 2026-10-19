@@ -839,6 +839,27 @@ impl Registry {
         Ok(())
     }
 
+    /// Replaces the dates to remind `user_id` about while locked (dates only; empty turns it off).
+    pub fn set_locked_reminders(&self, user_id: &str, dates: &[chrono::NaiveDate]) -> Result<()> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM locked_reminders WHERE user_id = ?", [user_id])?;
+        for d in dates.iter().take(200) {
+            tx.execute("INSERT OR IGNORE INTO locked_reminders (user_id, date) VALUES (?, ?)", params![user_id, d.to_string()])?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Members with a payment due on `today` (or missed since), each handed out once.
+    pub fn take_locked_reminders(&self, today: chrono::NaiveDate) -> Result<Vec<UserSummary>> {
+        let ids: Vec<String> = self.conn
+            .prepare("SELECT DISTINCT user_id FROM locked_reminders WHERE date <= ?")?
+            .query_map([today.to_string()], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        self.conn.execute("DELETE FROM locked_reminders WHERE date <= ?", [today.to_string()])?;
+        Ok(self.list()?.into_iter().filter(|u| ids.contains(&u.id)).collect())
+    }
+
     /// Wrong attempts since the member last signed in, shown once after signing in. Cleared by reading.
     pub fn take_failure_notice(&self, user_id: &str) -> Result<Option<FailureNotice>> {
         let raw: Option<String> = self.conn.query_row("SELECT failure_notice FROM users WHERE id = ?", [user_id], |r| r.get(0)).optional()?.flatten();

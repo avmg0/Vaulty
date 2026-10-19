@@ -76,6 +76,8 @@ struct AppState {
     /// Files the person chose in a file dialog this run. File commands only touch these, so a
     /// script injected into the interface couldn't read or overwrite any other file.
     picked: Mutex<Vec<String>>,
+    /// Notifications shown in the last minute (a misbehaving window can't flood the desktop).
+    shown: Mutex<Vec<Instant>>,
 }
 
 /// Returned by every sign-in route. `recovery_key` is set only when a new one was just created
@@ -268,11 +270,19 @@ fn session_touch(s: S) -> Result<()> {
 }
 
 /// Locks an idle session even if the window never asks for anything again, and tells the window.
+/// Also tells the window about payments due today for members who asked to be reminded while
+/// locked (from 9 in the morning, local time).
 fn watch_idle(app: tauri::AppHandle) {
     use tauri::Emitter;
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_secs(15));
         let state = app.state::<AppState>();
+        let now = chrono::Local::now();
+        if now.format("%H").to_string().parse::<u32>().unwrap_or(0) >= 9 {
+            if let Ok(due) = state.registry(|r| r.take_locked_reminders(now.date_naive())) {
+                for u in due { let _ = app.emit("vaulty://locked-reminder", json!({ "name": u.name })); }
+            }
+        }
         let Ok(mut guard) = state.session.lock() else { continue };
         if guard.as_ref().is_some_and(Session::idle_expired) {
             *guard = None;
@@ -957,6 +967,45 @@ fn calendar_import(s: S, path: String, as_holidays: bool) -> Result<usize> {
     s.act("calendar.import", |c| vaulty_core::calendar::import_events(c, &events, as_holidays))
 }
 
+// ============================================================ reminders
+
+/// Reminders due now that haven't been shown (the window words them and calls `notify_show`).
+/// Also refreshes the dates kept for reminders while locked.
+#[tauri::command]
+fn reminders_take(s: S) -> Result<Vec<vaulty_core::reminders::Due>> {
+    let me = s.current_user()?;
+    let dates = s.data(|c| vaulty_core::reminders::locked_schedule(c, today()))?;
+    s.registry(|r| r.set_locked_reminders(&me.id, &dates))?;
+    s.data(|c| vaulty_core::reminders::take_due(c, today()))
+}
+
+/// "granted", "denied" or "prompt" (not asked yet).
+#[tauri::command]
+fn notify_permission(app: tauri::AppHandle, ask: bool) -> Result<String> {
+    use tauri_plugin_notification::{NotificationExt, PermissionState};
+    let n = app.notification();
+    let mut state = n.permission_state().map_err(|e| Error::Invalid(e.to_string()))?;
+    if ask && !matches!(state, PermissionState::Granted | PermissionState::Denied) {
+        state = n.request_permission().map_err(|e| Error::Invalid(e.to_string()))?;
+    }
+    Ok(match state { PermissionState::Granted => "granted", PermissionState::Denied => "denied", _ => "prompt" }.into())
+}
+
+/// Shows one system notification. Short text only, at most 10 a minute.
+#[tauri::command]
+fn notify_show(app: tauri::AppHandle, s: S, title: String, body: String) -> Result<()> {
+    use tauri_plugin_notification::NotificationExt;
+    limits::text("title", &title, 120)?;
+    limits::text("body", &body, 300)?;
+    {
+        let mut shown = s.shown.lock().map_err(poisoned)?;
+        shown.retain(|t| t.elapsed() < Duration::from_secs(60));
+        if shown.len() >= 10 { return Ok(()); }
+        shown.push(Instant::now());
+    }
+    app.notification().builder().title(title).body(body).show().map_err(|e| Error::Invalid(format!("couldn't show a notification ({e})")))
+}
+
 #[tauri::command] fn market_get(s: S) -> Result<Value> { s.data(vaulty_core::market::prefs_view) }
 #[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { limits::check(&prefs)?; s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
 /// `which` is `stock` or `crypto`; an empty key removes it.
@@ -1181,6 +1230,7 @@ async fn update_install(app: tauri::AppHandle, s: S<'_>) -> Result<()> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(PendingUpdate::default())
         .setup(|app| {
@@ -1202,12 +1252,13 @@ pub fn run() {
                 session: Mutex::new(None),
                 pending: Mutex::new(None),
                 picked: Mutex::new(Vec::new()),
+                shown: Mutex::new(Vec::new()),
             });
             watch_idle(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

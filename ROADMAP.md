@@ -289,7 +289,8 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 ### Phase 3: Planning and reminders (v0.6)
 - [x] Calendar: bills and income, card due and statement dates, paid bills, own events and reminders, holidays (fixed national ones built in; the rest added or imported, since festival and state bank holidays vary); due dates on bank-closed days show the day to pay by; `.ics` import and export (amounts left out unless asked)
 - [ ] Calendar: document expiry (once Documents exists)
-- [ ] OS notifications: bill and card due, budget threshold, low balance
+- [x] OS notifications: bills (each bill's own "remind N days before"), card payments 3 days ahead, overdue bills, budgets at 80% and 100%; amounts off by default; optional dates-only reminders while locked
+- [ ] Low-balance alerts (needs a per-account threshold)
 - [ ] Cards: statements, minimum due, benefits tracker, best card for today
 - [ ] Reports page on the chart kit; cash-flow forecast; "safe to spend"
 - [ ] Lend and borrow tracker; subscription detector; price-rise alerts

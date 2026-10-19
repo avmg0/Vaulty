@@ -84,7 +84,7 @@ Status: **Met** · **Partly** (works, with a known gap) · **Open** (not done ye
 | Requirement | Status | How |
 |---|---|---|
 | Sensitive data encrypted at rest | Met | Each member's database is encrypted; backups are encrypted |
-| Unencrypted metadata minimised | **Partly** | The profile list (names, colours, roles, senior mode) is unencrypted so the sign-in screen can show it. Documented in the threat model |
+| Unencrypted metadata minimised | **Partly** | The profile list (names, colours, roles, senior mode) and the times of wrong sign-ins are unencrypted so the sign-in screen can use them; payment dates (only) are kept for members who opt in to reminders while locked. Documented in the threat model |
 | Sensitive data cleared from memory | **Partly** | Keys are wiped; decrypted values shown in the window live in the browser engine's memory until it frees them, which Vaulty can't control |
 | Clipboard | Met | Recovery keys and codes are cleared from the clipboard after a short time |
 | Hidden from shoulder-surfing | Met | Hide balances (Ctrl/Cmd+H); hidden transactions masked as XXXXX |

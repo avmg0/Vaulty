@@ -652,6 +652,10 @@
   "re": "^expected off or weekly$"
  },
  {
+  "id": "ec7cb3910",
+  "re": "^expected true or false$"
+ },
+ {
   "id": "ef8ab9aeb",
   "re": "^transaction without id$"
  },
@@ -706,6 +710,10 @@
  {
   "id": "e04dca31d",
   "re": "^unknown visibility$"
+ },
+ {
+  "id": "e402fce8d",
+  "re": "^expected on or off$"
  },
  {
   "id": "e5813adbf",
@@ -858,6 +866,10 @@
  {
   "id": "e87861810",
   "re": "^`([\\s\\S]+?)` only applies to credit cards$"
+ },
+ {
+  "id": "e91519e32",
+  "re": "^couldn't show a notification \\(([\\s\\S]+?)\\)$"
  },
  {
   "id": "e17dd67dd",
