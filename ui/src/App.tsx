@@ -28,6 +28,7 @@ import { TaxPlanner } from "@/pages/TaxPlanner";
 import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
 import { UpdateNotice } from "@/components/Updates";
+import { CalendarPage } from "@/pages/Calendar";
 import { HotkeysProvider, useHotkey } from "@/hooks/hotkeys";
 import { applySenior } from "@/lib/senior";
 import { History } from "@/pages/History";
@@ -36,7 +37,7 @@ import { VaultSplash } from "@/components/UnlockSplash";
 
 const LAST_USER_KEY = "vaulty.lastUser";
 /** Pages that reload themselves after an undo (so changes animate in place instead of the page re-mounting). */
-const SELF_RELOADING = new Set<PageId>(["history", "transactions", "dashboard", "cards"]);
+const SELF_RELOADING = new Set<PageId>(["history", "transactions", "dashboard", "cards", "calendar"]);
 
 export function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -137,7 +138,7 @@ function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => v
   useHotkey("go_import", () => setPage("import"));
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
-  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, history: <History /> }[page as string];
+  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, history: <History /> }[page as string];
 
   return (
     <div className="flex h-screen overflow-hidden">

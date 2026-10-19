@@ -3,6 +3,7 @@
 pub mod accounts;
 pub mod backup;
 pub mod budgets;
+pub mod calendar;
 pub mod cards;
 pub mod categories;
 mod crypto;

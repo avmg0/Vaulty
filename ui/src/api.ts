@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -124,6 +124,13 @@ export type UserSettings = { locale: string; currency: string; date_format: stri
 
 /** A keyboard shortcut: `keys` like "Mod+Shift+K" ("" = off). */
 export type Hotkey = { action: string; keys: string; default: string; custom: boolean };
+
+export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday";
+/** One thing on the calendar. `pay_by` is set when banks are closed on the due date. */
+export type CalendarItem = { kind: CalendarKind; date: string; title: string; time?: string; amount?: number; currency?: string; icon?: string; source_id?: string; overdue: boolean; pay_by?: string };
+export type CalendarEventInput = { title: string; date: string; time: string; type: "custom" | "reminder" | "holiday"; repeat: "none" | "monthly" | "yearly"; amount: string; icon: string; notes: string };
+export type CalendarEvent = { id: string; title: string; date: string; time: string | null; type: CalendarEventInput["type"]; amount: number | null; icon: string | null; notes: string | null; repeat: "monthly" | "yearly" | null };
+export type IcsEvent = { uid: string | null; title: string; date: string; time: string | null; repeat: string | null; notes: string | null };
 
 /** A newer version found by an update check. */
 export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
@@ -269,7 +276,7 @@ export const api = {
     exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
-  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv", label: string) => invoke<string | null>("pick_file", { kind, label }) },
+  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar", label: string) => invoke<string | null>("pick_file", { kind, label }) },
   updates: {
     check: () => invoke<UpdateInfo | null>("update_check"),
     auto: () => invoke<UpdateInfo | null>("update_auto"),
@@ -280,6 +287,16 @@ export const api = {
     /** `keys`: the new combination, "" to turn it off, or null for the default. */
     set: (action: string, keys: string | null) => invoke<Hotkey[]>("hotkeys_set", { action, keys }),
     reset: () => invoke<Hotkey[]>("hotkeys_reset"),
+  },
+  calendar: {
+    range: (from: string, to: string) => invoke<CalendarItem[]>("calendar_range", { from, to }),
+    events: () => invoke<CalendarEvent[]>("calendar_events"),
+    create: (event: Omit<CalendarEventInput, never>) => invoke<CalendarEvent>("calendar_event_create", { event }),
+    update: (id: string, event: CalendarEventInput) => invoke<CalendarEvent>("calendar_event_update", { id, event }),
+    delete: (id: string) => invoke<void>("calendar_event_delete", { id }),
+    export: (path: string, from: string, to: string, includeAmounts: boolean) => invoke<number>("calendar_export", { path, from, to, includeAmounts }),
+    importPreview: (path: string) => invoke<IcsEvent[]>("calendar_import_preview", { path }),
+    import: (path: string, asHolidays: boolean) => invoke<number>("calendar_import", { path, asHolidays }),
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {

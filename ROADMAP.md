@@ -287,7 +287,8 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - **Done when:** signed installers are on GitHub Releases and audit findings are fixed.
 
 ### Phase 3: Planning and reminders (v0.6)
-- [ ] Calendar: bills, card dues, document expiry, bank holidays; `.ics` import and export
+- [x] Calendar: bills and income, card due and statement dates, paid bills, own events and reminders, holidays (fixed national ones built in; the rest added or imported, since festival and state bank holidays vary); due dates on bank-closed days show the day to pay by; `.ics` import and export (amounts left out unless asked)
+- [ ] Calendar: document expiry (once Documents exists)
 - [ ] OS notifications: bill and card due, budget threshold, low balance
 - [ ] Cards: statements, minimum due, benefits tracker, best card for today
 - [ ] Reports page on the chart kit; cash-flow forecast; "safe to spend"

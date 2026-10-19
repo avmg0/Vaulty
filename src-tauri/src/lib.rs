@@ -507,7 +507,7 @@ fn biometric_disable(s: S) -> Result<()> {
 /// What a file dialog is for. The kind decides the file types offered and whether it opens or saves.
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Pick { Statement, Backup, SaveBackup, SaveCsv }
+enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar }
 
 impl AppState {
     /// Refuses a path the person didn't choose in a file dialog this run.
@@ -531,6 +531,8 @@ async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String) -
         Pick::Backup => d.add_filter(label, &["vaulty", "json"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveBackup => d.add_filter(label, &["vaulty"]).set_file_name(format!("vaulty-backup-{stamp}.vaulty")).save_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveCsv => d.add_filter(label, &["csv"]).set_file_name(format!("vaulty-transactions-{stamp}.csv")).save_file(move |p| { let _ = tx.send(p); }),
+        Pick::Calendar => d.add_filter(label, &["ics"]).pick_file(move |p| { let _ = tx.send(p); }),
+        Pick::SaveCalendar => d.add_filter(label, &["ics"]).set_file_name(format!("vaulty-calendar-{stamp}.ics")).save_file(move |p| { let _ = tx.send(p); }),
     }
     let Some(chosen) = rx.await.ok().flatten() else { return Ok(None) };
     let path = chosen.into_path().map_err(|_| Error::Invalid("that location can't be used".into()))?.to_string_lossy().into_owned();
@@ -864,7 +866,7 @@ fn backup_inspect(s: S, path: String) -> Result<Value> {
 }
 
 fn read_limited(path: &str, max: u64) -> Result<Vec<u8>> {
-    if std::fs::metadata(path)?.len() > max { return Err(Error::Invalid("that file is too large to be a backup".into())); }
+    if std::fs::metadata(path)?.len() > max { return Err(Error::Invalid(format!("that file is larger than {} MB", max / (1024 * 1024)))); }
     Ok(std::fs::read(path)?)
 }
 
@@ -910,6 +912,50 @@ fn restore_backup(s: &AppState, data: Value) -> Result<Value> {
     s.act("hotkeys.set", |c| vaulty_core::hotkeys::set(c, &action, keys.as_deref()))
 }
 #[tauri::command] fn hotkeys_reset(s: S) -> Result<Vec<vaulty_core::hotkeys::Hotkey>> { s.act("hotkeys.reset", vaulty_core::hotkeys::reset_all) }
+
+// ============================================================ calendar
+
+/// The country part of the profile's locale ("en-IN" → "IN"), for holidays and bank days.
+fn country(c: &Connection) -> Result<String> {
+    Ok(settings::get(c)?["locale"].as_str().and_then(|l| l.rsplit('-').next()).filter(|r| r.len() == 2).unwrap_or("IN").to_string())
+}
+
+#[tauri::command]
+fn calendar_range(s: S, from: String, to: String) -> Result<Vec<vaulty_core::calendar::Item>> {
+    s.data(|c| vaulty_core::calendar::range(c, &from, &to, &country(c)?, today()))
+}
+#[tauri::command] fn calendar_events(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::calendar::events) }
+#[tauri::command] fn calendar_event_create(s: S, event: Value) -> Result<Value> { limits::check(&event)?; s.act("event.create", |c| vaulty_core::calendar::create_event(c, &event)) }
+#[tauri::command] fn calendar_event_update(s: S, id: String, event: Value) -> Result<Value> { limits::check(&event)?; s.act("event.update", |c| vaulty_core::calendar::update_event(c, &id, &event)) }
+#[tauri::command] fn calendar_event_delete(s: S, id: String) -> Result<()> { s.act("event.delete", |c| vaulty_core::calendar::delete_event(c, &id)) }
+
+/// Writes the dates from `from` to `to` as an `.ics` file the person chose.
+#[tauri::command]
+fn calendar_export(s: S, path: String, from: String, to: String, include_amounts: bool) -> Result<usize> {
+    s.chosen(&path)?;
+    let items = s.data(|c| vaulty_core::calendar::range(c, &from, &to, &country(c)?, today()))?;
+    let n = items.iter().filter(|i| i.kind != "paid").count();
+    std::fs::write(path, vaulty_core::calendar::to_ics(&items, include_amounts))?;
+    Ok(n)
+}
+
+fn read_ics(path: &str) -> Result<Vec<vaulty_core::calendar::Imported>> {
+    vaulty_core::calendar::parse_ics(&read_limited(path, vaulty_core::calendar::MAX_ICS_BYTES as u64)?)
+}
+
+/// What an `.ics` file holds, before importing it.
+#[tauri::command]
+fn calendar_import_preview(s: S, path: String) -> Result<Vec<vaulty_core::calendar::Imported>> {
+    s.chosen(&path)?;
+    read_ics(&path)
+}
+
+#[tauri::command]
+fn calendar_import(s: S, path: String, as_holidays: bool) -> Result<usize> {
+    s.chosen(&path)?;
+    let events = read_ics(&path)?;
+    s.act("calendar.import", |c| vaulty_core::calendar::import_events(c, &events, as_holidays))
+}
 
 #[tauri::command] fn market_get(s: S) -> Result<Value> { s.data(vaulty_core::market::prefs_view) }
 #[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { limits::check(&prefs)?; s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
@@ -1161,7 +1207,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
+            pick_file, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,

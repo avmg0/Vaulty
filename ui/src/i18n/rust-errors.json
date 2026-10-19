@@ -256,6 +256,10 @@
   "re": "^a transfer needs a destination account$"
  },
  {
+  "id": "ecbe5189c",
+  "re": "^that calendar file is larger than 5 MB$"
+ },
+ {
   "id": "e5d803bee",
   "re": "^you don't need to share with yourself$"
  },
@@ -270,10 +274,6 @@
  {
   "id": "edf7ff440",
   "re": "^no regional list for that country yet$"
- },
- {
-  "id": "ee1fc6b52",
-  "re": "^that file is too large to be a backup$"
  },
  {
   "id": "e74a5c73f",
@@ -336,6 +336,10 @@
   "re": "^keep the hint under 80 characters$"
  },
  {
+  "id": "e34904523",
+  "re": "^repeat is none, monthly or yearly$"
+ },
+ {
   "id": "e3e62a6fb",
   "re": "^that doesn't look like an API key$"
  },
@@ -346,6 +350,10 @@
  {
   "id": "e4495eaf0",
   "re": "^a split can have at most 50 parts$"
+ },
+ {
+  "id": "e59b3e445",
+  "re": "^that isn't a calendar \\(\\.ics\\) file$"
  },
  {
   "id": "e5fa1869e",
@@ -660,6 +668,10 @@
   "re": "^expected auto, 0 or 2$"
  },
  {
+  "id": "ec18157fa",
+  "re": "^times look like 14:30$"
+ },
+ {
   "id": "ee812a271",
   "re": "^choose the file again$"
  },
@@ -764,6 +776,10 @@
   "re": "^bad public key$"
  },
  {
+  "id": "e6a286dbd",
+  "re": "^no such event$"
+ },
+ {
   "id": "e1999cbaa",
   "re": "^no such user$"
  },
@@ -828,6 +844,10 @@
   "re": "^password must be at least ([\\s\\S]+?) characters$"
  },
  {
+  "id": "eda24e1a1",
+  "re": "^that calendar has more than ([\\s\\S]+?) events$"
+ },
+ {
   "id": "e03a824c5",
   "re": "^`([\\s\\S]+?)` is not a 3-letter currency code$"
  },
@@ -858,6 +878,10 @@
  {
   "id": "e2447391d",
   "re": "^the sheet has more than ([\\s\\S]+?) rows$"
+ },
+ {
+  "id": "e31919f98",
+  "re": "^that file is larger than ([\\s\\S]+?) MB$"
  },
  {
   "id": "e946b691f",
@@ -910,6 +934,10 @@
  {
   "id": "ef1bbbafe",
   "re": "^unknown visibility `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "ef9535a63",
+  "re": "^unknown event type `([\\s\\S]+?)`$"
  },
  {
   "id": "eba370dab",

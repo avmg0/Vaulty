@@ -67,7 +67,7 @@ export function HotkeysProvider({ children }: { children: ReactNode }) {
   const keysRef = useRef(keys);
   keysRef.current = keys;
 
-  useEffect(() => { api.hotkeys.list().then(setList).catch(() => {}); }, []);
+  useEffect(() => { api.hotkeys.list().then((l) => setList(l ?? [])).catch(() => {}); }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (paused.current || e.repeat) return;
