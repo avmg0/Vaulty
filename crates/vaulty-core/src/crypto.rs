@@ -21,7 +21,11 @@ fn argon2() -> Argon2<'static> {
     Argon2::new(Algorithm::Argon2id, Version::V0x13, Params::new(64 * 1024, 3, 1, Some(32)).expect("valid Argon2 params"))
 }
 
+/// Passwords, setup codes and recovery keys longer than this are refused before hashing.
+fn check_secret(secret: &str) -> Result<()> { crate::limits::text("password", secret, crate::limits::PASSWORD) }
+
 pub fn hash_secret(secret: &str) -> Result<String> {
+    check_secret(secret)?;
     let salt = SaltString::generate(&mut OsRng);
     argon2()
         .hash_password(secret.as_bytes(), &salt)
@@ -35,6 +39,7 @@ pub fn is_current_hash(phc: &str) -> bool {
 }
 
 pub fn verify_secret(secret: &str, phc: &str) -> bool {
+    if check_secret(secret).is_err() { return false; }
     // Parameters come from the stored hash, so older hashes still verify.
     PasswordHash::new(phc)
         .map(|h| Argon2::default().verify_password(secret.as_bytes(), &h).is_ok())
@@ -43,6 +48,7 @@ pub fn verify_secret(secret: &str, phc: &str) -> bool {
 
 /// Key-encryption key from a password, setup code or recovery key (Argon2id, strong params).
 pub fn derive_key(secret: &str, salt_hex: &str) -> Result<Key> {
+    check_secret(secret)?;
     let salt = from_hex(salt_hex)?;
     let mut key = Zeroizing::new([0u8; 32]);
     argon2().hash_password_into(secret.as_bytes(), &salt, key.as_mut()).map_err(|e| Error::Auth(e.to_string()))?;

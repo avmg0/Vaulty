@@ -59,6 +59,14 @@ GitHub Actions are pinned to commits. Release signing is planned (see Roadmap 1c
 **6. The interface.** The web view loads only the bundled app (strict content security policy; no
 remote scripts, frames or content). It never talks to the internet itself; the few network calls
 are made by Rust. Commands validate everything they receive; the UI is never trusted with keys.
+Even if a script were somehow injected, it would be boxed in:
+- The policy allows only the app's own scripts, no frames, plugins or form posts, and images only
+  from the app or data the person chose. Built-in prototypes are frozen.
+- The web view has no file-system or shell permissions. Files are chosen in a native dialog opened
+  by Rust, and file commands only accept paths chosen that way during the run.
+- Every structured request is size-checked (`limits.rs`): text fields, notes, images, list lengths,
+  nesting depth and passwords all have ceilings, so nothing oversized reaches the database.
+
 Keys live in Rust memory only while a profile is unlocked and are wiped on lock (`zeroize`).
 
 ## Where protection ends (explicit non-goals)
@@ -92,6 +100,8 @@ No analytics, no telemetry, no crash reporting, no accounts, no Vaulty servers.
 ## Review checklist for new features
 
 - Does it store something new? Add it to the asset table and keep it in the member's encrypted database.
+- Does it take input from the interface? Run structured input through `limits::check`.
+- Does it read or write a file? Take the path from `pick_file` and call `chosen` first.
 - Does it read a file? Cap size, rows and lengths; fuzz it; snapshot before writing.
 - Does it go online? Opt-in, Rust only, listed in the network table, nothing sent beyond what's needed.
 - Does it change data? Record it in history so it can be undone.

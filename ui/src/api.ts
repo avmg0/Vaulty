@@ -254,6 +254,8 @@ export const api = {
     import: (path: string, password?: string) => invoke<{ transactions: number; accounts: number; categories: number }>("backup_import", { path, password }),
     exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
+  /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
+  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv", label: string) => invoke<string | null>("pick_file", { kind, label }) },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {
     inspect: (path: string, accountId: string) => invoke<StatementInfo>("statement_inspect", { path, accountId }),

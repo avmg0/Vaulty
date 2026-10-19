@@ -15,6 +15,7 @@ pub mod history;
 pub mod household;
 pub mod institutions;
 pub mod ledger;
+pub mod limits;
 pub mod market;
 pub mod money;
 pub mod profiles;

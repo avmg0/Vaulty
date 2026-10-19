@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { open, save } from "@tauri-apps/plugin-dialog";
 import { ArchiveRestore, FileSpreadsheet, Loader2, Lock, Printer, ShieldCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, DATA_RESTORED, errorText, type BackupInfo } from "@/api";
@@ -13,7 +12,6 @@ import { printRecoverySheet } from "@/components/RecoverySheet";
 import { useSession } from "@/hooks/session";
 import { formatDate } from "@/lib/utils";
 
-const stamp = () => new Date().toISOString().slice(0, 10);
 
 /** Encrypted backups, restoring, spreadsheet export and the printable recovery sheet. */
 export function BackupsCard() {
@@ -26,14 +24,14 @@ export function BackupsCard() {
 
   const exportCsv = async () => {
     setError(""); setNote("");
-    const path = await save({ defaultPath: `vaulty-transactions-${stamp()}.csv`, filters: [{ name: "CSV", extensions: ["csv"] }] });
+    const path = await api.files.pick("save_csv", "CSV");
     if (!path) return;
     try { setNote(t("backups.csvDone", { count: await api.backup.exportCsv(path) })); } catch (e) { setError(errorText(e)); }
   };
   const pickRestore = async () => {
     setError(""); setNote("");
-    const path = await open({ multiple: false, directory: false, filters: [{ name: t("backups.files"), extensions: ["vaulty", "json"] }] });
-    if (typeof path !== "string") return;
+    const path = await api.files.pick("backup", t("backups.files"));
+    if (!path) return;
     try { setRestore({ path, info: await api.backup.inspect(path) }); } catch (e) { setError(errorText(e)); }
   };
 
@@ -83,7 +81,7 @@ function MakeDialog({ open: isOpen, onClose, onDone }: { open: boolean; onClose:
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (pw !== confirm) return setError(t("security.mismatch"));
-    const path = await save({ defaultPath: `vaulty-backup-${stamp()}.vaulty`, filters: [{ name: t("backups.files"), extensions: ["vaulty"] }] });
+    const path = await api.files.pick("save_backup", t("backups.files"));
     if (!path) return;
     setBusy(true); setError("");
     try { await api.backup.export(path, pw, hint || undefined); reset(); onDone(t("backups.made", { file: path.split(/[\\/]/).pop() })); }

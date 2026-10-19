@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import { open } from "@tauri-apps/plugin-dialog";
 import { AlertTriangle, CheckCircle2, Copy, FileSpreadsheet, Loader2, RotateCcw, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, errorText, type Account, type ImportMapping, type ImportRow, type StatementInfo } from "@/api";
@@ -36,8 +35,8 @@ export function ImportPage({ onOpenHistory }: { onOpenHistory?: () => void }) {
 
   const choose = async () => {
     setError("");
-    const picked = await open({ multiple: false, directory: false, filters: [{ name: t("import.filesName"), extensions: ["csv", "txt", "xlsx", "xls", "xlsm", "ods"] }] });
-    if (typeof picked !== "string") return;
+    const picked = await api.files.pick("statement", t("import.filesName"));
+    if (!picked) return;
     setPath(picked); setInfo(null); setMapping(null); setRows(null); setFlipped(new Set()); setDone(null);
   };
 

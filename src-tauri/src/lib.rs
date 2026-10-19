@@ -2,7 +2,7 @@ mod biometric;
 mod market;
 
 use rusqlite::Connection;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{
     path::PathBuf,
@@ -11,7 +11,7 @@ use std::{
 };
 use tauri::{Manager, State};
 use vaulty_core::{
-    accounts, categories, db, export, recurring, statements,
+    accounts, limits, categories, db, export, recurring, statements,
     household::{FeedFilter, FeedView, Household, SharingPrefs},
     profiles::{Invite, PasswordOutcome, Registry, Role, SecondFactor, TotpEnrollment, Unlocked, UserSummary},
     settings, transactions, Error, Result,
@@ -49,6 +49,9 @@ struct AppState {
     registry: Mutex<Registry>,
     session: Mutex<Option<Session>>,
     pending: Mutex<Option<(SecondFactor, Instant)>>,
+    /// Files the person chose in a file dialog this run. File commands only touch these, so a
+    /// script injected into the interface couldn't read or overwrite any other file.
+    picked: Mutex<Vec<String>>,
 }
 
 /// Returned by every sign-in route. `recovery_key` is set only when a new one was just created
@@ -427,16 +430,54 @@ fn biometric_disable(s: S) -> Result<()> {
 // ============================================================ finance data (signed-in user's own DB)
 
 #[tauri::command] fn accounts_get_all(s: S) -> Result<Vec<Value>> { s.data(accounts::get_all) }
-#[tauri::command] fn accounts_create(s: S, account: Value) -> Result<Value> { s.act("account.create", |c| accounts::create(c, &account)) }
-#[tauri::command] fn accounts_update(s: S, id: String, account: Value) -> Result<Value> { s.act("account.update", |c| accounts::update(c, &id, &account)) }
+#[tauri::command] fn accounts_create(s: S, account: Value) -> Result<Value> { limits::check(&account)?; s.act("account.create", |c| accounts::create(c, &account)) }
+#[tauri::command] fn accounts_update(s: S, id: String, account: Value) -> Result<Value> { limits::check(&account)?; s.act("account.update", |c| accounts::update(c, &id, &account)) }
 #[tauri::command] fn accounts_delete(s: S, id: String) -> Result<()> { s.act("account.delete", |c| accounts::delete(c, &id)) }
 
 #[tauri::command] fn categories_get_all(s: S) -> Result<Vec<Value>> { s.data(categories::get_all) }
-#[tauri::command] fn categories_create(s: S, category: Value) -> Result<Value> { s.act("category.create", |c| categories::create(c, &category)) }
-#[tauri::command] fn categories_update(s: S, id: String, category: Value) -> Result<Value> { s.act("category.update", |c| categories::update(c, &id, &category)) }
+#[tauri::command] fn categories_create(s: S, category: Value) -> Result<Value> { limits::check(&category)?; s.act("category.create", |c| categories::create(c, &category)) }
+#[tauri::command] fn categories_update(s: S, id: String, category: Value) -> Result<Value> { limits::check(&category)?; s.act("category.update", |c| categories::update(c, &id, &category)) }
 #[tauri::command] fn categories_delete(s: S, id: String) -> Result<()> { s.act("category.delete", |c| categories::delete(c, &id)) }
 
 // ============================================================ statement import
+
+// ============================================================ choosing files
+
+/// What a file dialog is for. The kind decides the file types offered and whether it opens or saves.
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum Pick { Statement, Backup, SaveBackup, SaveCsv }
+
+impl AppState {
+    /// Refuses a path the person didn't choose in a file dialog this run.
+    fn chosen(&self, path: &str) -> Result<()> {
+        if self.picked.lock().map_err(|_| Error::Invalid("busy".into()))?.iter().any(|p| p == path) { Ok(()) }
+        else { Err(Error::Invalid("choose the file again".into())) }
+    }
+}
+
+/// Opens the system file dialog and returns what the person chose (nothing if they cancelled).
+/// `label` names the file types in the dialog, in the interface's language.
+#[tauri::command]
+async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String) -> Result<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+    limits::text("label", &label, 100)?;
+    let stamp = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let d = app.dialog().file();
+    match kind {
+        Pick::Statement => d.add_filter(label, &["csv", "txt", "xlsx", "xls", "xlsm", "ods"]).pick_file(move |p| { let _ = tx.send(p); }),
+        Pick::Backup => d.add_filter(label, &["vaulty", "json"]).pick_file(move |p| { let _ = tx.send(p); }),
+        Pick::SaveBackup => d.add_filter(label, &["vaulty"]).set_file_name(format!("vaulty-backup-{stamp}.vaulty")).save_file(move |p| { let _ = tx.send(p); }),
+        Pick::SaveCsv => d.add_filter(label, &["csv"]).set_file_name(format!("vaulty-transactions-{stamp}.csv")).save_file(move |p| { let _ = tx.send(p); }),
+    }
+    let Some(chosen) = rx.await.ok().flatten() else { return Ok(None) };
+    let path = chosen.into_path().map_err(|_| Error::Invalid("that location can't be used".into()))?.to_string_lossy().into_owned();
+    let mut picked = s.picked.lock().map_err(|_| Error::Invalid("busy".into()))?;
+    if picked.len() >= 50 { picked.remove(0); }
+    picked.push(path.clone());
+    Ok(Some(path))
+}
 
 /// Reads a statement the member picked, refusing anything over the size limit before loading it.
 fn read_statement(path: &str) -> Result<statements::Table> {
@@ -455,12 +496,14 @@ fn default_order(c: &Connection) -> Result<statements::DateOrder> {
 
 #[tauri::command]
 fn statement_inspect(s: S, path: String, account_id: String) -> Result<Value> {
+    s.chosen(&path)?;
     let t = read_statement(&path)?;
     s.data(|c| statements::inspect(c, &t, &account_id, default_order(c)?))
 }
 
 #[tauri::command]
 fn statement_preview(s: S, path: String, account_id: String, mapping: statements::Mapping) -> Result<Vec<statements::ParsedRow>> {
+    s.chosen(&path)?;
     let t = read_statement(&path)?;
     s.data(|c| statements::preview(c, &t, &mapping, &account_id))
 }
@@ -468,6 +511,7 @@ fn statement_preview(s: S, path: String, account_id: String, mapping: statements
 /// Imports the chosen rows: `skip` lists new rows to leave out, `include` duplicates to add anyway.
 #[tauri::command]
 fn statement_import(s: S, path: String, account_id: String, mapping: statements::Mapping, skip: Vec<usize>, include: Vec<usize>) -> Result<usize> {
+    s.chosen(&path)?;
     let t = read_statement(&path)?;
     let me = s.current_user()?;
     s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "before-import")))?;
@@ -482,8 +526,8 @@ fn day(s: &str) -> Result<chrono::NaiveDate> {
 }
 
 #[tauri::command] fn recurring_list(s: S) -> Result<Vec<Value>> { s.data(|c| recurring::list(c, today())) }
-#[tauri::command] fn recurring_create(s: S, item: Value) -> Result<Value> { s.act("recurring.create", |c| recurring::create(c, &item, today())) }
-#[tauri::command] fn recurring_update(s: S, id: String, item: Value) -> Result<Value> { s.act("recurring.update", |c| recurring::update(c, &id, &item, today())) }
+#[tauri::command] fn recurring_create(s: S, item: Value) -> Result<Value> { limits::check(&item)?; s.act("recurring.create", |c| recurring::create(c, &item, today())) }
+#[tauri::command] fn recurring_update(s: S, id: String, item: Value) -> Result<Value> { limits::check(&item)?; s.act("recurring.update", |c| recurring::update(c, &id, &item, today())) }
 #[tauri::command] fn recurring_set_active(s: S, id: String, active: bool) -> Result<Value> {
     s.act(if active { "recurring.resume" } else { "recurring.pause" }, |c| recurring::set_active(c, &id, active, today()))
 }
@@ -497,7 +541,7 @@ fn day(s: &str) -> Result<chrono::NaiveDate> {
     s.data(|c| recurring::upcoming(c, from, to))
 }
 /// Records the due occurrence as paid: creates its transaction and moves to the next date.
-#[tauri::command] fn recurring_pay(s: S, id: String, date: Option<String>, amount: Option<Value>) -> Result<Value> {
+#[tauri::command] fn recurring_pay(s: S, id: String, date: Option<String>, amount: Option<Value>) -> Result<Value> { if let Some(a) = &amount { limits::check(a)? }
     s.act_and_share("recurring.pay", |c, me, h| {
         let row = recurring::mark_paid(c, &id, date.as_deref(), amount.as_ref(), today())?;
         h.publish(me, &row)?;
@@ -508,14 +552,14 @@ fn day(s: &str) -> Result<chrono::NaiveDate> {
 /// Each category's budget and what was spent in `month` (YYYY-MM).
 #[tauri::command] fn budgets_month(s: S, month: String) -> Result<Value> { s.data(|c| vaulty_core::budgets::month(c, &month)) }
 /// Sets a category's monthly budget; null or 0 removes it.
-#[tauri::command] fn budgets_set(s: S, category_id: String, amount: Value) -> Result<Option<Value>> {
+#[tauri::command] fn budgets_set(s: S, category_id: String, amount: Value) -> Result<Option<Value>> { limits::check(&amount)?;
     s.act("budget.set", |c| vaulty_core::budgets::set(c, &category_id, &amount))
 }
 
 /// Hidden transactions come back masked (amount, date and account only) unless the caller asks
 /// with `reveal_hidden` and the Hidden section is unlocked.
 #[tauri::command]
-fn transactions_get_all(s: S, filters: Option<Value>) -> Result<Vec<Value>> {
+fn transactions_get_all(s: S, filters: Option<Value>) -> Result<Vec<Value>> { if let Some(f) = &filters { limits::check(f)? }
     let wants = filters.as_ref().and_then(|f| f.get("reveal_hidden")).and_then(Value::as_bool).unwrap_or(false);
     let reveal = wants && s.hidden_open()?;
     s.data(|c| transactions::list(c, filters.as_ref(), reveal))
@@ -584,7 +628,7 @@ fn transactions_set_hidden(s: S, id: String, hidden: bool) -> Result<Value> {
 
 /// Applies one change to many transactions as a single undoable action (see `transactions::bulk`).
 #[tauri::command]
-fn transactions_bulk(s: S, ids: Vec<String>, action: Value) -> Result<usize> {
+fn transactions_bulk(s: S, ids: Vec<String>, action: Value) -> Result<usize> { limits::check(&action)?;
     for id in &ids { s.guard_hidden(id)?; }
     s.act_and_share("transaction.bulk", |c, me, h| {
         let n = transactions::bulk(c, &ids, &action)?;
@@ -629,7 +673,7 @@ fn with_default_visibility(h: &Household, user_id: &str, mut t: Value) -> Result
 }
 
 #[tauri::command]
-fn transactions_create(s: S, transaction: Value) -> Result<Value> {
+fn transactions_create(s: S, transaction: Value) -> Result<Value> { limits::check(&transaction)?;
     s.act_and_share("transaction.create", |c, me, h| {
         let row = transactions::create(c, &with_default_visibility(h, me, transaction)?)?;
         learn_rule(c, &row)?;
@@ -638,7 +682,7 @@ fn transactions_create(s: S, transaction: Value) -> Result<Value> {
     })
 }
 #[tauri::command]
-fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> {
+fn transactions_update(s: S, id: String, transaction: Value) -> Result<Value> { limits::check(&transaction)?;
     s.guard_hidden(&id)?;
     s.act_and_share("transaction.update", |c, me, h| {
         let row = transactions::update(c, &id, &transaction)?;
@@ -705,10 +749,11 @@ fn family_feed(s: S, view: FeedView, filter: Option<FeedFilter>) -> Result<Vec<V
 }
 
 #[tauri::command] fn settings_get(s: S) -> Result<Value> { s.data(settings::get) }
-#[tauri::command] fn settings_update(s: S, settings: Value) -> Result<Value> { s.act("settings.update", |c| settings::update(c, &settings)) }
+#[tauri::command] fn settings_update(s: S, settings: Value) -> Result<Value> { limits::check(&settings)?; s.act("settings.update", |c| settings::update(c, &settings)) }
 
 #[tauri::command]
 fn export_json(s: S, path: String) -> Result<()> {
+    s.chosen(&path)?;
     s.guard_export()?;
     let v = s.data(export::to_json)?;
     std::fs::write(path, serde_json::to_vec_pretty(&v)?)?;
@@ -716,6 +761,7 @@ fn export_json(s: S, path: String) -> Result<()> {
 }
 #[tauri::command]
 fn export_csv(s: S, path: String) -> Result<usize> {
+    s.chosen(&path)?;
     s.guard_export()?;
     let (text, n) = s.data(export::to_csv)?;
     std::fs::write(path, text)?;
@@ -724,6 +770,7 @@ fn export_csv(s: S, path: String) -> Result<usize> {
 /// Writes a password-protected backup (`.vaulty`, see docs/BACKUP_FORMAT.md).
 #[tauri::command]
 fn backup_export(s: S, path: String, password: String, hint: Option<String>) -> Result<()> {
+    s.chosen(&path)?;
     s.guard_export()?;
     let bytes = s.data(|c| vaulty_core::backup::encrypt(c, &password, hint.as_deref()))?;
     std::fs::write(path, bytes)?;
@@ -732,7 +779,8 @@ fn backup_export(s: S, path: String, password: String, hint: Option<String>) -> 
 
 /// What a backup file is, before restoring: encrypted (with its hint and date) or plain JSON.
 #[tauri::command]
-fn backup_inspect(path: String) -> Result<Value> {
+fn backup_inspect(s: S, path: String) -> Result<Value> {
+    s.chosen(&path)?;
     let bytes = read_limited(&path, 200 * 1024 * 1024)?;
     Ok(match vaulty_core::backup::header(&bytes) {
         Some(h) => json!({ "encrypted": true, "hint": h["hint"], "created_at": h["created_at"] }),
@@ -752,6 +800,7 @@ fn read_limited(path: &str, max: u64) -> Result<Vec<u8>> {
 /// kept; a safety copy is taken first and the restore can be undone.
 #[tauri::command]
 fn backup_import(s: S, path: String, password: Option<String>) -> Result<Value> {
+    s.chosen(&path)?;
     let bytes = read_limited(&path, 200 * 1024 * 1024)?;
     let data = match vaulty_core::backup::header(&bytes) {
         Some(_) => vaulty_core::backup::decrypt(&bytes, password.as_deref().ok_or_else(|| Error::Auth("this backup needs its password".into()))?)?,
@@ -762,6 +811,7 @@ fn backup_import(s: S, path: String, password: Option<String>) -> Result<Value> 
 
 #[tauri::command]
 fn import_json(s: S, path: String) -> Result<Value> {
+    s.chosen(&path)?;
     restore_backup(&s, serde_json::from_slice(&read_limited(&path, 200 * 1024 * 1024)?)?)
 }
 
@@ -777,12 +827,12 @@ fn restore_backup(s: &AppState, data: Value) -> Result<Value> {
 }
 #[tauri::command] fn cards_list(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::cards::list) }
 /// Card commands never receive a full card number: only network, last 4 and the other details.
-#[tauri::command] fn cards_create(s: S, card: Value) -> Result<Value> { s.act("card.create", |c| vaulty_core::cards::create(c, &card)) }
-#[tauri::command] fn cards_update(s: S, id: String, card: Value) -> Result<Value> { s.act("card.update", |c| vaulty_core::cards::update(c, &id, &card)) }
+#[tauri::command] fn cards_create(s: S, card: Value) -> Result<Value> { limits::check(&card)?; s.act("card.create", |c| vaulty_core::cards::create(c, &card)) }
+#[tauri::command] fn cards_update(s: S, id: String, card: Value) -> Result<Value> { limits::check(&card)?; s.act("card.update", |c| vaulty_core::cards::update(c, &id, &card)) }
 #[tauri::command] fn cards_delete(s: S, id: String) -> Result<()> { s.act("card.delete", |c| vaulty_core::cards::delete(c, &id)) }
 
 #[tauri::command] fn market_get(s: S) -> Result<Value> { s.data(vaulty_core::market::prefs_view) }
-#[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
+#[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { limits::check(&prefs)?; s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
 /// `which` is `stock` or `crypto`; an empty key removes it.
 #[tauri::command] fn market_set_key(s: S, which: String, key: Option<String>) -> Result<Value> {
     s.data(|c| { vaulty_core::market::set_key(c, &which, key.as_deref())?; vaulty_core::market::prefs_view(c) })
@@ -881,7 +931,7 @@ fn snapshots_restore(s: S, name: String) -> Result<()> {
 /// Countries with tax rules, the rules themselves, and an estimate comparing every regime.
 #[tauri::command] fn tax_countries() -> Result<Vec<String>> { vaulty_core::tax::countries() }
 #[tauri::command] fn tax_describe(country: String) -> Result<Value> { vaulty_core::tax::describe(&country) }
-#[tauri::command] fn tax_compare(country: String, year: Option<String>, input: Value) -> Result<Value> {
+#[tauri::command] fn tax_compare(country: String, year: Option<String>, input: Value) -> Result<Value> { limits::check(&input)?;
     vaulty_core::tax::compare(&country, year.as_deref(), &input)
 }
 
@@ -962,10 +1012,12 @@ pub fn run() {
                 registry: Mutex::new(registry),
                 session: Mutex::new(None),
                 pending: Mutex::new(None),
+                picked: Mutex::new(Vec::new()),
             });
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            pick_file,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,
