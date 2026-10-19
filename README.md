@@ -88,5 +88,11 @@ cargo test --workspace
 cargo install --locked cargo-deny cargo-audit   # once
 cargo deny check && cargo audit
 ```
+`crates/vaulty-core/tests/fuzz.rs` throws random and hostile input at the importers, backups,
+restores and tax estimates, and random sequences of edits and undos at the ledger. CI runs a
+short pass; for a deeper search before a release:
+```
+PROPTEST_CASES=5000 cargo test --release -p vaulty-core --test fuzz
+```
 
 See **ROADMAP.md** for phases, architecture decisions and feature ideas.

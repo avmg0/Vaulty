@@ -27,3 +27,4 @@ calamine = { version = "0.37", default-features = false, features = ["dates"] }
 [dev-dependencies]
 totp-rs = { version = "6", features = ["otpauth", "gen_secret"] }
 tempfile = "3"
+proptest = { version = "1", default-features = false, features = ["std"] }

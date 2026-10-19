@@ -108,6 +108,14 @@ fn parsing_helpers() {
     assert_eq!(parse_amount("1.234,56"), Some((false, "1234.56".into())));
     assert_eq!(parse_amount("-"), None);
     assert_eq!(parse_amount("abc"), None);
+    // Dates, references and other text in an amount column are not amounts.
+    assert_eq!(parse_amount("10-10"), None);
+    assert_eq!(parse_amount("0-0.001"), None);
+    assert_eq!(parse_amount("12/500"), None);
+    assert_eq!(parse_amount("Rs. 500"), Some((false, "500".into())));
+    assert_eq!(parse_amount("INR 1,250.50 Dr."), Some((true, "1250.50".into())));
+    assert_eq!(parse_amount("500-"), Some((true, "500".into())));
+    assert_eq!(parse_amount("+75.25"), Some((false, "75.25".into())));
     let d = |s, o| parse_date(s, o).map(|d| d.to_string());
     assert_eq!(d("15-Oct-2026", DateOrder::Mdy).as_deref(), Some("2026-10-15"));
     assert_eq!(d("Oct 15, 2026", DateOrder::Dmy).as_deref(), Some("2026-10-15"));

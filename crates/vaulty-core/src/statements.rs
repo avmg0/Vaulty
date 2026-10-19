@@ -227,14 +227,24 @@ pub fn parse_amount(s: &str) -> Option<(bool, String)> {
     if t.is_empty() || t == "-" || t == "0" || t == "0.00" { return None; }
     let mut negative = t.starts_with('-') || t.ends_with('-') || (t.starts_with('(') && t.ends_with(')')) || t.ends_with("dr") || t.ends_with("dr.");
     if t.ends_with("cr") || t.ends_with("cr.") { negative = false; }
-    let digits: String = t.chars().filter(|c| c.is_ascii_digit() || *c == '.' || *c == ',').collect();
-    if digits.is_empty() { return None; }
+    // Strip what may surround a number; anything else left over (a minus in the middle, a slash,
+    // letters) means this isn't an amount, e.g. a date like "10-10" must not read as 1010.
+    let mut core = t.trim_end_matches('.').trim_end_matches("dr").trim_end_matches("cr").trim();
+    for p in ["rs.", "rs", "inr", "usd", "eur", "gbp", "aed"] {
+        core = core.strip_prefix(p).or_else(|| core.strip_suffix(p)).unwrap_or(core).trim();
+    }
+    let core: String = core.chars().filter(|c| !c.is_whitespace() && !matches!(c, '₹' | '$' | '€' | '£' | '¥' | '(' | ')' | '+' | '\'')).collect();
+    let core = core.strip_prefix('-').or_else(|| core.strip_suffix('-')).unwrap_or(&core);
+    if !core.chars().all(|c| c.is_ascii_digit() || c == '.' || c == ',') { return None; }
+    let digits = core.to_string();
+    if !digits.chars().any(|c| c.is_ascii_digit()) { return None; }
     // European style if the last separator is a comma followed by 1–2 digits.
     let euro = digits.rfind(',').is_some_and(|i| digits.len() - i - 1 <= 2 && digits[i + 1..].chars().all(|c| c.is_ascii_digit()) && !digits[i..].contains('.'))
         && digits.matches(',').count() == 1 && digits.contains('.');
     let clean = if euro { digits.replace('.', "").replace(',', ".") } else { digits.replace(',', "") };
     clean.parse::<f64>().ok().filter(|v| *v > 0.0)?;
-    Some((negative, clean))
+    let clean = if clean.starts_with('.') { format!("0{clean}") } else { clean };
+    Some((negative, clean.trim_end_matches('.').to_string()))
 }
 
 /// Shorter, readable merchant names from bank narrations, e.g. "UPI/412345678/SWIGGY/..." → "SWIGGY".

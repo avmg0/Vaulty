@@ -325,9 +325,12 @@ fn blocker(conn: &Connection, batch: i64) -> Result<Option<String>> {
     if undone.is_some() { return Ok(Some("already undone".into())); }
     // Reversing a data-format update could leave data the app no longer understands.
     if action == "app.update" { return Ok(Some("app updates can't be undone; restore a safety copy instead".into())); }
+    // Later changes to the same rows block it, except a change that was undone and the undo that
+    // reversed it: together they cancel out (add, edit, undo, undo works like any undo stack).
     let later: i64 = conn.query_row(
         "SELECT COUNT(*) FROM change_log l JOIN change_batches b ON b.id = l.batch_id
           WHERE l.batch_id > ?1 AND b.undone_by IS NULL
+            AND NOT (b.undo_of IS NOT NULL AND (SELECT o.undone_by FROM change_batches o WHERE o.id = b.undo_of) = b.id)
             AND EXISTS (SELECT 1 FROM change_log m WHERE m.batch_id = ?1 AND m.tbl = l.tbl AND m.row_id = l.row_id)",
         [batch], |r| r.get(0))?;
     Ok((later > 0).then(|| "changed again since; undo the later change first".into()))

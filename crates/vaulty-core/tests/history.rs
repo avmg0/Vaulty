@@ -119,3 +119,25 @@ fn history_survives_reopening_and_logs_are_encrypted() {
     history::undo_last(&c).unwrap();
     assert_eq!(accounts::get_all(&c).unwrap().len(), 1);
 }
+
+#[test]
+fn undo_twice_after_an_edit_walks_back_like_any_undo_stack() {
+    let (c, acc) = setup();
+    let t = history::record(&c, "transaction.create", |c| transactions::create(c, &json!({ "account_id": acc, "type": "expense", "amount": "100", "date": "2026-10-01" }))).unwrap();
+    let id = t["id"].as_str().unwrap().to_string();
+    history::record(&c, "transaction.update", |c| transactions::update(c, &id, &json!({ "account_id": acc, "type": "expense", "amount": "300", "date": "2026-10-01" }))).unwrap();
+    assert_eq!(balance(&c, &acc), 700.0);
+
+    history::undo_last(&c).unwrap().expect("undo the edit");
+    assert_eq!(balance(&c, &acc), 900.0);
+    history::undo_last(&c).unwrap().expect("then undo adding it");
+    assert_eq!(balance(&c, &acc), 1000.0);
+    assert!(history::verify(&c).unwrap().broken_at.is_none());
+
+    // A later change that is still in force does block undoing the earlier one.
+    let t = history::record(&c, "transaction.create", |c| transactions::create(c, &json!({ "account_id": acc, "type": "expense", "amount": "50", "date": "2026-10-02" }))).unwrap();
+    let id = t["id"].as_str().unwrap().to_string();
+    let first = history::recent(&c, 1).unwrap()[0]["id"].as_i64().unwrap();
+    history::record(&c, "transaction.update", |c| transactions::update(c, &id, &json!({ "account_id": acc, "type": "expense", "amount": "60", "date": "2026-10-02" }))).unwrap();
+    assert!(history::undo(&c, first).is_err());
+}
