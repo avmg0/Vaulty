@@ -275,13 +275,15 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - **Done when:** the family uses it for a month instead of a spreadsheet.
 
 ### Phase 2: Security before public release (v0.5, public beta)
-- [ ] Threat model and `SECURITY.md` (decision 1c, parts 1 and 7)
-- [ ] Harden the app shell: content security policy, isolation pattern, size and rate limits (1c, part 3)
-- [ ] Fuzz tests for importers, property tests for the ledger and keys (1c, part 2)
-- [ ] Signed releases and updater; release-chain protection (1c, part 5)
+- [x] Threat model and `SECURITY.md` (decision 1c, parts 1 and 7)
+- [x] Harden the app shell: strict content security policy, frozen prototypes, no window permissions beyond the core, files only after the person picks them, size limits on every request (1c, part 3). The isolation pattern was dropped: with no plugin permissions left in the window, it adds little.
+- [x] Property tests for importers, backups, restores and the ledger (`tests/fuzz.rs`); found and fixed two bugs (1c, part 2)
+- [x] Release workflow: signed updates, checksums, build provenance, pinned actions; opt-in, admin-only updates in the app (1c, part 5). Needs the one-time key setup in docs/RELEASING.md; Windows signing later
 - [ ] Biometric item bound at the OS level; external fingerprint copies (1c, parts 4 and 8)
-- [ ] Accessibility pass; senior mode
-- [ ] OWASP ASVS self-review, then a first external audit (1c, part 6)
+- [x] Accessibility pass (axe on every page, keyboard-only walk-through); senior mode
+- [x] OWASP ASVS self-review (`docs/ASVS.md`)
+- [ ] Fix the ASVS follow-ups: auto-lock enforced in Rust, common-password check, failed sign-ins shown
+- [ ] First external audit (1c, part 6)
 - **Done when:** signed installers are on GitHub Releases and audit findings are fixed.
 
 ### Phase 3: Planning and reminders (v0.6)
@@ -429,7 +431,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 ### For the project
 - [ ] Demo mode with John Doe sample data, so screenshots, testing and new contributors never touch real data (Phase 1).
 - [ ] Import from other apps: Money Manager, Walnut, YNAB and similar (Phase 2).
-- [ ] Accessibility check: screen readers and keyboard-only use, with older family members in mind (Phase 2).
+- [x] Accessibility check: screen readers and keyboard-only use, with older family members in mind (Phase 2).
 
 ## Business: invoicing and beyond (added 16 October 2026)
 Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. Suggested order: workspace → GST invoices with PDF and email → payments and receivables → bills and GST returns → stock, payroll and the rest.
@@ -482,7 +484,7 @@ Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. S
 - [ ] Cash-flow diagram: salary into accounts, out to bills, investments and savings, built on the chart kit (Phase 2).
 
 ### Family life
-- [ ] Senior mode: large text, fewer menus, bigger buttons; a family member can help set it up (Phase 2, top pick).
+- [x] Senior mode: large text, fewer menus, bigger buttons; a family member can help set it up (Phase 2, top pick).
 - [ ] Document expiry reminders: passport, driving licence, vehicle insurance, PUC, health policy, FD maturity; on the calendar with advance reminders (Phase 2, top pick).
 - [ ] Medical expenses and insurance claims: bills, claim status, reimbursements, remaining tax-saving health cover (Phase 3).
 
