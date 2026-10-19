@@ -46,7 +46,13 @@ fn parse_name(name: &str) -> Option<(chrono::DateTime<chrono::Utc>, String)> {
 pub fn take(conn: &Connection, key: &Key, dir: &Path, reason: &str) -> Result<Snapshot> {
     if !valid_reason(reason) { return Err(Error::Invalid(format!("unknown snapshot reason `{reason}`"))); }
     std::fs::create_dir_all(dir)?;
+    // Names sort by time, and pruning keeps the newest. If several are taken within a second, the
+    // clock is bumped past the newest existing one, so a new snapshot never sorts as older than an
+    // earlier one (it would then be pruned straight away).
     let mut now = chrono::Utc::now();
+    if let Some(latest) = list(dir)?.iter().filter_map(|s| parse_name(&s.name).map(|(at, _)| at)).max() {
+        if latest >= now { now = latest + chrono::Duration::seconds(1); }
+    }
     let mut path;
     loop {
         path = dir.join(format!("{}-{reason}.db", now.format("%Y%m%dT%H%M%SZ")));
@@ -67,8 +73,9 @@ pub fn take(conn: &Connection, key: &Key, dir: &Path, reason: &str) -> Result<Sn
     verify(&tmp, key)?;
     std::fs::rename(&tmp, &path)?;
     let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
-    prune(dir)?;
-    Ok(Snapshot { at: now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true), reason: reason.into(), size: std::fs::metadata(&path)?.len(), name })
+    let size = std::fs::metadata(&path)?.len();
+    prune(dir, &name)?;
+    Ok(Snapshot { at: now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true), reason: reason.into(), size, name })
 }
 
 /// Opens a snapshot with the key and runs SQLite's integrity check.
@@ -101,9 +108,10 @@ pub fn age_of_latest(dir: &Path) -> Result<Option<i64>> {
     }))
 }
 
-fn prune(dir: &Path) -> Result<()> {
+/// Keeps a bounded set of snapshots, always including `just_taken`.
+fn prune(dir: &Path, just_taken: &str) -> Result<()> {
     let all = list(dir)?;
-    let mut keep: HashSet<String> = HashSet::new();
+    let mut keep: HashSet<String> = HashSet::from([just_taken.to_string()]);
     let (mut days, mut weeks, mut before) = (vec![], vec![], 0);
     for s in &all {
         let Some((at, _)) = parse_name(&s.name) else { continue };

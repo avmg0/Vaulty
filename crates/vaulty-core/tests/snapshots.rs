@@ -78,3 +78,24 @@ fn snapshot_before_pending_migrations() {
     assert_eq!(list.len(), 1);
     assert_eq!(list[0].reason, "before-update");
 }
+
+/// On fast machines several snapshots land in the same second and get names a few seconds ahead.
+/// A new one must still sort as the newest, or pruning deletes it the moment it's made.
+#[test]
+fn a_new_snapshot_is_never_pruned_straight_away() {
+    let dir = tempfile::tempdir().unwrap();
+    let snaps = dir.path().join("snapshots");
+    let c = db::open_in_memory().unwrap();
+    let first = snapshots::take(&c, &key(), &snaps, "before-import").unwrap();
+    // Five "before" snapshots already named a few seconds ahead of the clock.
+    for s in 1..=5 {
+        let at = chrono::Utc::now() + chrono::Duration::seconds(s);
+        std::fs::copy(snaps.join(&first.name), snaps.join(format!("{}-before-import.db", at.format("%Y%m%dT%H%M%SZ")))).unwrap();
+    }
+    // ...and the current second's name free again, as after an earlier prune.
+    std::fs::remove_file(snaps.join(&first.name)).unwrap();
+    let new = snapshots::take(&c, &key(), &snaps, "before-import").unwrap();
+    let list = snapshots::list(&snaps).unwrap();
+    assert!(list.iter().any(|s| s.name == new.name), "the snapshot just taken was pruned");
+    assert_eq!(list.first().map(|s| s.name.as_str()), Some(new.name.as_str()), "and it's the newest");
+}

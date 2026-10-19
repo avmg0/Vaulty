@@ -72,7 +72,8 @@ fn totp_enrollment_sign_in_and_replay_protection() {
     let e = r.begin_totp(&admin, "parent-password").unwrap();
     assert!(e.otpauth_url.starts_with("otpauth://totp/Vaulty:John%20Doe"), "{}", e.otpauth_url);
     assert!(!e.qr_png_base64.is_empty());
-    let codes = r.confirm_totp(&admin, "parent-password", &e.secret_base32, &now_code(&e.secret_base32, "John Doe")).unwrap();
+    let enrol_code = now_code(&e.secret_base32, "John Doe");
+    let codes = r.confirm_totp(&admin, "parent-password", &e.secret_base32, &enrol_code).unwrap();
     assert_eq!(codes.len(), 10);
     assert!(r.get(&admin).unwrap().totp_enabled);
 
@@ -80,11 +81,9 @@ fn totp_enrollment_sign_in_and_replay_protection() {
         panic!("2FA should be required");
     };
     assert_eq!(pending.secret_for_tests(), e.secret_base32, "secret is unsealed with the data key");
-    // The code used during enrolment can't be reused within the same 30s step.
-    let step = || std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() / 30;
-    let before = step();
-    let reuse = r.complete_with_totp(&pending, &now_code(&e.secret_base32, "John Doe"));
-    if step() == before { assert!(reuse.is_err()); }
+    // The exact code used during enrolment can't be used again, whether or not a new 30 s step has
+    // started since (signing in is slow on some machines, so it often has).
+    assert!(r.complete_with_totp(&pending, &enrol_code).is_err(), "a used code was accepted again");
     // Backup code works exactly once.
     r.complete_with_backup_code(&pending, &codes[0].to_lowercase()).unwrap();
     assert!(r.complete_with_backup_code(&pending, &codes[0]).is_err());
