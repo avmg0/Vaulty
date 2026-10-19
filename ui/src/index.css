@@ -106,6 +106,10 @@
   --color-sidebar-border: var(--sidebar-border);
 }
 
+/* Senior mode: every size in the app is in rem, so this scales text, spacing and targets together. */
+html[data-senior] { font-size: 120%; }
+html[data-senior] body { line-height: 1.6; }
+
 @layer base {
   * { @apply border-border outline-ring/50; }
   body { @apply bg-background text-foreground antialiased; }

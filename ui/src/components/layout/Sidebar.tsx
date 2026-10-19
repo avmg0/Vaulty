@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { SENIOR_PAGES } from "@/lib/senior";
 import { motion } from "motion/react";
 import { useMotion, SPRING } from "@/lib/motion";
 import { LogOut, PanelLeftClose, PanelLeftOpen } from "lucide-react";
@@ -29,7 +30,9 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
       </div>
       <nav className="isolate flex-1 space-y-4 overflow-y-auto px-2 py-2">
         {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title={t("nav.expand")} aria-label={t("nav.expand")}><PanelLeftOpen /></Button>}
-        {NAV.map((g) => (
+        {/* Senior mode: one short list of everyday pages, no group headings. */}
+        {user.senior ? <div className="space-y-0.5">{NAV.flatMap((g) => g.items).filter((i) => SENIOR_PAGES.includes(i.id)).map(item)}</div>
+          : NAV.map((g) => (
           <div key={g.group} className="space-y-0.5">
             {!collapsed && <div className="text-muted-foreground px-2.5 pb-1 text-xs font-medium">{t(`nav.group.${g.group}`)}</div>}
             {g.items.map(item)}

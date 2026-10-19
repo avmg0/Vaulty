@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Copy, Check, Eraser, Fingerprint, Loader2, MoreHorizontal, RotateCcw, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { Copy, Check, Eraser, Fingerprint, Loader2, MoreHorizontal, RotateCcw, ShieldCheck, Trash2, UserPlus, Glasses } from "lucide-react";
 import { api, errorText, type Invite, type Role, type User } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +42,7 @@ export function FamilyMembers() {
                   {t(`role.${u.role}`)}
                   {u.totp_enabled && <span className="flex items-center gap-0.5 normal-case"><ShieldCheck className="size-3" />{t("members.twoStep")}</span>}
                   {u.biometric_enabled && <span className="flex items-center gap-0.5 normal-case"><Fingerprint className="size-3" />{t("members.biometric")}</span>}
+                  {u.senior && <span className="flex items-center gap-0.5 normal-case"><Glasses className="size-3" />{t("senior.title")}</span>}
                 </div>
               </div>
               {!u.active && <Badge variant="secondary">{t("members.waiting")}</Badge>}
@@ -50,6 +51,7 @@ export function FamilyMembers() {
                   <Button variant="ghost" size="icon" onClick={() => setMenu(menu === u.id ? null : u.id)} aria-label={t("members.actions")}><MoreHorizontal /></Button>
                   {menu === u.id && (
                     <div className="bg-popover absolute right-0 z-10 mt-1 w-52 rounded-md border p-1 shadow-md" onMouseLeave={() => setMenu(null)}>
+                      <MenuItem icon={Glasses} onClick={() => { setMenu(null); api.users.setSenior(u.id, !u.senior).then(load); }}>{u.senior ? t("senior.turnOff") : t("senior.turnOn")}</MenuItem>
                       {!u.active && <MenuItem icon={RotateCcw} onClick={() => { setMenu(null); setConfirm({ kind: "newcode", user: u }); }}>{t("members.newCode")}</MenuItem>}
                       {u.active && u.role === "child" && (
                         <MenuItem icon={RotateCcw} onClick={() => { setMenu(null); setConfirm({ kind: "reset", user: u }); }}>{t("members.resetMenu")}</MenuItem>

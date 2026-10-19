@@ -345,6 +345,16 @@ fn users_remove(s: S, user_id: String, confirm_name: String) -> Result<()> {
 }
 
 #[tauri::command]
+fn users_set_senior(s: S, user_id: String, on: bool) -> Result<UserSummary> {
+    let me = s.current_user()?;
+    let user = s.registry(|r| r.set_senior(&me.id, &user_id, on))?;
+    if user.id == me.id {
+        if let Some(sess) = s.session.lock().map_err(poisoned)?.as_mut() { sess.user = user.clone(); }
+    }
+    Ok(user)
+}
+
+#[tauri::command]
 fn profile_update(s: S, name: String, color: String) -> Result<UserSummary> {
     let me = s.current_user()?;
     let user = s.registry(|r| r.update_profile(&me.id, &name, &color))?;
@@ -1079,7 +1089,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, update_check, update_auto, update_install,
+            pick_file, users_set_senior, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,

@@ -65,6 +65,8 @@ pub struct UserSummary {
     pub active: bool,
     pub totp_enabled: bool,
     pub biometric_enabled: bool,
+    /// Senior mode: larger text and buttons, a shorter menu.
+    pub senior: bool,
 }
 
 /// Returned to the admin once, to hand to the new member.
@@ -168,7 +170,7 @@ impl Registry {
 
     pub fn list(&self) -> Result<Vec<UserSummary>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, name, color, role, password_hash IS NOT NULL, totp_enabled, biometric_enabled
+            "SELECT id, name, color, role, password_hash IS NOT NULL, totp_enabled, biometric_enabled, senior
              FROM users ORDER BY role = 'admin' DESC, created_at, rowid",
         )?;
         let rows = stmt.query_map([], |r| {
@@ -180,6 +182,7 @@ impl Registry {
                 active: r.get(4)?,
                 totp_enabled: r.get(5)?,
                 biometric_enabled: r.get(6)?,
+                senior: r.get(7)?,
             })
         })?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
@@ -353,6 +356,14 @@ impl Registry {
 
     pub fn update_profile(&self, user_id: &str, name: &str, color: &str) -> Result<UserSummary> {
         self.conn.execute("UPDATE users SET name = ?, color = ? WHERE id = ?", params![check_name(name)?, color, user_id])?;
+        self.get(user_id)
+    }
+
+    /// Turns senior mode on or off. Anyone can change their own; the admin can set it up for others.
+    pub fn set_senior(&self, by: &str, user_id: &str, on: bool) -> Result<UserSummary> {
+        if by != user_id { self.require_admin(by)?; }
+        let n = self.conn.execute("UPDATE users SET senior = ? WHERE id = ?", params![on, user_id])?;
+        if n == 0 { return Err(Error::Invalid("no such user".into())); }
         self.get(user_id)
     }
 

@@ -3,6 +3,7 @@ import { RotateCcw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, DATA_CHANGED, errorText, type HistoryItem } from "@/api";
 import { Button } from "@/components/ui/button";
+import { useOptionalSession } from "@/hooks/session";
 
 type Toast = { id: number; text: string; batch?: number };
 
@@ -29,12 +30,14 @@ export function UndoToaster() {
   const timer = useRef<ReturnType<typeof setTimeout>>();
   const hovered = useRef(false);
 
+  const senior = !!useOptionalSession()?.user.senior;
   const show = useCallback((tst: Toast, ms = 8000) => {
+    if (senior) ms *= 2;
     setToast(tst);
     clearTimeout(timer.current);
     const close = () => { if (hovered.current) timer.current = setTimeout(close, 1500); else setToast(null); };
     timer.current = setTimeout(close, ms);
-  }, []);
+  }, [senior]);
 
   useEffect(() => {
     const onChange = (e: Event) => {

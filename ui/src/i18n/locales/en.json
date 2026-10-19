@@ -1133,5 +1133,11 @@
     "restartNote": "Vaulty locks and restarts. Your data stays as it is.",
     "askAdmin": "Ask the family admin to install it.",
     "later": "Later"
+  },
+  "senior": {
+    "title": "Senior mode",
+    "desc": "Larger text and buttons, and a shorter menu with just the everyday pages.",
+    "turnOn": "Turn on senior mode",
+    "turnOff": "Turn off senior mode"
   }
 }

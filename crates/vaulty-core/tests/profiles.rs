@@ -139,3 +139,17 @@ fn password_hashes_use_strong_argon2_settings() {
     let hash: String = r.conn_for_tests().query_row("SELECT password_hash FROM users WHERE id = ?", [&admin], |x| x.get(0)).unwrap();
     assert!(hash.starts_with("$argon2id$v=19$m=65536,t=3,p=1$"), "{hash}");
 }
+
+#[test]
+fn senior_mode_is_set_by_the_member_or_by_the_admin_for_them() {
+    let (r, admin) = setup_keys();
+    let jane = r.add_user(&admin, "Jane Doe", "#7c3aed", Role::Member).unwrap().user.id;
+    let jenny = r.add_user(&admin, "Jenny Doe", "#e11d48", Role::Child).unwrap().user.id;
+    assert!(!r.get(&jane).unwrap().senior, "off by default");
+
+    assert!(r.set_senior(&admin.user_id, &jane, true).unwrap().senior, "the admin sets it up for someone");
+    assert!(r.list().unwrap().iter().any(|u| u.id == jane && u.senior), "the sign-in list knows");
+    assert!(!r.set_senior(&jane, &jane, false).unwrap().senior, "the member can turn it off themselves");
+    assert!(matches!(r.set_senior(&jane, &jenny, true), Err(Error::Auth(_))), "but not for someone else");
+    assert!(r.set_senior(&admin.user_id, "nobody", true).is_err());
+}

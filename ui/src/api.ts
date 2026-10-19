@@ -19,7 +19,7 @@ async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T
 }
 
 export type Role = "admin" | "member" | "child";
-export type User = { id: string; name: string; color: string; role: Role; active: boolean; totp_enabled: boolean; biometric_enabled: boolean };
+export type User = { id: string; name: string; color: string; role: Role; active: boolean; totp_enabled: boolean; biometric_enabled: boolean; senior: boolean };
 export type Invite = { user: User; setup_code: string };
 /** A new recovery key appears only right after it was created and must be shown once. */
 export type SignedInUser = User & { recovery_key?: string | null };
@@ -206,6 +206,8 @@ export const api = {
     erase: (userId: string, confirmName: string) => invoke<Invite>("users_erase", { userId, confirmName }),
     remove: (userId: string, confirmName: string) => invoke<void>("users_remove", { userId, confirmName }),
     updateProfile: (name: string, color: string) => invoke<User>("profile_update", { name, color }),
+    /** Own profile, or anyone's for the admin. */
+    setSenior: (userId: string, on: boolean) => invoke<User>("users_set_senior", { userId, on }),
   },
   auth: {
     current: () => invoke<User | null>("session_current"),

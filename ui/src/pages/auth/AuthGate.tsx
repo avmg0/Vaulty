@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { applySenior } from "@/lib/senior";
 import { ArrowLeft, Fingerprint, KeyRound, Languages, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import { motion } from "motion/react";
@@ -38,6 +39,10 @@ export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: SignedInU
       else if (list.length === 1 && list[0].active) setStep({ kind: "password", user: list[0] });
     });
   }, [lastUserId]);
+
+  // Once a profile is chosen, its senior mode applies straight away, so the password screen is large too.
+  const stepUser = "user" in step ? step.user : null;
+  useEffect(() => { applySenior(!!stepUser?.senior); }, [stepUser]);
 
   if (!users) return <Centered><Loader2 className="text-muted-foreground size-6 animate-spin" /></Centered>;
   if (users.length === 0) return <Centered><FirstRun onDone={(u) => onSignedIn(u, true)} /></Centered>;

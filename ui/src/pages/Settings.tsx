@@ -344,6 +344,7 @@ function AppearanceCard() {
   const { theme, setTheme, accent, setAccent, hideBalances, setHideBalances, hiddenInMain, setHiddenInMain, motionPref, setMotionPref, motion } = useTheme();
   const { t } = useTranslation();
   const { move } = useMotion();
+  const { user, setUser } = useSession();
   return (
     <Card>
       <CardHeader><CardTitle>{t("settings.appearance.title")}</CardTitle><CardDescription>{t("settings.appearance.desc")}</CardDescription></CardHeader>
@@ -380,6 +381,9 @@ function AppearanceCard() {
             </div>
           </div>
         </div>
+        <Row label={t("senior.title")} desc={t("senior.desc")}>
+          <Switch aria-label={t("senior.title")} checked={user.senior} onCheckedChange={(on) => api.users.setSenior(user.id, on).then(setUser)} />
+        </Row>
         <Row label={t("settings.appearance.hide")} desc={t("settings.appearance.hideDesc")}>
           <Switch aria-label={t("settings.appearance.hide")} checked={hideBalances} onCheckedChange={setHideBalances} />
         </Row>

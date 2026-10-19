@@ -27,6 +27,7 @@ import { TaxPlanner } from "@/pages/TaxPlanner";
 import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
 import { UpdateNotice } from "@/components/Updates";
+import { applySenior } from "@/lib/senior";
 import { History } from "@/pages/History";
 import { DATA_RESTORED } from "@/api";
 import { VaultSplash } from "@/components/UnlockSplash";
@@ -41,6 +42,7 @@ export function App() {
   const [lastUserId, setLastUserId] = useState<string | undefined>(() => { try { return localStorage.getItem(LAST_USER_KEY) ?? undefined; } catch { return undefined; } });
 
   useEffect(() => { api.auth.current().then(setUser).catch(() => setBackendMissing(true)); }, []);
+  useEffect(() => { if (user) applySenior(user.senior); }, [user]);
 
   const { locale, currency, setLocale, setCurrency, setDisplay } = useLocale();
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
