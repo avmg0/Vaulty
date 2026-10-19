@@ -29,7 +29,7 @@ import { PasswordDialog } from "@/components/security/PasswordDialog";
 import { TotpSetupDialog } from "@/components/security/TotpSetupDialog";
 import { BackupCodes } from "@/components/security/BackupCodes";
 import { RecoveryKeyDialog } from "@/components/security/RecoveryKeyDialog";
-import { AUTO_LOCK_CHOICES, getAutoLockMinutes, setAutoLockMinutes } from "@/hooks/idle";
+import { AUTO_LOCK_CHANGED, AUTO_LOCK_CHOICES, getAutoLockMinutes, setAutoLockMinutes } from "@/hooks/idle";
 import { FamilySharingCard } from "@/components/FamilySharingCard";
 import { useTheme, type Accent, type Theme } from "@/hooks/theme";
 import { useSession } from "@/hooks/session";
@@ -231,6 +231,11 @@ function SecurityCard() {
   const [dialog, setDialog] = useState<null | "password" | "totp-on" | "totp-off" | "codes" | "bio-on" | "recovery">(null);
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const [autoLock, setAutoLock] = useState(getAutoLockMinutes);
+  useEffect(() => {
+    const sync = () => setAutoLock(getAutoLockMinutes());
+    window.addEventListener(AUTO_LOCK_CHANGED, sync);
+    return () => window.removeEventListener(AUTO_LOCK_CHANGED, sync);
+  }, []);
   const [newCodes, setNewCodes] = useState<string[] | null>(null);
   const [bioError, setBioError] = useState("");
   const { t } = useTranslation();
@@ -274,7 +279,7 @@ function SecurityCard() {
         <Separator />
         <Row icon={Timer} label={t("security.autoLock")} desc={t("security.autoLockDesc")}>
           <select className="border-input dark:bg-input/30 h-8 rounded-md border bg-transparent px-2 text-sm" value={autoLock}
-            onChange={(e) => { const m = Number(e.target.value); setAutoLock(m); setAutoLockMinutes(m); }} aria-label={t("security.autoLock")}>
+            onChange={(e) => { const m = Number(e.target.value); setAutoLock(m); setAutoLockMinutes(m).catch(() => {}); }} aria-label={t("security.autoLock")}>
             {AUTO_LOCK_CHOICES.map((m) => <option key={m} value={m}>{m === 0 ? t("security.never") : t("security.minutes", { count: m })}</option>)}
           </select>
         </Row>

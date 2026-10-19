@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 use std::{
     path::PathBuf,
     sync::Mutex,
-    time::{Duration, Instant},
+    time::{Duration, Instant, SystemTime},
 };
 use tauri::{Manager, State};
 use vaulty_core::{
@@ -21,6 +21,9 @@ use vaulty_core::{
 const SECOND_FACTOR_TTL: Duration = Duration::from_secs(5 * 60);
 /// How long the Hidden section stays open after unlocking it.
 const HIDDEN_TTL: Duration = Duration::from_secs(5 * 60);
+/// The window locks itself when the auto-lock time is up; the app enforces the same limit this
+/// much later, in case the window is frozen or misbehaving.
+const LOCK_GRACE: Duration = Duration::from_secs(60);
 
 /// Everything unlocked for the signed-in member. Dropping it (sign-out, lock, quit) closes the
 /// databases and wipes the keys from memory.
@@ -32,14 +35,35 @@ struct Session {
     /// been given the family key, which happens the next time another member signs in.
     household: Household,
     household_ready: bool,
-    /// When the Hidden section locks again. `None` while it is locked.
-    hidden_until: Option<Instant>,
+    /// When the Hidden section locks again. `None` while it is locked. Wall-clock time, so time
+    /// spent asleep counts (the monotonic clock pauses during sleep on macOS).
+    hidden_until: Option<SystemTime>,
+    /// Last time the person used the app (reported by the window), and how long it may sit idle.
+    last_active: SystemTime,
+    auto_lock: Option<Duration>,
 }
 
 impl Session {
-    fn hidden_open(&self) -> bool {
-        self.hidden_until.is_some_and(|t| Instant::now() < t)
+    fn new(user: UserSummary, conn: Connection, keys: Unlocked, household: Household, household_ready: bool) -> Self {
+        let auto_lock = vaulty_core::settings::auto_lock(&conn).unwrap_or(Some(Duration::from_secs(5 * 60)));
+        Session { user, conn, keys, household, household_ready, hidden_until: None, last_active: SystemTime::now(), auto_lock }
     }
+
+    fn hidden_open(&self) -> bool {
+        self.hidden_until.is_some_and(|t| SystemTime::now() < t)
+    }
+
+    /// Unused for longer than the auto-lock time (plus grace). A clock set backwards counts as use.
+    fn idle_expired(&self) -> bool {
+        self.auto_lock.is_some_and(|limit| SystemTime::now().duration_since(self.last_active).unwrap_or_default() > limit + LOCK_GRACE)
+    }
+}
+
+/// The signed-in session, unless it has sat idle past its auto-lock time; then it's dropped
+/// (closing the database and wiping the keys) and the caller gets "locked".
+fn live(guard: &mut Option<Session>) -> Result<&mut Session> {
+    if guard.as_ref().is_some_and(Session::idle_expired) { *guard = None; }
+    guard.as_mut().ok_or_else(|| Error::Auth("locked".into()))
 }
 
 struct AppState {
@@ -81,16 +105,16 @@ impl AppState {
     }
 
     fn household<T>(&self, f: impl FnOnce(&Household) -> Result<T>) -> Result<T> {
-        let guard = self.session.lock().map_err(poisoned)?;
-        let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = live(&mut guard)?;
         f(&s.household)
     }
 
     /// Runs `f` against the signed-in user's own database, then mirrors any change to
     /// the family sharing store.
     fn data_and_share<T>(&self, f: impl FnOnce(&Connection, &str, &Household) -> Result<T>) -> Result<T> {
-        let guard = self.session.lock().map_err(poisoned)?;
-        let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = live(&mut guard)?;
         f(&s.conn, &s.user.id, &s.household)
     }
 
@@ -105,21 +129,21 @@ impl AppState {
     }
 
     fn keys<T>(&self, f: impl FnOnce(&Unlocked) -> Result<T>) -> Result<T> {
-        let guard = self.session.lock().map_err(poisoned)?;
-        let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = live(&mut guard)?;
         f(&s.keys)
     }
 
     /// Runs `f` against the signed-in user's own database.
     fn data<T>(&self, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
-        let guard = self.session.lock().map_err(poisoned)?;
-        let s = guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?;
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = live(&mut guard)?;
         f(&s.conn)
     }
 
     fn hidden_open(&self) -> Result<bool> {
-        let guard = self.session.lock().map_err(poisoned)?;
-        Ok(guard.as_ref().is_some_and(Session::hidden_open))
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        Ok(live(&mut guard).is_ok_and(|s| s.hidden_open()))
     }
 
     /// Exports include hidden transactions in full, so they need the Hidden section unlocked.
@@ -140,8 +164,8 @@ impl AppState {
 
     fn open_hidden(&self) -> Result<HiddenStatus> {
         let mut guard = self.session.lock().map_err(poisoned)?;
-        let s = guard.as_mut().ok_or_else(|| Error::Auth("locked".into()))?;
-        s.hidden_until = Some(Instant::now() + HIDDEN_TTL);
+        let s = live(&mut guard)?;
+        s.hidden_until = Some(SystemTime::now() + HIDDEN_TTL);
         HiddenStatus::of(s)
     }
 
@@ -151,8 +175,8 @@ impl AppState {
     }
 
     fn current_user(&self) -> Result<UserSummary> {
-        let guard = self.session.lock().map_err(poisoned)?;
-        guard.as_ref().map(|s| s.user.clone()).ok_or_else(|| Error::Auth("locked".into()))
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        live(&mut guard).map(|s| s.user.clone())
     }
 
     fn start_session(&self, mut keys: Unlocked) -> Result<SignedIn> {
@@ -183,7 +207,7 @@ impl AppState {
         }
         let recovery_key = keys.new_recovery_key.take();
         *self.pending.lock().map_err(poisoned)? = None;
-        *self.session.lock().map_err(poisoned)? = Some(Session { user: user.clone(), conn, keys, household, household_ready, hidden_until: None });
+        *self.session.lock().map_err(poisoned)? = Some(Session::new(user.clone(), conn, keys, household, household_ready));
         Ok(SignedIn { user, recovery_key })
     }
 
@@ -228,7 +252,31 @@ fn users_list(s: S) -> Result<Vec<UserSummary>> {
 
 #[tauri::command]
 fn session_current(s: S) -> Result<Option<UserSummary>> {
-    Ok(s.session.lock().map_err(poisoned)?.as_ref().map(|x| x.user.clone()))
+    let mut guard = s.session.lock().map_err(poisoned)?;
+    Ok(live(&mut guard).ok().map(|x| x.user.clone()))
+}
+
+/// The window reports that the person is using the app (throttled on its side).
+#[tauri::command]
+fn session_touch(s: S) -> Result<()> {
+    let mut guard = s.session.lock().map_err(poisoned)?;
+    live(&mut guard)?.last_active = SystemTime::now();
+    Ok(())
+}
+
+/// Locks an idle session even if the window never asks for anything again, and tells the window.
+fn watch_idle(app: tauri::AppHandle) {
+    use tauri::Emitter;
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_secs(15));
+        let state = app.state::<AppState>();
+        let Ok(mut guard) = state.session.lock() else { continue };
+        if guard.as_ref().is_some_and(Session::idle_expired) {
+            *guard = None;
+            drop(guard);
+            let _ = app.emit("vaulty://locked", ());
+        }
+    });
 }
 
 #[tauri::command]
@@ -588,15 +636,15 @@ struct HiddenStatus {
 
 impl HiddenStatus {
     fn of(s: &Session) -> Result<Self> {
-        let left = s.hidden_until.filter(|_| s.hidden_open()).map(|t| t.saturating_duration_since(Instant::now()).as_secs()).unwrap_or(0);
+        let left = s.hidden_until.filter(|_| s.hidden_open()).and_then(|t| t.duration_since(SystemTime::now()).ok()).map(|d| d.as_secs()).unwrap_or(0);
         Ok(HiddenStatus { unlocked: left > 0, seconds_left: left, count: transactions::hidden_count(&s.conn)?, biometric: s.user.biometric_enabled && biometric::available() })
     }
 }
 
 #[tauri::command]
 fn hidden_status(s: S) -> Result<HiddenStatus> {
-    let guard = s.session.lock().map_err(poisoned)?;
-    HiddenStatus::of(guard.as_ref().ok_or_else(|| Error::Auth("locked".into()))?)
+    let mut guard = s.session.lock().map_err(poisoned)?;
+    HiddenStatus::of(live(&mut guard)?)
 }
 
 #[tauri::command]
@@ -759,7 +807,18 @@ fn family_feed(s: S, view: FeedView, filter: Option<FeedFilter>) -> Result<Vec<V
 }
 
 #[tauri::command] fn settings_get(s: S) -> Result<Value> { s.data(settings::get) }
-#[tauri::command] fn settings_update(s: S, settings: Value) -> Result<Value> { limits::check(&settings)?; s.act("settings.update", |c| settings::update(c, &settings)) }
+#[tauri::command]
+fn settings_update(s: S, settings: Value) -> Result<Value> {
+    limits::check(&settings)?;
+    let out = s.act("settings.update", |c| settings::update(c, &settings))?;
+    if settings.get("auto_lock_minutes").is_some() {
+        let mut guard = s.session.lock().map_err(poisoned)?;
+        let sess = live(&mut guard)?;
+        sess.auto_lock = settings::auto_lock(&sess.conn)?;
+        sess.last_active = SystemTime::now();
+    }
+    Ok(out)
+}
 
 #[tauri::command]
 fn export_json(s: S, path: String) -> Result<()> {
@@ -919,6 +978,7 @@ fn snapshots_create(s: S) -> Result<vaulty_core::snapshots::Snapshot> {
 #[tauri::command]
 fn snapshots_restore(s: S, name: String) -> Result<()> {
     let mut guard = s.session.lock().map_err(poisoned)?;
+    live(&mut guard)?;
     let sess = guard.take().ok_or_else(|| Error::Auth("locked".into()))?;
     let Session { user, conn, keys, household, household_ready, .. } = sess;
     let dir = s.snapshot_dir(&user.id);
@@ -934,7 +994,7 @@ fn snapshots_restore(s: S, name: String) -> Result<()> {
     if result.is_ok() {
         household.republish_all(&user.id, &transactions::shareable(&conn)?)?;
     }
-    *guard = Some(Session { user, conn, keys, household, household_ready, hidden_until: None });
+    *guard = Some(Session::new(user, conn, keys, household, household_ready));
     result
 }
 
@@ -1086,10 +1146,11 @@ pub fn run() {
                 pending: Mutex::new(None),
                 picked: Mutex::new(Vec::new()),
             });
+            watch_idle(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, users_set_senior, update_check, update_auto, update_install,
+            pick_file, users_set_senior, session_touch, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,
@@ -1112,6 +1173,52 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn session() -> Session {
+        let registry = Registry::open_in_memory().unwrap();
+        let keys = registry.create_first_admin("John Doe", "#2563eb", "parent-password").unwrap();
+        let user = registry.get(&keys.user_id).unwrap();
+        Session::new(user, db::open_in_memory().unwrap(), keys, Household::open_in_memory().unwrap(), false)
+    }
+
+    #[test]
+    fn idle_sessions_lock_in_the_app_not_just_the_window() {
+        let mut slot = Some(session());
+        let s = slot.as_mut().unwrap();
+        assert_eq!(s.auto_lock, Some(Duration::from_secs(5 * 60)), "5 minutes unless changed");
+        assert!(live(&mut slot).is_ok());
+
+        // Just past the limit: the window should have locked; the app waits out the grace period.
+        slot.as_mut().unwrap().last_active = SystemTime::now() - Duration::from_secs(5 * 60 + 30);
+        assert!(live(&mut slot).is_ok());
+        // Past the grace period too: the session is dropped and its keys wiped.
+        slot.as_mut().unwrap().last_active = SystemTime::now() - Duration::from_secs(5 * 60 + 61);
+        assert!(matches!(live(&mut slot), Err(Error::Auth(_))));
+        assert!(slot.is_none());
+
+        // A clock moved backwards counts as use, not as a long absence.
+        let mut slot = Some(session());
+        slot.as_mut().unwrap().last_active = SystemTime::now() + Duration::from_secs(3600);
+        assert!(live(&mut slot).is_ok());
+
+        // "Never" turns it off.
+        let mut slot = Some(session());
+        settings::update(&slot.as_ref().unwrap().conn, &json!({ "auto_lock_minutes": 0 })).unwrap();
+        let s = slot.as_mut().unwrap();
+        s.auto_lock = settings::auto_lock(&s.conn).unwrap();
+        s.last_active = SystemTime::now() - Duration::from_secs(86_400);
+        assert!(live(&mut slot).is_ok());
+        assert!(settings::update(&slot.as_ref().unwrap().conn, &json!({ "auto_lock_minutes": 7 })).is_err());
+    }
+
+    #[test]
+    fn hidden_section_time_counts_while_asleep() {
+        let mut s = session();
+        s.hidden_until = Some(SystemTime::now() - Duration::from_secs(1));
+        assert!(!s.hidden_open());
+        s.hidden_until = Some(SystemTime::now() + HIDDEN_TTL);
+        assert!(s.hidden_open());
+    }
 
     #[test]
     fn demo_household_signs_in_with_sample_data() {

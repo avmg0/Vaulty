@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 const EDITABLE: &[&str] = &[
     "theme", "currency", "locale", "date_format", "start_of_week", "fiscal_year_start",
     "negative_format", "transaction_sort", "auto_clear_clipboard", "spellcheck_enabled",
-    "font_size", "interface_font", "monospace_font", "decimals", "update_check",
+    "font_size", "interface_font", "monospace_font", "decimals", "update_check", "auto_lock_minutes",
 ];
 
 const MONTHS: &[&str] = &["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
@@ -62,6 +62,10 @@ fn check(key: &str, v: &Value) -> Result<()> {
             Some("minus" | "parentheses") => Ok(()),
             _ => bad("expected minus or parentheses"),
         },
+        "auto_lock_minutes" => match v.as_i64() {
+            Some(0 | 1 | 5 | 15 | 30) => Ok(()),
+            _ => bad("expected 0 (never), 1, 5, 15 or 30"),
+        },
         "update_check" => match v.as_str() {
             Some("off" | "weekly") => Ok(()),
             _ => bad("expected off or weekly"),
@@ -72,6 +76,12 @@ fn check(key: &str, v: &Value) -> Result<()> {
         },
         _ => Ok(()),
     }
+}
+
+/// How long this profile may sit unused before it locks; `None` for never.
+pub fn auto_lock(conn: &Connection) -> Result<Option<std::time::Duration>> {
+    let m: i64 = conn.query_row("SELECT auto_lock_minutes FROM user_settings WHERE id = 'default'", [], |r| r.get(0)).unwrap_or(5);
+    Ok((m > 0).then(|| std::time::Duration::from_secs(m as u64 * 60)))
 }
 
 /// True when automatic update checks are on and the last one was a week or more ago.

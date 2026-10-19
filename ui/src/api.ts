@@ -117,7 +117,7 @@ export type CardInput = Partial<{
 }>;
 
 /** Subset of user_settings the UI uses. `locale` is BCP 47, e.g. "hi-IN" (language + country). */
-export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string; update_check?: "off" | "weekly" };
+export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string; update_check?: "off" | "weekly"; auto_lock_minutes?: number };
 
 /** A newer version found by an update check. */
 export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
@@ -211,6 +211,8 @@ export const api = {
   },
   auth: {
     current: () => invoke<User | null>("session_current"),
+    /** Tells the app the person is still using it (it locks on its own otherwise). */
+    touch: () => invoke<void>("session_touch"),
     setupFirstAdmin: (name: string, color: string, password: string) => invoke<SignedInUser>("setup_first_admin", { name, color, password }),
     claimProfile: (userId: string, setupCode: string, password: string) => invoke<SignedInUser>("claim_profile", { userId, setupCode, password }),
     signIn: (userId: string, password: string) => invoke<SignIn>("sign_in", { userId, password }),
