@@ -59,7 +59,18 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked
       - name: Tests
-        run: cargo test --workspace --locked
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace --locked --no-fail-fast 2>&1 | tee test-output.txt
+      # Failing tests become annotations, so they show on the pull request without opening the log.
+      - name: Report failing tests
+        if: failure()
+        shell: bash
+        run: |
+          grep -E "^---- |panicked at|^  left:|^ right:|^thread '|assertion" test-output.txt | head -60 | while IFS= read -r line; do
+            echo "::error title=Test failure (${{ matrix.os }})::${line}"
+          done
 
   ui:
     name: Interface

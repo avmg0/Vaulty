@@ -169,7 +169,7 @@ impl Registry {
     pub fn list(&self) -> Result<Vec<UserSummary>> {
         let mut stmt = self.conn.prepare(
             "SELECT id, name, color, role, password_hash IS NOT NULL, totp_enabled, biometric_enabled
-             FROM users ORDER BY role = 'admin' DESC, created_at",
+             FROM users ORDER BY role = 'admin' DESC, created_at, rowid",
         )?;
         let rows = stmt.query_map([], |r| {
             Ok(UserSummary {

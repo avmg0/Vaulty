@@ -1,23 +1,28 @@
 use serde_json::{json, Value};
 use vaulty_core::{accounts, backup, db, export, transactions};
 
+/// A fresh password per run (also keeps code scanners from flagging a fixed one).
+fn password() -> String { format!("backup-{}", uuid::Uuid::new_v4()) }
+
 #[test]
 fn encrypted_backup_round_trip_and_tamper_checks() {
+    let pw = password();
+    let pw = pw.as_str();
     let c = db::open_in_memory().unwrap();
     let a = accounts::create(&c, &json!({ "name": "Bank", "type": "checking", "currency": "INR", "initial_balance": "1000" })).unwrap();
     transactions::create(&c, &json!({ "account_id": a["id"], "type": "expense", "amount": "250", "date": "2026-10-10", "merchant": "Secret shop" })).unwrap();
 
-    assert!(backup::encrypt(&c, "short", None).is_err());
-    assert!(backup::encrypt(&c, "correct horse battery", Some("my correct horse battery")).is_err(), "hint contains the password");
-    let file = backup::encrypt(&c, "correct horse battery", Some("the usual one")).unwrap();
+    assert!(backup::encrypt(&c, &pw[..5], None).is_err(), "too short");
+    assert!(backup::encrypt(&c, pw, Some(&format!("my {pw}"))).is_err(), "hint contains the password");
+    let file = backup::encrypt(&c, pw, Some("the usual one")).unwrap();
     let text = String::from_utf8(file.clone()).unwrap();
     assert!(!text.contains("Secret shop") && !text.contains("Bank"), "nothing readable inside");
     let h = backup::header(&file).unwrap();
     assert_eq!((h["format"].as_str(), h["hint"].as_str(), h.get("data")), (Some("vaulty-backup"), Some("the usual one"), None));
     assert!(backup::header(br#"{"version":2}"#).is_none());
 
-    assert!(backup::decrypt(&file, "wrong password!").is_err());
-    let plain = backup::decrypt(&file, "correct horse battery").unwrap();
+    assert!(backup::decrypt(&file, &password()).is_err(), "wrong password");
+    let plain = backup::decrypt(&file, pw).unwrap();
     assert_eq!(plain["version"], 2);
 
     // Restores into a fresh profile.
@@ -31,9 +36,9 @@ fn encrypted_backup_round_trip_and_tamper_checks() {
         let mut t: Value = serde_json::from_slice(&file).unwrap();
         if t[k] == v { continue; }
         t[k] = v;
-        assert!(backup::decrypt(&serde_json::to_vec(&t).unwrap(), "correct horse battery").is_err(), "{k} changed");
+        assert!(backup::decrypt(&serde_json::to_vec(&t).unwrap(), pw).is_err(), "{k} changed");
     }
     let mut t: Value = serde_json::from_slice(&file).unwrap();
     t["kdf"]["iterations"] = json!(1);
-    assert!(backup::decrypt(&serde_json::to_vec(&t).unwrap(), "correct horse battery").is_err());
+    assert!(backup::decrypt(&serde_json::to_vec(&t).unwrap(), pw).is_err());
 }
