@@ -27,6 +27,10 @@
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.705 0.015 286.067);
   --success: oklch(0.53 0.15 149);
+  /* Chart colours, checked for colour-blind separation on each surface (aqua/orange, not green/red). */
+  --chart-income: #1baf7a;
+  --chart-spending: #eb6834;
+  --chart-line: #2a78d6;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.141 0.005 285.823);
   --sidebar-border: oklch(0.92 0.004 286.32);
@@ -52,6 +56,9 @@
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.552 0.016 285.938);
   --success: oklch(0.72 0.17 149);
+  --chart-income: #199e70;
+  --chart-spending: #d95926;
+  --chart-line: #3987e5;
   --sidebar: oklch(0.21 0.006 285.885);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);

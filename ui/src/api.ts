@@ -135,6 +135,18 @@ export type IcsEvent = { uid: string | null; title: string; date: string; time: 
 /** A reminder due now (see crates/vaulty-core/src/reminders.rs). `days` < 0 means overdue. */
 export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null };
 
+export type ReportSlice = { id: string | null; name: string; icon: string | null; color: string | null; amount: number; count: number };
+/** A period's income and spending (main currency). Names "\u0000uncategorised" and "\u0000hidden" are placeholders. */
+export type ReportOverview = {
+  currency: string; months: { month: string; income: number; spending: number; net: number }[]; income: number; spending: number;
+  savings_rate: number | null; categories: ReportSlice[]; income_sources: ReportSlice[]; places: ReportSlice[]; other_currencies: number;
+};
+export type Forecast = {
+  currency: string; balance: number; typical_day: number; points: { date: string; scheduled: number; expected: number }[];
+  changes: { date: string; title: string; amount: number; kind: string }[]; lowest: { date: string; scheduled: number; expected: number } | null; other_currencies: number;
+};
+export type SafeToSpend = { currency: string; balance: number; committed: number; amount: number; per_day: number; until: string; days: number; income_name: string | null; short: boolean };
+
 /** A newer version found by an update check. */
 export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
 
@@ -306,6 +318,11 @@ export const api = {
     /** `ask` shows the system's permission prompt if it hasn't been answered yet. */
     permission: (ask = false) => invoke<"granted" | "denied" | "prompt">("notify_permission", { ask }),
     show: (title: string, body: string) => invoke<void>("notify_show", { title, body }),
+  },
+  reports: {
+    overview: (from: string, to: string) => invoke<ReportOverview>("reports_overview", { from, to }),
+    forecast: (days: number) => invoke<Forecast>("reports_forecast", { days }),
+    safeToSpend: () => invoke<SafeToSpend>("reports_safe_to_spend"),
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {

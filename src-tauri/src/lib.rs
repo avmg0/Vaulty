@@ -1006,6 +1006,15 @@ fn notify_show(app: tauri::AppHandle, s: S, title: String, body: String) -> Resu
     app.notification().builder().title(title).body(body).show().map_err(|e| Error::Invalid(format!("couldn't show a notification ({e})")))
 }
 
+// ============================================================ reports
+
+#[tauri::command]
+fn reports_overview(s: S, from: String, to: String) -> Result<vaulty_core::reports::Overview> { s.data(|c| vaulty_core::reports::overview(c, &from, &to)) }
+#[tauri::command]
+fn reports_forecast(s: S, days: i64) -> Result<vaulty_core::reports::Forecast> { s.data(|c| vaulty_core::reports::forecast(c, today(), days)) }
+#[tauri::command]
+fn reports_safe_to_spend(s: S) -> Result<vaulty_core::reports::SafeToSpend> { s.data(|c| vaulty_core::reports::safe_to_spend(c, today())) }
+
 #[tauri::command] fn market_get(s: S) -> Result<Value> { s.data(vaulty_core::market::prefs_view) }
 #[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { limits::check(&prefs)?; s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
 /// `which` is `stock` or `crypto`; an empty key removes it.
@@ -1258,7 +1267,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, reports_overview, reports_forecast, reports_safe_to_spend, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

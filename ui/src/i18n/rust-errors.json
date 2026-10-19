@@ -364,6 +364,10 @@
   "re": "^ticker settings must be an object$"
  },
  {
+  "id": "eb2a5db8e",
+  "re": "^pick a range of at most ten years$"
+ },
+ {
   "id": "edf18e1e7",
   "re": "^text colour must be light or dark$"
  },
@@ -510,6 +514,10 @@
  {
   "id": "e4bfef931",
   "re": "^month must look like 2026-10$"
+ },
+ {
+  "id": "e560d87bc",
+  "re": "^forecast 7 to 180 days ahead$"
  },
  {
   "id": "e7e6a5983",

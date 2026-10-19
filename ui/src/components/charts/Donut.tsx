@@ -48,7 +48,7 @@ export function Donut({ slices, format, center, label, size = 168 }: {
             <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: a.color }} />
             <span className="min-w-0 flex-1 truncate">{a.label}</span>
             <span className="text-muted-foreground tabular-nums">{Math.round(a.frac * 100)}%</span>
-            <span className="w-24 text-end tabular-nums">{format(a.value)}</span>
+            <span className="min-w-14 shrink-0 text-end tabular-nums">{format(a.value)}</span>
           </motion.li>
         ))}
       </ul>

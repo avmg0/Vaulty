@@ -1256,6 +1256,7 @@
     "e59b3e445": "that isn't a calendar (.ics) file",
     "e5fa1869e": "the parent category doesn't exist",
     "eb22e36dd": "ticker settings must be an object",
+    "eb2a5db8e": "pick a range of at most ten years",
     "edf18e1e7": "text colour must be light or dark",
     "ee1029b7d": "the backup's contents are damaged",
     "ee28277c5": "image must be a JPEG, PNG or WebP",
@@ -1293,6 +1294,7 @@
     "eb8c3cc37": "enabled must be true or false",
     "e10e1fb6d": "name must be 1–40 characters",
     "e4bfef931": "month must look like 2026-10",
+    "e560d87bc": "forecast 7 to 180 days ahead",
     "e7e6a5983": "internal state lock poisoned",
     "e87945a11": "coin ids look like `bitcoin`",
     "e941682ca": "`expiry_year` must be a year",
@@ -1575,5 +1577,52 @@
     "many_one": "{{count}} reminder",
     "many_other": "{{count}} reminders",
     "overdue": "{{name}}: {{when}}"
+  },
+  "reports": {
+    "safe": {
+      "title": "Safe to spend",
+      "desc": "Your bank and cash money, after the bills and card payments due before your next income.",
+      "until": "until {{name}} on {{date}}",
+      "untilMonthEnd": "until the end of the month ({{date}})",
+      "perDay_one": "About {{amount}} a day for the next day.",
+      "perDay_other": "About {{amount}} a day for the next {{count}} days.",
+      "short": "Bills and card payments due before your next income are {{amount}} more than you have.",
+      "balance": "Bank and cash now",
+      "committed": "Due before then"
+    },
+    "forecast": {
+      "title": "Next 60 days",
+      "desc": "Bank and cash, with scheduled bills, income and card payments, and about {{amount}} of everyday spending a day.",
+      "typical": "With everyday spending",
+      "scheduledOnly": "Scheduled only",
+      "lowest": "Lowest {{amount}}"
+    },
+    "otherAccounts_one": "{{count}} account in another currency isn’t included.",
+    "otherAccounts_other": "{{count}} accounts in other currencies aren’t included.",
+    "period": {
+      "heading": "Where the money went",
+      "label": "Period",
+      "month": "This month",
+      "3m": "Last 3 months",
+      "6m": "Last 6 months",
+      "12m": "Last 12 months",
+      "year": "This calendar year",
+      "fy": "This financial year"
+    },
+    "income": "Income",
+    "spending": "Spending",
+    "saved": "Saved",
+    "savingsRate": "Savings rate",
+    "otherCurrencies_one": "{{count}} transaction in another currency isn’t counted in these {{currency}} totals.",
+    "otherCurrencies_other": "{{count}} transactions in other currencies aren’t counted in these {{currency}} totals.",
+    "byMonth": "Income and spending by month",
+    "byCategory": "Spending by category",
+    "places": "Where you spend most",
+    "placesDesc": "Shops, apps and people you paid, largest first.",
+    "times_one": "{{count}} time",
+    "times_other": "{{count}} times",
+    "incomeSources": "Income by source",
+    "hidden": "Hidden transactions",
+    "nothing": "Nothing in this period."
   }
 }

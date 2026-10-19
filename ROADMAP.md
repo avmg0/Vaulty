@@ -292,7 +292,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] OS notifications: bills (each bill's own "remind N days before"), card payments 3 days ahead, overdue bills, budgets at 80% and 100%; amounts off by default; optional dates-only reminders while locked
 - [ ] Low-balance alerts (needs a per-account threshold)
 - [ ] Cards: statements, minimum due, benefits tracker, best card for today
-- [ ] Reports page on the chart kit; cash-flow forecast; "safe to spend"
+- [x] Reports page on the chart kit (by month, category, place and income source; any period incl. the financial year); 60-day cash-flow forecast with and without everyday spending; "safe to spend" until the next income
 - [ ] Lend and borrow tracker; subscription detector; price-rise alerts
 - [ ] To-do linked to bills and transactions
 - [ ] Shared recovery key (any 2 of 3 family members)
