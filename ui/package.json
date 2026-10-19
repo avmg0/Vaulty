@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "i18n:check": "node scripts/i18n-check.mjs"
+    "i18n:check": "node scripts/rust-errors.mjs --check && node scripts/i18n-check.mjs",
+    "i18n:rust": "node scripts/rust-errors.mjs"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.3.1",

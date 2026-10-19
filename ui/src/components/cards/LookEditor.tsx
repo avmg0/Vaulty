@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import i18n from "@/i18n";
 import { ImagePlus, Minus, Plus } from "lucide-react";
-import type { CardDesign, CardLook } from "@/api";
+import { errorText, type CardDesign, type CardLook } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -69,7 +69,7 @@ export function LookEditor({ value, onChange }: { value: CardLook; onChange: (l:
       setPattern(false);
       setInk(null);
       emit({ mode: "image", image: img, pattern: false, ink: null });
-    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+    } catch (e) { setError(errorText(e)); }
   };
 
   const currentInk = ink ?? autoInk(mode);

@@ -1,6 +1,7 @@
 //! Refuses passwords that are easy to guess: the most common ones (a bundled list, so this works
 //! offline), a common word with a few digits or symbols added, the person's own name, or one
 //! character repeated. Length rules are checked separately.
+use crate::error::msg;
 use std::{collections::HashSet, sync::LazyLock};
 
 static COMMON: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
@@ -11,22 +12,22 @@ static COMMON: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
 pub fn weakness(password: &str, name: &str) -> Option<&'static str> {
     let p = password.trim().to_lowercase();
     if p.chars().collect::<HashSet<_>>().len() <= 1 {
-        return Some("that password is one character repeated; choose something harder to guess");
+        return Some(msg("that password is one character repeated; choose something harder to guess"));
     }
     if COMMON.contains(p.as_str()) {
-        return Some("that's one of the most common passwords; choose something less obvious");
+        return Some(msg("that's one of the most common passwords; choose something less obvious"));
     }
     // A common word with up to four digits or symbols added before or after ("dragon2024", "@123password").
     let core = p.trim_end_matches(|c: char| !c.is_alphabetic()).trim_start_matches(|c: char| !c.is_alphabetic());
     let added = p.chars().count() - core.chars().count();
     if added > 0 && added <= 4 && core.chars().count() >= 4 && COMMON.contains(core) {
-        return Some("that's a common password with a few characters added; choose something less obvious");
+        return Some(msg("that's a common password with a few characters added; choose something less obvious"));
     }
     // The person's name (any part of it, 3+ letters) with little else.
     let letters: String = p.chars().filter(|c| c.is_alphabetic()).collect();
     for part in name.to_lowercase().split_whitespace().filter(|w| w.chars().count() >= 3) {
         if letters == part || (p.contains(part) && p.chars().count() - part.chars().count() <= 4) {
-            return Some("that password is mostly your name; choose something others wouldn't guess");
+            return Some(msg("that password is mostly your name; choose something others wouldn't guess"));
         }
     }
     None

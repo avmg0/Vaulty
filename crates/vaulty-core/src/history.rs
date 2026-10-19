@@ -322,9 +322,9 @@ fn changes(conn: &Connection, batch: i64) -> Result<Vec<Change>> {
 fn blocker(conn: &Connection, batch: i64) -> Result<Option<String>> {
     let (undone, action): (Option<i64>, String) = conn.query_row("SELECT undone_by, action FROM change_batches WHERE id = ?", [batch], |r| Ok((r.get(0)?, r.get(1)?)))
         .optional()?.ok_or_else(|| Error::Invalid("that change is no longer in the history".into()))?;
-    if undone.is_some() { return Ok(Some("already undone".into())); }
+    if undone.is_some() { return Ok(Some(crate::error::msg("already undone").into())); }
     // Reversing a data-format update could leave data the app no longer understands.
-    if action == "app.update" { return Ok(Some("app updates can't be undone; restore a safety copy instead".into())); }
+    if action == "app.update" { return Ok(Some(crate::error::msg("app updates can't be undone; restore a safety copy instead").into())); }
     // Later changes to the same rows block it, except a change that was undone and the undo that
     // reversed it: together they cancel out (add, edit, undo, undo works like any undo stack).
     let later: i64 = conn.query_row(
@@ -333,7 +333,7 @@ fn blocker(conn: &Connection, batch: i64) -> Result<Option<String>> {
             AND NOT (b.undo_of IS NOT NULL AND (SELECT o.undone_by FROM change_batches o WHERE o.id = b.undo_of) = b.id)
             AND EXISTS (SELECT 1 FROM change_log m WHERE m.batch_id = ?1 AND m.tbl = l.tbl AND m.row_id = l.row_id)",
         [batch], |r| r.get(0))?;
-    Ok((later > 0).then(|| "changed again since; undo the later change first".into()))
+    Ok((later > 0).then(|| crate::error::msg("changed again since; undo the later change first").into()))
 }
 
 /// Reverses a batch. Returns the id of the new (undo) batch.

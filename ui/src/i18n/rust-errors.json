@@ -1,0 +1,994 @@
+[
+ {
+  "id": "e9f9b536e",
+  "re": "^you don't hold a recovery copy for this profile yet; it's added the next time they sign in\\. Use Erase and reset to start over$"
+ },
+ {
+  "id": "ec0dd42b7",
+  "re": "^adults recover with their own recovery key; to start their profile over, use Erase and reset$"
+ },
+ {
+  "id": "e27fb26b4",
+  "re": "^this copy of Vaulty can't update itself; download new versions from the releases page$"
+ },
+ {
+  "id": "eaeea473b",
+  "re": "^that's a common password with a few characters added; choose something less obvious$"
+ },
+ {
+  "id": "e558bf386",
+  "re": "^can't switch between a card/loan and a bank/cash account once it has transactions$"
+ },
+ {
+  "id": "e42b7c0a6",
+  "re": "^Unlock the Hidden section to export: the file will include hidden transactions$"
+ },
+ {
+  "id": "e0d4cf818",
+  "re": "^that password is mostly your name; choose something others wouldn't guess$"
+ },
+ {
+  "id": "eef6b9570",
+  "re": "^that password is one character repeated; choose something harder to guess$"
+ },
+ {
+  "id": "e59abd20d",
+  "re": "^this recurring payment's account was archived; edit it to choose another$"
+ },
+ {
+  "id": "e6a5f6636",
+  "re": "^that's one of the most common passwords; choose something less obvious$"
+ },
+ {
+  "id": "e5d8128d4",
+  "re": "^can't change the currency of an account that already has transactions$"
+ },
+ {
+  "id": "e42f5c1a4",
+  "re": "^can't switch a category between income and expense once it's in use$"
+ },
+ {
+  "id": "eaf09b6a7",
+  "re": "^full card numbers are never stored; send only `last4` and `network`$"
+ },
+ {
+  "id": "e74d10347",
+  "re": "^encrypted copy failed its integrity check; original left untouched$"
+ },
+ {
+  "id": "efb0cbd19",
+  "re": "^that code didn't match; check the time on your phone and try again$"
+ },
+ {
+  "id": "e6c4717b8",
+  "re": "^turn on Family sharing in Settings to see what your family shares$"
+ },
+ {
+  "id": "e315f7835",
+  "re": "^that spreadsheet couldn't be opened \\(is it password protected\\?\\)$"
+ },
+ {
+  "id": "ee9d57d74",
+  "re": "^transfers between different currencies aren't supported yet$"
+ },
+ {
+  "id": "eb988c1cd",
+  "re": "^app updates can't be undone; restore a safety copy instead$"
+ },
+ {
+  "id": "eb8488838",
+  "re": "^choose the amount column, or the debit and credit columns$"
+ },
+ {
+  "id": "eb69e5843",
+  "re": "^this category has sub-categories, so it can't become one$"
+ },
+ {
+  "id": "e46964378",
+  "re": "^sign out and in again to finish upgrading this profile$"
+ },
+ {
+  "id": "ece13e26b",
+  "re": "^a debit card must be linked to an active bank account$"
+ },
+ {
+  "id": "e040fdaa6",
+  "re": "^this backup was made by a newer Vaulty; update first$"
+ },
+ {
+  "id": "e539cee2d",
+  "re": "^Unlock the Hidden section to change this transaction$"
+ },
+ {
+  "id": "efbb62e75",
+  "re": "^the mapping points at a column the file doesn't have$"
+ },
+ {
+  "id": "e3b6d7295",
+  "re": "^a rule needs 2 to 60 characters of text to look for$"
+ },
+ {
+  "id": "e3047a98a",
+  "re": "^frequency must be daily, weekly, monthly or yearly$"
+ },
+ {
+  "id": "e40d68848",
+  "re": "^every split part needs an amount greater than zero$"
+ },
+ {
+  "id": "e6f7fb8ff",
+  "re": "^sub-categories can't have their own sub-categories$"
+ },
+ {
+  "id": "e9a8a9438",
+  "re": "^only a debit card's linked account can be changed$"
+ },
+ {
+  "id": "ea786a967",
+  "re": "^biometric unlock isn't turned on for this profile$"
+ },
+ {
+  "id": "efa8919c9",
+  "re": "^that code was already used; wait for the next one$"
+ },
+ {
+  "id": "e6b092563",
+  "re": "^snapshot can't be opened with this profile's key$"
+ },
+ {
+  "id": "eb0f4c487",
+  "re": "^changed again since; undo the later change first$"
+ },
+ {
+  "id": "efa47e7b1",
+  "re": "^you can't erase your own profile while signed in$"
+ },
+ {
+  "id": "e67f096c7",
+  "re": "^this data can't be opened with the key provided$"
+ },
+ {
+  "id": "e58c5c5f4",
+  "re": "^setup code expired; ask an admin for a new one$"
+ },
+ {
+  "id": "ea5bff745",
+  "re": "^expected a language tag such as en-US or hi-IN$"
+ },
+ {
+  "id": "e499f549c",
+  "re": "^biometric unlock is not set up on this device$"
+ },
+ {
+  "id": "e54fd4405",
+  "re": "^expected a 3-letter ISO 4217 code such as INR$"
+ },
+ {
+  "id": "e1ad35ad7",
+  "re": "^that recovery key doesn't match this profile$"
+ },
+ {
+  "id": "e7c6a645c",
+  "re": "^sign-in timed out; enter your password again$"
+ },
+ {
+  "id": "e7e707449",
+  "re": "^choose the bank account this debit card uses$"
+ },
+ {
+  "id": "ea257c422",
+  "re": "^an admin already exists; ask them to add you$"
+ },
+ {
+  "id": "e2002b090",
+  "re": "^expected auto or a month name such as april$"
+ },
+ {
+  "id": "e08b45d14",
+  "re": "^choose a preset, colour, gradient or image$"
+ },
+ {
+  "id": "ed3195400",
+  "re": "^select at most 5000 transactions at a time$"
+ },
+ {
+  "id": "e97070588",
+  "re": "^type the member's name exactly to confirm$"
+ },
+ {
+  "id": "ec58b24c9",
+  "re": "^expected auto, sunday, monday or saturday$"
+ },
+ {
+  "id": "ec8be982a",
+  "re": "^at most 30 coins and 30 watchlist symbols$"
+ },
+ {
+  "id": "e4c7bc5f6",
+  "re": "^use Change password for your own profile$"
+ },
+ {
+  "id": "ec60de13d",
+  "re": "^a category name needs 1 to 40 characters$"
+ },
+ {
+  "id": "e4cc1f52f",
+  "re": "^ask the family admin to install updates$"
+ },
+ {
+  "id": "e4e7f1a52",
+  "re": "^wrong password, or the file was changed$"
+ },
+ {
+  "id": "e4fa61294",
+  "re": "^turn on two-factor authentication first$"
+ },
+ {
+  "id": "eabb91343",
+  "re": "^that change is no longer in the history$"
+ },
+ {
+  "id": "ee8270e4f",
+  "re": "^show has regional, crypto and watchlist$"
+ },
+ {
+  "id": "efe023450",
+  "re": "^multiple SQL statements are not allowed$"
+ },
+ {
+  "id": "e541ff9dc",
+  "re": "^logo must be a PNG, JPEG or WebP image$"
+ },
+ {
+  "id": "e7c242647",
+  "re": "^a transfer needs a destination account$"
+ },
+ {
+  "id": "e5d803bee",
+  "re": "^you don't need to share with yourself$"
+ },
+ {
+  "id": "e7588a917",
+  "re": "^that isn't an encrypted Vaulty backup$"
+ },
+ {
+  "id": "e97c1354f",
+  "re": "^a gradient takes two or three colours$"
+ },
+ {
+  "id": "edf7ff440",
+  "re": "^no regional list for that country yet$"
+ },
+ {
+  "id": "ee1fc6b52",
+  "re": "^that file is too large to be a backup$"
+ },
+ {
+  "id": "e74a5c73f",
+  "re": "^an entry needs at least two postings$"
+ },
+ {
+  "id": "eebc4b887",
+  "re": "^the amount must be greater than zero$"
+ },
+ {
+  "id": "e3d60c603",
+  "re": "^the hint can't contain the password$"
+ },
+ {
+  "id": "eb8ec1a2a",
+  "re": "^invalid or already-used backup code$"
+ },
+ {
+  "id": "eef1a8ef3",
+  "re": "^this profile hasn't been set up yet$"
+ },
+ {
+  "id": "e3e764ef5",
+  "re": "^a tag can be at most 40 characters$"
+ },
+ {
+  "id": "e41decce7",
+  "re": "^budgets are for expense categories$"
+ },
+ {
+  "id": "e6f21a677",
+  "re": "^data folder path isn't valid UTF-8$"
+ },
+ {
+  "id": "ea09bf6aa",
+  "re": "^expected 0 \\(never\\), 1, 5, 15 or 30$"
+ },
+ {
+  "id": "ecbde5738",
+  "re": "^no setup code issued; ask an admin$"
+ },
+ {
+  "id": "ee4b82cfa",
+  "re": "^can't transfer to the same account$"
+ },
+ {
+  "id": "ef1e11832",
+  "re": "^`amount` must be greater than zero$"
+ },
+ {
+  "id": "e018f4417",
+  "re": "^symbols look like AAPL or TCS:NSE$"
+ },
+ {
+  "id": "e27d8432f",
+  "re": "^keep the hint under 80 characters$"
+ },
+ {
+  "id": "e3e62a6fb",
+  "re": "^that doesn't look like an API key$"
+ },
+ {
+  "id": "e43a1dc57",
+  "re": "^a category can't be inside itself$"
+ },
+ {
+  "id": "e4495eaf0",
+  "re": "^a split can have at most 50 parts$"
+ },
+ {
+  "id": "e5fa1869e",
+  "re": "^the parent category doesn't exist$"
+ },
+ {
+  "id": "eb22e36dd",
+  "re": "^ticker settings must be an object$"
+ },
+ {
+  "id": "edf18e1e7",
+  "re": "^text colour must be light or dark$"
+ },
+ {
+  "id": "ee1029b7d",
+  "re": "^the backup's contents are damaged$"
+ },
+ {
+  "id": "ee28277c5",
+  "re": "^image must be a JPEG, PNG or WebP$"
+ },
+ {
+  "id": "ef27838aa",
+  "re": "^dimming must be between 0 and 0\\.8$"
+ },
+ {
+  "id": "e41369c2d",
+  "re": "^the end date is before the start$"
+ },
+ {
+  "id": "e5d1046fe",
+  "re": "^the request is nested too deeply$"
+ },
+ {
+  "id": "e7197eea4",
+  "re": "^`last4` must be exactly 4 digits$"
+ },
+ {
+  "id": "e773ff55d",
+  "re": "^the first sheet couldn't be read$"
+ },
+ {
+  "id": "e81aaf041",
+  "re": "^currency must be a 3-letter code$"
+ },
+ {
+  "id": "ea7783106",
+  "re": "^a split needs at least two parts$"
+ },
+ {
+  "id": "ed687dc01",
+  "re": "^no date column found; choose one$"
+ },
+ {
+  "id": "efb9bd45c",
+  "re": "^no history for that kind of item$"
+ },
+ {
+  "id": "e04bb4364",
+  "re": "^Unlock the Hidden section first$"
+ },
+ {
+  "id": "e282844f2",
+  "re": "^that isn't a Vaulty backup file$"
+ },
+ {
+  "id": "e3658f510",
+  "re": "^a name needs 1 to 80 characters$"
+ },
+ {
+  "id": "e402662bb",
+  "re": "^show switches are true or false$"
+ },
+ {
+  "id": "e4040e3f9",
+  "re": "^angle must be between 0 and 360$"
+ },
+ {
+  "id": "e56d8f7c3",
+  "re": "^at most 20 tags per transaction$"
+ },
+ {
+  "id": "ea671333c",
+  "re": "^refresh every 5 to 1440 minutes$"
+ },
+ {
+  "id": "eab7eab67",
+  "re": "^the market ticker is turned off$"
+ },
+ {
+  "id": "eb0c9820a",
+  "re": "^this profile's keys are missing$"
+ },
+ {
+  "id": "ee26462db",
+  "re": "^the request has too many fields$"
+ },
+ {
+  "id": "e211f7e1a",
+  "re": "^credit limit can't be negative$"
+ },
+ {
+  "id": "e4c1663de",
+  "re": "^this backup needs its password$"
+ },
+ {
+  "id": "e593bc94b",
+  "re": "^that file is larger than 20 MB$"
+ },
+ {
+  "id": "e8d1e4900",
+  "re": "^expected auto, dmy, mdy or ymd$"
+ },
+ {
+  "id": "e8f35b17e",
+  "re": "^colours must look like #1e3a8a$"
+ },
+ {
+  "id": "ea56748c5",
+  "re": "^this profile is already set up$"
+ },
+ {
+  "id": "edf09116c",
+  "re": "^pick a range of at most a year$"
+ },
+ {
+  "id": "e07a93728",
+  "re": "^repeat every 1 to 366 periods$"
+ },
+ {
+  "id": "e1ff07609",
+  "re": "^a solid fill takes one colour$"
+ },
+ {
+  "id": "e363ef9a1",
+  "re": "^expected minus or parentheses$"
+ },
+ {
+  "id": "e4292026a",
+  "re": "^the spreadsheet has no sheets$"
+ },
+ {
+  "id": "ea414ef1b",
+  "re": "^speed is slow, normal or fast$"
+ },
+ {
+  "id": "eb8c3cc37",
+  "re": "^enabled must be true or false$"
+ },
+ {
+  "id": "e10e1fb6d",
+  "re": "^name must be 1–40 characters$"
+ },
+ {
+  "id": "e4bfef931",
+  "re": "^month must look like 2026-10$"
+ },
+ {
+  "id": "e7e6a5983",
+  "re": "^internal state lock poisoned$"
+ },
+ {
+  "id": "e87945a11",
+  "re": "^coin ids look like `bitcoin`$"
+ },
+ {
+  "id": "e941682ca",
+  "re": "^`expiry_year` must be a year$"
+ },
+ {
+  "id": "e44fe9844",
+  "re": "^that location can't be used$"
+ },
+ {
+  "id": "e75c44dab",
+  "re": "^unsupported backup settings$"
+ },
+ {
+  "id": "ebf596403",
+  "re": "^tags must be text or a list$"
+ },
+ {
+  "id": "ec536a21b",
+  "re": "^unknown stock data provider$"
+ },
+ {
+  "id": "ecb366c07",
+  "re": "^can't remove the only admin$"
+ },
+ {
+  "id": "ee059fa9f",
+  "re": "^history entry is incomplete$"
+ },
+ {
+  "id": "e043474e1",
+  "re": "^remind 0 to 60 days before$"
+ },
+ {
+  "id": "e04563c02",
+  "re": "^this has no more due dates$"
+ },
+ {
+  "id": "e21e257b2",
+  "re": "^settings must be an object$"
+ },
+ {
+  "id": "ecbad12a0",
+  "re": "^key is for stock or crypto$"
+ },
+ {
+  "id": "ece94722c",
+  "re": "^dates look like 2026-10-19$"
+ },
+ {
+  "id": "edccd2708",
+  "re": "^that isn't a Vaulty backup$"
+ },
+ {
+  "id": "ede5e8fa2",
+  "re": "^a budget can't be negative$"
+ },
+ {
+  "id": "e53f2dd48",
+  "re": "^snapshot is not encrypted$"
+ },
+ {
+  "id": "e6580b75c",
+  "re": "^amounts can't be negative$"
+ },
+ {
+  "id": "e7770ca2a",
+  "re": "^no such recurring payment$"
+ },
+ {
+  "id": "e98d071e2",
+  "re": "^keep it to one short line$"
+ },
+ {
+  "id": "e9ac956ed",
+  "re": "^needs at least one source$"
+ },
+ {
+  "id": "ea83c44ca",
+  "re": "^transaction was not saved$"
+ },
+ {
+  "id": "ee123e65e",
+  "re": "^only an admin can do that$"
+ },
+ {
+  "id": "ee94d1aaa",
+  "re": "^could not open shared key$"
+ },
+ {
+  "id": "e586ed0a1",
+  "re": "^watchlist must be a list$"
+ },
+ {
+  "id": "e8ae2935f",
+  "re": "^a field name is too long$"
+ },
+ {
+  "id": "eea354a80",
+  "re": "^card name can't be empty$"
+ },
+ {
+  "id": "e27510ee1",
+  "re": "^sealed value is corrupt$"
+ },
+ {
+  "id": "e352ffe62",
+  "re": "^logo image is too large$"
+ },
+ {
+  "id": "e7270d4bf",
+  "re": "^check for updates first$"
+ },
+ {
+  "id": "e9cf66c12",
+  "re": "^amount must be a number$"
+ },
+ {
+  "id": "eaaa49470",
+  "re": "^could not unseal secret$"
+ },
+ {
+  "id": "e1e3d3524",
+  "re": "^show must be an object$"
+ },
+ {
+  "id": "e4dd66e8b",
+  "re": "^wrapped key is corrupt$"
+ },
+ {
+  "id": "e71f60680",
+  "re": "^expected off or weekly$"
+ },
+ {
+  "id": "ef8ab9aeb",
+  "re": "^transaction without id$"
+ },
+ {
+  "id": "e03ae684a",
+  "re": "^crypto must be a list$"
+ },
+ {
+  "id": "e14ea647b",
+  "re": "^shared key is corrupt$"
+ },
+ {
+  "id": "e1e5af9e7",
+  "re": "^expected auto, 0 or 2$"
+ },
+ {
+  "id": "ee812a271",
+  "re": "^choose the file again$"
+ },
+ {
+  "id": "e0d07ff4d",
+  "re": "^the file has no rows$"
+ },
+ {
+  "id": "e948728d5",
+  "re": "^incorrect setup code$"
+ },
+ {
+  "id": "e4b334f26",
+  "re": "^no such transaction$"
+ },
+ {
+  "id": "e6286495b",
+  "re": "^amount is too large$"
+ },
+ {
+  "id": "e88909ab8",
+  "re": "^colours are missing$"
+ },
+ {
+  "id": "ec2addcf0",
+  "re": "^unknown bulk action$"
+ },
+ {
+  "id": "ee4138092",
+  "re": "^snapshot is damaged$"
+ },
+ {
+  "id": "e04dca31d",
+  "re": "^unknown visibility$"
+ },
+ {
+  "id": "e5813adbf",
+  "re": "^`type` is required$"
+ },
+ {
+  "id": "e593721be",
+  "re": "^image is too large$"
+ },
+ {
+  "id": "e71af485f",
+  "re": "^incorrect password$"
+ },
+ {
+  "id": "e7f641137",
+  "re": "^corrupt 2FA secret$"
+ },
+ {
+  "id": "e8e2b0731",
+  "re": "^`name` is required$"
+ },
+ {
+  "id": "ea34d898e",
+  "re": "^month out of range$"
+ },
+ {
+  "id": "e05ed483b",
+  "re": "^choose an account$"
+ },
+ {
+  "id": "e1d460207",
+  "re": "^encryption failed$"
+ },
+ {
+  "id": "e23bad7c3",
+  "re": "^tags must be text$"
+ },
+ {
+  "id": "e23de18ba",
+  "re": "^image is missing$"
+ },
+ {
+  "id": "e371d6a76",
+  "re": "^no such snapshot$"
+ },
+ {
+  "id": "eff7a2fe9",
+  "re": "^no such category$"
+ },
+ {
+  "id": "ea7cb5e24",
+  "re": "^no such account$"
+ },
+ {
+  "id": "e0ba0ed77",
+  "re": "^already undone$"
+ },
+ {
+  "id": "e3cf72817",
+  "re": "^rule not saved$"
+ },
+ {
+  "id": "eaa3417ab",
+  "re": "^incorrect code$"
+ },
+ {
+  "id": "eae67ea0b",
+  "re": "^bad public key$"
+ },
+ {
+  "id": "e1999cbaa",
+  "re": "^no such user$"
+ },
+ {
+  "id": "e47072ca1",
+  "re": "^unknown type$"
+ },
+ {
+  "id": "e5810d133",
+  "re": "^no such card$"
+ },
+ {
+  "id": "e2192308d",
+  "re": "^bad nonce$"
+ },
+ {
+  "id": "ed97d349a",
+  "re": "^tax year$"
+ },
+ {
+  "id": "e24213819",
+  "re": "^bad hex$"
+ },
+ {
+  "id": "eadec79fd",
+  "re": "^locked$"
+ },
+ {
+  "id": "ee18a89f9",
+  "re": "^busy$"
+ },
+ {
+  "id": "e3582fbea",
+  "re": "^the file has more than ([\\s\\S]+?) rows; split it into smaller statements$"
+ },
+ {
+  "id": "e9d0f5058",
+  "re": "^backup contains ([\\s\\S]+?) unbalanced entries; nothing was imported$"
+ },
+ {
+  "id": "e4f058cd5",
+  "re": "^the update couldn't be installed \\(([\\s\\S]+?)\\); nothing was changed$"
+ },
+ {
+  "id": "e2d1a15b5",
+  "re": "^category type must be income or expense, not `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "e25d11d23",
+  "re": "^use a backup password of at least ([\\s\\S]+?) characters$"
+ },
+ {
+  "id": "e321bf116",
+  "re": "^too many attempts; try again in ([\\s\\S]+?) seconds$"
+ },
+ {
+  "id": "ec943408d",
+  "re": "^a sub-category must be ([\\s\\S]+?) like its parent$"
+ },
+ {
+  "id": "e222c329b",
+  "re": "^password must be at least ([\\s\\S]+?) characters$"
+ },
+ {
+  "id": "e03a824c5",
+  "re": "^`([\\s\\S]+?)` is not a 3-letter currency code$"
+ },
+ {
+  "id": "e6e8822a1",
+  "re": "^unknown or protected setting `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "e87861810",
+  "re": "^`([\\s\\S]+?)` only applies to credit cards$"
+ },
+ {
+  "id": "e17dd67dd",
+  "re": "^a list can have at most ([\\s\\S]+?) items$"
+ },
+ {
+  "id": "e434575f6",
+  "re": "^unknown bank or institution `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "eb40f2e2c",
+  "re": "^unknown bank or institution `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "e1411eb71",
+  "re": "^couldn't check for updates \\(([\\s\\S]+?)\\)$"
+ },
+ {
+  "id": "e2447391d",
+  "re": "^the sheet has more than ([\\s\\S]+?) rows$"
+ },
+ {
+  "id": "e946b691f",
+  "re": "^([\\s\\S]+?) has several default regimes$"
+ },
+ {
+  "id": "edb41ef32",
+  "re": "^`([\\s\\S]+?)` isn't a date \\(YYYY-MM-DD\\)$"
+ },
+ {
+  "id": "e06328306",
+  "re": "^unknown transaction type `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "e088d19ab",
+  "re": "^unknown snapshot reason `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "e26b468f4",
+  "re": "^`([\\s\\S]+?)` is not a valid amount$"
+ },
+ {
+  "id": "e71d2a651",
+  "re": "^unknown card network `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "ea1186b15",
+  "re": "^couldn't read the CSV: ([\\s\\S]+?)$"
+ },
+ {
+  "id": "edc68ef5d",
+  "re": "^unknown ledger kind `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "e2676bfda",
+  "re": "^that category is for ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e7ff56952",
+  "re": "^no tax rules for ([\\s\\S]+?) yet$"
+ },
+ {
+  "id": "ec60b2b79",
+  "re": "^unknown visibility `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "ef1bbbafe",
+  "re": "^unknown visibility `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "eba370dab",
+  "re": "^unknown card type `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "e271ae744",
+  "re": "^TOTP setup failed: ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e6991fcd3",
+  "re": "^card background: ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e6c865cf6",
+  "re": "^bad TOTP secret: ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e5ff72bb9",
+  "re": "^([\\s\\S]+?) has no regimes$"
+ },
+ {
+  "id": "ea70aca35",
+  "re": "^unknown role `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "e8324b6ad",
+  "re": "^`([\\s\\S]+?)` is required$"
+ },
+ {
+  "id": "eb868150f",
+  "re": "^unknown table ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e39cff9bd",
+  "re": "^can't undo: ([\\s\\S]+?)$"
+ },
+ {
+  "id": "eabf45de2",
+  "re": "^tax pack: ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e452188b6",
+  "re": "^tax year ([\\s\\S]+?)$"
+ },
+ {
+  "id": "eca2b8901",
+  "re": "^network: ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e258f8983",
+  "re": "^ticker: ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e1d5406c8",
+  "re": "^([\\s\\S]+?)/([\\s\\S]+?): bands must rise and only the last may be open$"
+ },
+ {
+  "id": "e92d1316a",
+  "re": "^the split parts add up to ([\\s\\S]+?), not the total of ([\\s\\S]+?)$"
+ },
+ {
+  "id": "ebf311243",
+  "re": "^([\\s\\S]+?)/([\\s\\S]+?): last band must be open \\(upto: null\\)$"
+ },
+ {
+  "id": "e5db62c52",
+  "re": "^workspace `([\\s\\S]+?)` is missing its ([\\s\\S]+?) account$"
+ },
+ {
+  "id": "ede1457aa",
+  "re": "^entry does not balance in ([\\s\\S]+?) \\(off by ([\\s\\S]+?)\\)$"
+ },
+ {
+  "id": "e3f05e09b",
+  "re": "^([\\s\\S]+?) is too long \\(at most ([\\s\\S]+?) characters\\)$"
+ },
+ {
+  "id": "e91b59850",
+  "re": "^([\\s\\S]+?)/([\\s\\S]+?) needs slabs for age 0$"
+ },
+ {
+  "id": "e7b8dfd3e",
+  "re": "^`([\\s\\S]+?)` must be ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e7e7b299c",
+  "re": "^tax pack ([\\s\\S]+?): ([\\s\\S]+?)$"
+ },
+ {
+  "id": "ea546073a",
+  "re": "^([\\s\\S]+?): ([\\s\\S]+?)$"
+ },
+ {
+  "id": "e5b08c112",
+  "re": "^`([\\s\\S]+?)` has more than ([\\s\\S]+?) decimal place([\\s\\S]+?) for this currency$"
+ },
+ {
+  "id": "e08c36655",
+  "re": "^([\\s\\S]+?)/([\\s\\S]+?): rate ([\\s\\S]+?) out of range$"
+ }
+]

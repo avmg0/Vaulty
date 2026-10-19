@@ -20,6 +20,11 @@ pub enum Error {
 
 pub type Result<T> = std::result::Result<T, Error>;
 
+/// Marks text shown to people that isn't built as an `Error` right here (a reason passed along
+/// and wrapped later). The window's translation catalogue is collected from these and from
+/// `Error::Invalid` / `Error::Auth` messages (ui/scripts/rust-errors.mjs).
+pub const fn msg(text: &'static str) -> &'static str { text }
+
 // Tauri commands need the error to be serializable; send the message string to the UI.
 impl Serialize for Error {
     fn serialize<S: Serializer>(&self, s: S) -> std::result::Result<S::Ok, S::Error> {

@@ -1,4 +1,5 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
+import { translateError } from "@/i18n/errors";
 
 /** Fired after any change command succeeds, so the undo toast can offer to reverse it. */
 export const DATA_CHANGED = "vaulty:data-changed";
@@ -193,7 +194,8 @@ export type FeedView = "all" | "shared" | "public";
 export type FeedFilter = { startDate?: string; endDate?: string; ownerId?: string; limit?: number };
 
 /** Rust errors arrive as plain strings; normalise for display. */
-export const errorText = (e: unknown) => (typeof e === "string" ? e : e instanceof Error ? e.message : String(e));
+/** A message for people, in their language (errors from the app are translated; see i18n/errors.ts). */
+export const errorText = (e: unknown) => translateError(typeof e === "string" ? e : e instanceof Error ? e.message : String(e));
 
 export const api = {
   app: {
