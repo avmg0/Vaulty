@@ -16,10 +16,11 @@ use std::collections::HashSet;
 pub const BACKUP_VERSION: i64 = 2;
 
 /// Tables in a backup, parents first so a restore satisfies foreign keys.
+/// Everything a backup carries, each table after the ones it refers to.
 const TABLES: &[&str] = &[
-    "workspaces", "accounts", "cards", "categories", "ledger_accounts", "entries", "postings",
+    "workspaces", "accounts", "cards", "categories", "people", "ledger_accounts", "entries", "postings",
     "credit_cards", "recurring_payments", "tasks", "investments", "investment_events",
-    "journal_entries", "goals", "calendar_events",
+    "journal_entries", "goals", "calendar_events", "budgets", "category_rules", "import_templates", "hotkeys",
 ];
 
 pub fn to_json(conn: &Connection) -> Result<Value> {

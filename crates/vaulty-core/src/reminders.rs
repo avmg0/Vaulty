@@ -16,7 +16,7 @@ pub const OVERDUE_DAYS: i64 = 7;
 pub struct Due {
     /// Stable id: the same reminder is never shown twice.
     pub key: String,
-    /// bill, income, transfer, card, budget
+    /// bill, income, transfer, card, budget, owed (someone owes you; `days` since you last dealt)
     pub kind: String,
     pub name: String,
     pub date: String,
@@ -66,6 +66,18 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
             name: c["name"].as_str().unwrap_or_default().into(), date: date.to_string(), days,
             amount: Some(money::to_decimal(owed, cur)), currency: Some(cur.into()), percent: None,
         });
+    }
+    // Money owed to you with nothing happening for 30 days: once per quiet spell.
+    for p in crate::people::overdue(conn, today)? {
+        for b in p["balances"].as_array().into_iter().flatten().filter(|b| b["amount_minor"].as_i64().unwrap_or(0) > 0) {
+            let last = p["last_date"].as_str().unwrap_or_default();
+            out.push(Due {
+                key: format!("owed:{}:{}:{last}", p["id"].as_str().unwrap_or_default(), b["currency"].as_str().unwrap_or_default()),
+                kind: "owed".into(), name: p["name"].as_str().unwrap_or_default().into(), date: last.into(),
+                days: NaiveDate::parse_from_str(last, "%Y-%m-%d").map(|d| (today - d).num_days()).unwrap_or(0),
+                amount: b["amount"].as_f64(), currency: b["currency"].as_str().map(str::to_string), percent: None,
+            });
+        }
     }
     // Budgets this month: the highest level reached.
     let month = format!("{:04}-{:02}", today.year(), today.month());

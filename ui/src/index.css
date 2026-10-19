@@ -26,7 +26,7 @@
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.705 0.015 286.067);
-  --success: oklch(0.53 0.15 149);
+  --success: oklch(0.5 0.14 149);
   /* Chart colours, checked for colour-blind separation on each surface (aqua/orange, not green/red). */
   --chart-income: #1baf7a;
   --chart-spending: #eb6834;

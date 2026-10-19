@@ -204,6 +204,10 @@
   "re": "^select at most 5000 transactions at a time$"
  },
  {
+  "id": "e5ed7ca34",
+  "re": "^settle up first: there's still money owed$"
+ },
+ {
   "id": "e97070588",
   "re": "^type the member's name exactly to confirm$"
  },
@@ -250,6 +254,10 @@
  {
   "id": "e541ff9dc",
   "re": "^logo must be a PNG, JPEG or WebP image$"
+ },
+ {
+  "id": "e599a2669",
+  "re": "^only expenses can be split with people$"
  },
  {
   "id": "e7c242647",
@@ -450,6 +458,10 @@
  {
   "id": "eb0c9820a",
   "re": "^this profile's keys are missing$"
+ },
+ {
+  "id": "ec61c20ac",
+  "re": "^a name needs 1 to 60 characters$"
  },
  {
   "id": "ee26462db",
@@ -760,6 +772,10 @@
   "re": "^tags must be text$"
  },
  {
+  "id": "e80c4da6d",
+  "re": "^flow is out or in$"
+ },
+ {
   "id": "e23de18ba",
   "re": "^image is missing$"
  },
@@ -790,6 +806,10 @@
  {
   "id": "eae67ea0b",
   "re": "^bad public key$"
+ },
+ {
+  "id": "ed10140f4",
+  "re": "^no such person$"
  },
  {
   "id": "e6a286dbd",

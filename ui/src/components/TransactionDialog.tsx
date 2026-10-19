@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { EyeOff, Info, Loader2, Plus, Split, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { motion } from "motion/react";
-import { api, errorText, type Account, type Category, type SharingPrefs, type Transaction, type Visibility } from "@/api";
+import { api, errorText, type Account, type Category, type Person, type SharingPrefs, type Transaction, type Visibility } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input, NativeSelect } from "@/components/ui/input";
@@ -40,6 +40,8 @@ export function TransactionDialog({ open, onOpenChange, initial, prefill, accoun
   const [toAccountId, setToAccountId] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [parts, setParts] = useState<Part[] | null>(null);
+  const [people, setPeople] = useState<Person[]>([]);
+  useEffect(() => { if (open) api.people.list().then(setPeople).catch(() => setPeople([])); }, [open]);
   // True when the category was filled in from a rule (shown so it isn't a silent guess).
   const [suggested, setSuggested] = useState(false);
   const suggest = async () => {
@@ -66,7 +68,7 @@ export function TransactionDialog({ open, onOpenChange, initial, prefill, accoun
     setToAccountId(initial?.to_account_id ?? accounts.find((a) => a.id !== (initial?.account_id ?? first))?.id ?? "");
     setCategoryId(initial?.category_id ?? prefill?.category_id ?? "");
     setSuggested(false);
-    setParts(initial?.splits?.length ? initial.splits.map((x) => ({ category_id: x.category_id ?? "", amount: String(x.amount), memo: x.memo ?? "" })) : null);
+    setParts(initial?.splits?.length ? initial.splits.map((x) => ({ category_id: x.person_id ? `person:${x.person_id}` : x.category_id ?? "", amount: String(x.amount), memo: x.memo ?? "" })) : null);
     setNotes(initial?.notes ?? "");
     setTags(splitTags(initial?.tags));
     setVisibility(initial?.visibility ?? prefs?.default_visibility ?? "private");
@@ -94,7 +96,7 @@ export function TransactionDialog({ open, onOpenChange, initial, prefill, accoun
       type: kind, amount, date, account_id: accountId, merchant: merchant.trim() || undefined,
       to_account_id: kind === "transfer" ? toAccountId : undefined,
       category_id: kind === "transfer" || parts ? undefined : categoryId || undefined,
-      splits: kind !== "transfer" && parts ? parts.map((x) => ({ category_id: x.category_id || null, amount: x.amount, memo: x.memo.trim() || undefined })) : undefined,
+      splits: kind !== "transfer" && parts ? parts.map((x) => ({ ...(x.category_id.startsWith("person:") ? { person_id: x.category_id.slice(7) } : { category_id: x.category_id || null }), amount: x.amount, memo: x.memo.trim() || undefined })) : undefined,
       notes: notes.trim() || undefined, tags: tags.length ? tags.join(", ") : undefined,
       visibility: isHidden ? "private" as const : visibility,
     };
@@ -158,6 +160,10 @@ export function TransactionDialog({ open, onOpenChange, initial, prefill, accoun
                   <NativeSelect aria-label={t("tx.category")} value={x.category_id} onChange={(e) => setPart(i, { category_id: e.target.value })}>
                     <option value="">{t("dashboard.uncategorised")}</option>
                     {kindCategories.map((c) => <option key={c.id} value={c.id}>{c.depth ? "\u00a0\u00a0\u00a0\u00a0" : ""}{c.icon} {c.name}</option>)}
+                    {/* Splitting a bill you paid: someone else's part is what they owe you. */}
+                    {kind === "expense" && people.length > 0 && (
+                      <optgroup label={t("people.owedBy")}>{people.map((p) => <option key={p.id} value={`person:${p.id}`}>{p.name}</option>)}</optgroup>
+                    )}
                   </NativeSelect>
                   <Input aria-label={t("tx.amount")} type="number" step="0.01" min="0" value={x.amount} onChange={(e) => setPart(i, { amount: e.target.value })} />
                   <button type="button" className="text-muted-foreground hover:text-foreground disabled:opacity-30" disabled={parts.length <= 2}

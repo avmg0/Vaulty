@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -147,6 +147,11 @@ export type Forecast = {
 };
 export type SafeToSpend = { currency: string; balance: number; committed: number; amount: number; per_day: number; until: string; days: number; income_name: string | null; short: boolean };
 
+/** Someone you lend to, borrow from or split bills with. `balances` > 0: they owe you. */
+export type Person = { id: string; name: string; phone: string | null; notes: string | null; balances: { currency: string; amount: number; amount_minor: number }[]; last_date: string | null };
+/** One event with a person, newest first; `amount` > 0 means they came to owe you more. */
+export type PersonEvent = { entry_id: string; kind: string; what: "lent" | "received" | "split" | "they_paid"; date: string; merchant: string | null; description: string | null; memo: string | null; amount: number; balance: number; currency: string };
+
 /** A newer version found by an update check. */
 export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
 
@@ -173,14 +178,17 @@ export type Transaction = {
   splits?: SplitPart[] | null;
   /** 1 when the transaction lives in the Hidden section. */
   hidden?: number;
+  /** Money lent to or received from a person (a transfer): who, and which way. */
+  person_id?: string | null; person_name?: string | null; flow?: "out" | "in";
   /** True when the details were withheld: only amount, date, type and account are real. */
   masked?: boolean;
 };
 export type AppInfo = { version: string; demo: boolean; demo_password: string | null };
-export type SplitPart = { category_id: string | null; category_name?: string | null; category_icon?: string | null; category_color?: string | null; amount: number; memo?: string | null };
+/** One part of a split: a category, or a person who owes you that part. */
+export type SplitPart = { category_id: string | null; category_name?: string | null; category_icon?: string | null; category_color?: string | null; amount: number; memo?: string | null; person_id?: string | null; person_name?: string | null };
 /** What the app sends to save a transaction. Split amounts are decimal strings. */
 export type TransactionInput = Omit<Partial<Transaction>, "amount" | "hidden" | "splits"> & {
-  amount: string | number; splits?: { category_id?: string | null; amount: string; memo?: string }[];
+  amount: string | number; splits?: { category_id?: string | null; person_id?: string; amount: string; memo?: string }[];
 };
 export type Frequency = "daily" | "weekly" | "monthly" | "yearly";
 export type Recurring = {
@@ -323,6 +331,14 @@ export const api = {
     overview: (from: string, to: string) => invoke<ReportOverview>("reports_overview", { from, to }),
     forecast: (days: number) => invoke<Forecast>("reports_forecast", { days }),
     safeToSpend: () => invoke<SafeToSpend>("reports_safe_to_spend"),
+  },
+  people: {
+    list: () => invoke<Person[]>("people_list"),
+    totals: () => invoke<{ currency: string; owed_to_me: number; i_owe: number }[]>("people_totals"),
+    history: (id: string) => invoke<PersonEvent[]>("people_history", { id }),
+    create: (person: { name: string; phone?: string; notes?: string }) => invoke<Person>("people_create", { person }),
+    update: (id: string, person: { name: string; phone?: string; notes?: string }) => invoke<Person>("people_update", { id, person }),
+    delete: (id: string) => invoke<void>("people_delete", { id }),
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {

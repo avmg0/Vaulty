@@ -21,12 +21,14 @@ const SELECT: &str = "
 /// several categories, and `category_name` "Split" so lists don't name just the first part.
 fn attach_splits(conn: &Connection, rows: &mut [Value]) -> Result<()> {
     let mut stmt = conn.prepare_cached(
-        "SELECT p.entry_id, l.category_id, c.name, c.icon, c.color, ABS(p.amount_minor), p.currency, p.memo
+        "SELECT p.entry_id, l.category_id, c.name, c.icon, c.color, ABS(p.amount_minor), p.currency, p.memo, l.person_id, pe.name
          FROM postings p JOIN ledger_accounts l ON l.id = p.ledger_account_id LEFT JOIN categories c ON c.id = l.category_id
-         WHERE p.entry_id IN (SELECT p2.entry_id FROM postings p2 JOIN ledger_accounts l2 ON l2.id = p2.ledger_account_id
-                              WHERE l2.kind IN ('income', 'expense') AND p2.entry_id IN (SELECT value FROM json_each(?1))
+         LEFT JOIN people pe ON pe.id = l.person_id
+         WHERE p.entry_id IN (SELECT p2.entry_id FROM postings p2 JOIN ledger_accounts l2 ON l2.id = p2.ledger_account_id JOIN entries e2 ON e2.id = p2.entry_id
+                              WHERE (l2.kind IN ('income', 'expense') OR (l2.person_id IS NOT NULL AND e2.kind <> 'transfer'))
+                                AND p2.entry_id IN (SELECT value FROM json_each(?1))
                               GROUP BY p2.entry_id HAVING COUNT(*) > 1)
-           AND l.kind IN ('income', 'expense')
+           AND (l.kind IN ('income', 'expense') OR l.person_id IS NOT NULL)
          ORDER BY p.entry_id, p.id")?;
     let ids: Vec<&str> = rows.iter().filter_map(|r| r["id"].as_str()).collect();
     if ids.is_empty() { return Ok(()); }
@@ -39,6 +41,7 @@ fn attach_splits(conn: &Connection, rows: &mut [Value]) -> Result<()> {
             "category_id": r.get::<_, Option<String>>(1)?, "category_name": r.get::<_, Option<String>>(2)?,
             "category_icon": r.get::<_, Option<String>>(3)?, "category_color": r.get::<_, Option<String>>(4)?,
             "amount_minor": minor, "amount": money::to_decimal(minor, &cur), "memo": r.get::<_, Option<String>>(7)?,
+            "person_id": r.get::<_, Option<String>>(8)?, "person_name": r.get::<_, Option<String>>(9)?,
         })))
     })?;
     for f in found { let (id, v) = f?; by_entry.entry(id).or_default().push(v); }
@@ -186,6 +189,15 @@ fn postings_for(conn: &Connection, t: &Value) -> Result<(&'static str, Vec<Posti
     let p = |id: String, m: i64| Posting { ledger_account_id: id, amount_minor: m, currency: currency.clone(), memo: None };
 
     let postings = match kind {
+        // Money lent to or received from a person: their ledger is the other side.
+        "transfer" if str_field(t, "person_id").is_some() => {
+            let person = ledger::for_person(conn, str_field(t, "person_id").unwrap_or_default())?;
+            match str_field(t, "flow").unwrap_or("out") {
+                "out" => vec![p(person, amount), p(account_ledger, -amount)],
+                "in" => vec![p(account_ledger, amount), p(person, -amount)],
+                _ => return Err(Error::Invalid("flow is out or in".into())),
+            }
+        }
         "transfer" => {
             let to = require_str(t, "to_account_id").map_err(|_| Error::Invalid("a transfer needs a destination account".into()))?;
             let (to_ledger, _, to_currency) = ledger::for_account(conn, to)?;
@@ -229,7 +241,13 @@ fn postings_for(conn: &Connection, t: &Value) -> Result<(&'static str, Vec<Posti
                         if a <= 0 { return Err(Error::Invalid("every split part needs an amount greater than zero".into())); }
                         total += a;
                         let memo = str_field(part, "memo").map(str::trim).filter(|m| !m.is_empty()).map(|m| m.chars().take(200).collect::<String>());
-                        out.push(Posting { memo, ..p(category_ledger(str_field(part, "category_id"))?, sign * a) });
+                        // A part someone else owes you (splitting a bill you paid).
+                        let ledger_id = match str_field(part, "person_id") {
+                            Some(person) if !income => ledger::for_person(conn, person)?,
+                            Some(_) => return Err(Error::Invalid("only expenses can be split with people".into())),
+                            None => category_ledger(str_field(part, "category_id"))?,
+                        };
+                        out.push(Posting { memo, ..p(ledger_id, sign * a) });
                     }
                     if total != amount {
                         return Err(Error::Invalid(format!("the split parts add up to {}, not the total of {}",

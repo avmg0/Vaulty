@@ -31,7 +31,8 @@
     "lock": "Lock / switch profile",
     "history": "History",
     "budgets": "Budgets",
-    "skip": "Skip to content"
+    "skip": "Skip to content",
+    "people": "Lend & borrow"
   },
   "role": {
     "admin": "Admin",
@@ -347,6 +348,11 @@
       },
       "calendar": {
         "import": "Imported a calendar"
+      },
+      "person": {
+        "create": "Added a person",
+        "update": "Changed a person",
+        "delete": "Removed a person"
       }
     },
     "check": {
@@ -1216,6 +1222,7 @@
     "e7184ceb6": "a shortcut needs Ctrl (Cmd on a Mac) or Alt",
     "e08b45d14": "choose a preset, colour, gradient or image",
     "ed3195400": "select at most 5000 transactions at a time",
+    "e5ed7ca34": "settle up first: there's still money owed",
     "e97070588": "type the member's name exactly to confirm",
     "ec58b24c9": "expected auto, sunday, monday or saturday",
     "ec8be982a": "at most 30 coins and 30 watchlist symbols",
@@ -1228,6 +1235,7 @@
     "ee8270e4f": "show has regional, crypto and watchlist",
     "efe023450": "multiple SQL statements are not allowed",
     "e541ff9dc": "logo must be a PNG, JPEG or WebP image",
+    "e599a2669": "only expenses can be split with people",
     "e7c242647": "a transfer needs a destination account",
     "ecbe5189c": "that calendar file is larger than 5 MB",
     "e5d803bee": "you don't need to share with yourself",
@@ -1278,6 +1286,7 @@
     "ea671333c": "refresh every 5 to 1440 minutes",
     "eab7eab67": "the market ticker is turned off",
     "eb0c9820a": "this profile's keys are missing",
+    "ec61c20ac": "a name needs 1 to 60 characters",
     "ee26462db": "the request has too many fields",
     "e211f7e1a": "credit limit can't be negative",
     "e4c1663de": "this backup needs its password",
@@ -1355,6 +1364,7 @@
     "e05ed483b": "choose an account",
     "e1d460207": "encryption failed",
     "e23bad7c3": "tags must be text",
+    "e80c4da6d": "flow is out or in",
     "e23de18ba": "image is missing",
     "e371d6a76": "no such snapshot",
     "eff7a2fe9": "no such category",
@@ -1363,6 +1373,7 @@
     "e3cf72817": "rule not saved",
     "eaa3417ab": "incorrect code",
     "eae67ea0b": "bad public key",
+    "ed10140f4": "no such person",
     "e6a286dbd": "no such event",
     "e1999cbaa": "no such user",
     "e47072ca1": "unknown type",
@@ -1576,7 +1587,8 @@
     },
     "many_one": "{{count}} reminder",
     "many_other": "{{count}} reminders",
-    "overdue": "{{name}}: {{when}}"
+    "overdue": "{{name}}: {{when}}",
+    "owed": "{{name}} still owes you"
   },
   "reports": {
     "safe": {
@@ -1624,5 +1636,74 @@
     "incomeSources": "Income by source",
     "hidden": "Hidden transactions",
     "nothing": "Nothing in this period."
+  },
+  "people": {
+    "owedToMe": "Owed to you",
+    "iOwe": "You owe",
+    "split": "Split a bill",
+    "add": "Add a person",
+    "edit": "Edit",
+    "remove": "Remove",
+    "emptyTitle": "Keep track of money between you and others",
+    "emptyDesc": "Lent a friend money, borrowed from family, or paid the whole dinner bill? Add the people and Vaulty keeps count, so nobody has to remember.",
+    "settled": "Settled up",
+    "owesYou": "Owes you {{amount}}",
+    "youOwe": "You owe {{amount}}",
+    "copyReminder": "Copy a reminder",
+    "copied": "Copied. Paste it into WhatsApp, a text or an email.",
+    "reminderText": "Hi {{name}}, just a friendly reminder about the {{amount}} from earlier. Thanks!",
+    "kinds": {
+      "lent": "I lent",
+      "repaid_me": "They paid me back",
+      "borrowed": "I borrowed",
+      "i_repaid": "I paid them back"
+    },
+    "titles": {
+      "lent": "Lent to {{name}}",
+      "repaid_me": "{{name}} paid you back",
+      "borrowed": "Borrowed from {{name}}",
+      "i_repaid": "Paid {{name}} back"
+    },
+    "descs": {
+      "lent": "Money leaves your account; they owe you more.",
+      "repaid_me": "Money comes into your account; they owe you less.",
+      "borrowed": "Money comes into your account; you owe them more.",
+      "i_repaid": "Money leaves your account; you owe them less."
+    },
+    "what": {
+      "label": "What happened",
+      "lent": "You lent",
+      "received": "You received",
+      "split": "Their share of a bill you paid",
+      "they_paid": "They paid for you"
+    },
+    "history": "History",
+    "noHistory": "Nothing yet.",
+    "deleteEvent": "Delete this",
+    "addDesc": "Only you see these; they don’t need Vaulty.",
+    "name": "Name",
+    "phone": "Phone (optional)",
+    "notes": "Notes (optional)",
+    "fromAccount": "From account",
+    "intoAccount": "Into account",
+    "forWhat": "For what (optional)",
+    "forWhatHint": "Concert ticket, rent, groceries…",
+    "splitDesc": "You paid the whole bill. Your share counts as spending; the others’ shares are what they owe you.",
+    "splitWhat": "What was it",
+    "splitWhatHint": "Dinner, cab, trip…",
+    "splitTotal": "Total",
+    "paidFrom": "Paid from",
+    "splitWith": "Split between",
+    "me": "Me",
+    "shareOf": "{{name}}’s share",
+    "splitEqually": "Split equally",
+    "splitCustom": "Enter amounts",
+    "myShareCategory": "Category for your share",
+    "splitOver": "The shares add up to more than the total.",
+    "owedBy": "Owed to you by",
+    "tx": {
+      "to": "To {{name}}",
+      "from": "From {{name}}"
+    }
   }
 }

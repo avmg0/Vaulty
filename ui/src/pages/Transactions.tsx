@@ -21,7 +21,7 @@ import { useTheme } from "@/hooks/theme";
 
 type RowProps = {
   t: Pick<Transaction, "type" | "amount" | "date" | "merchant" | "description" | "category_name" | "account_name" | "currency" | "visibility" | "hidden" | "masked">
-    & Partial<Pick<Transaction, "to_account_name" | "tags" | "notes" | "splits">>;
+    & Partial<Pick<Transaction, "to_account_name" | "tags" | "notes" | "splits" | "person_name" | "flow">>;
   hidden: boolean;
   /** Shown before the date line, e.g. who the item belongs to in the family view. */
   lead?: ReactNode;
@@ -38,6 +38,9 @@ type RowProps = {
 export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, onToggleHidden, reserveActions, onEdit }: RowProps) {
   const { t: tr } = useTranslation();
   const income = t.type === "income", transfer = t.type === "transfer";
+  // Money lent to or received from a person: shown as "To John" / "From John", signed by direction.
+  const person = transfer && t.person_name ? t.person_name : null;
+  const cameIn = income || (!!person && t.flow === "in");
   const isHidden = t.hidden === 1 || !!t.masked;
   const tags = splitTags(t.tags);
   // Masked rows keep amount, date and account; everything that says what it was is withheld.
@@ -67,7 +70,7 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, 
       </div>
       <div className="min-w-0 flex-1">
         {(() => {
-          const title = t.merchant || t.description || (transfer ? tr("tx.transferLabel") : t.category_name) || tr("tx.untitled");
+          const title = t.merchant || t.description || (person ? tr(t.flow === "in" ? "people.tx.from" : "people.tx.to", { name: person }) : transfer ? tr("tx.transferLabel") : t.category_name) || tr("tx.untitled");
           return onEdit
             ? <button type="button" onClick={onEdit} className="block max-w-full truncate text-left text-sm font-medium underline-offset-4 hover:underline" title={tr("tx.edit")}>{title}</button>
             : <div className="truncate text-sm font-medium">{title}</div>;
@@ -75,16 +78,17 @@ export function TransactionRow({ t, hidden, lead, onDelete, onVisibilityChange, 
         <div className="text-muted-foreground flex items-center gap-1.5 truncate text-xs">
           {lead}
           <span className="truncate">{[formatDate(t.date),
-            transfer ? `${t.account_name} → ${t.to_account_name ?? "?"}`
-              : t.splits?.length ? tr("split.label", { names: [...new Set(t.splits.map((x) => x.category_name ?? tr("dashboard.uncategorised")))].join(", ") })
+            person ? (t.flow === "in" ? `${person} → ${t.account_name}` : `${t.account_name} → ${person}`)
+              : transfer ? `${t.account_name} → ${t.to_account_name ?? "?"}`
+              : t.splits?.length ? tr("split.label", { names: [...new Set(t.splits.map((x) => x.person_name ?? x.category_name ?? tr("dashboard.uncategorised")))].join(", ") })
               : t.category_name,
             transfer ? null : t.account_name].filter(Boolean).join(" · ")}</span>
           {tags.slice(0, 3).map((g) => <span key={g} className="bg-secondary shrink-0 rounded px-1 text-[10px]">#{g}</span>)}
           {t.notes && <NotebookText className="size-3 shrink-0" aria-label={tr("tx.notes")}><title>{t.notes}</title></NotebookText>}
         </div>
       </div>
-      <div className={cn("text-sm font-medium tabular-nums", income && "text-success")}>
-        {income ? "+" : transfer ? "" : "−"}<AnimatedMoney value={t.amount} currency={t.currency || "INR"} hidden={hidden} />
+      <div className={cn("text-sm font-medium tabular-nums", cameIn && "text-success")}>
+        {cameIn ? "+" : person ? "−" : transfer ? "" : "−"}<AnimatedMoney value={t.amount} currency={t.currency || "INR"} hidden={hidden} />
       </div>
       {/* Hidden transactions are never shared, so their visibility doesn't apply. */}
       {!isHidden && <VisibilityBadge value={t.visibility ?? "private"} onChange={onVisibilityChange} />}
@@ -246,7 +250,7 @@ export function Transactions() {
                 <div className="min-w-0 flex-1"><TransactionRow t={t} hidden={hideBalances}
                   onVisibilityChange={(v) => changeVisibility(t.id, v)}
                   onToggleHidden={t.masked ? undefined : () => toggleHidden(t)} reserveActions
-                  onEdit={t.masked ? undefined : () => edit(t)}
+                  onEdit={t.masked || t.person_id ? undefined : () => edit(t)}
                   onDelete={t.masked ? undefined : () => api.transactions.delete(t.id).then(load)} /></div>
               </AnimatedItem>
             ))}

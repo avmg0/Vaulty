@@ -91,6 +91,12 @@ pub fn for_category(conn: &Connection, category_id: &str) -> Result<(String, Kin
     Ok((id, Kind::parse(&kind)?))
 }
 
+/// The ledger account of a person (what they owe you, or you them).
+pub fn for_person(conn: &Connection, person_id: &str) -> Result<String> {
+    conn.query_row("SELECT l.id FROM ledger_accounts l JOIN people p ON p.id = l.person_id WHERE l.person_id = ? AND p.is_active = 1", [person_id], |r| r.get(0))
+        .optional()?.ok_or_else(|| Error::Invalid("no such person".into()))
+}
+
 pub fn create_account_ledger(conn: &Connection, account_id: &str, name: &str, kind: Kind) -> Result<String> {
     let id = format!("la_acc_{account_id}");
     conn.execute(
