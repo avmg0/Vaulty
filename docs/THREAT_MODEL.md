@@ -93,7 +93,7 @@ Keys live in Rust memory only while a profile is unlocked and are wiped on lock 
 | Market ticker | CoinGecko, Twelve Data (member's own key) | symbols requested, the key |
 | Planned: email invoices | the member's mail provider | the invoice, to the recipient |
 | Planned: device sync | the member's own devices on the local network | encrypted changes, after pairing |
-| Planned: updates | GitHub Releases | the app version |
+| Updates (off until turned on, or "Check now") | GitHub Releases | a request for `latest.json`; installers are verified against the signing key built into the app before anything is installed, and only the family admin can install |
 
 No analytics, no telemetry, no crash reporting, no accounts, no Vaulty servers.
 

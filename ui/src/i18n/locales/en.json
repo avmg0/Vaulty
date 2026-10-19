@@ -1114,5 +1114,22 @@
     "hideBalances": "Hide balances",
     "theme": "Switch light or dark",
     "lock": "Lock Vaulty"
+  },
+  "updates": {
+    "title": "Updates",
+    "desc": "New versions are signed; Vaulty checks the signature before installing anything.",
+    "version": "Vaulty {{version}}",
+    "privacy": "Checking asks GitHub for the latest version number. Nothing about you or your money is sent.",
+    "check": "Check now",
+    "latest": "You're on the latest version.",
+    "available": "Vaulty {{version}} is available",
+    "automatic": "Check automatically",
+    "off": "Never (I’ll check myself)",
+    "weekly": "Once a week",
+    "install": "Install and restart",
+    "installing": "Installing…",
+    "restartNote": "Vaulty locks and restarts. Your data stays as it is.",
+    "askAdmin": "Ask the family admin to install it.",
+    "later": "Later"
   }
 }

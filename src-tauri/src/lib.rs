@@ -991,9 +991,71 @@ fn app_info(s: S) -> AppInfo {
     AppInfo { version: env!("CARGO_PKG_VERSION"), demo: s.demo, demo_password: s.demo.then_some(DEMO_PASSWORD) }
 }
 
+// ============================================================ updates
+
+/// The update found by the last check, kept until it's installed.
+#[derive(Default)]
+struct PendingUpdate(tokio::sync::Mutex<Option<tauri_plugin_updater::Update>>);
+
+#[derive(Serialize)]
+struct UpdateInfo { version: String, current: String, notes: Option<String>, date: Option<String> }
+
+/// Release builds get the public half of the update signing key; local and CI builds don't, and
+/// can't update themselves.
+fn updates_configured(app: &tauri::AppHandle) -> bool {
+    app.config().plugins.0.get("updater").and_then(|u| u.get("pubkey")).and_then(Value::as_str).is_some_and(|k| !k.trim().is_empty())
+}
+
+async fn find_update(app: &tauri::AppHandle) -> Result<Option<UpdateInfo>> {
+    use tauri_plugin_updater::UpdaterExt;
+    if !updates_configured(app) {
+        return Err(Error::Invalid("this copy of Vaulty can't update itself; download new versions from the releases page".into()));
+    }
+    let offline = |e: tauri_plugin_updater::Error| Error::Invalid(format!("couldn't check for updates ({e})"));
+    let found = app.updater().map_err(offline)?.check().await.map_err(offline)?;
+    let info = found.as_ref().map(|u| UpdateInfo {
+        version: u.version.clone(), current: u.current_version.clone(), notes: u.body.clone(),
+        date: u.date.map(|d| d.date().to_string()),
+    });
+    *app.state::<PendingUpdate>().0.lock().await = found;
+    Ok(info)
+}
+
+/// "Check now" in Settings; works whether or not automatic checks are on.
+#[tauri::command]
+async fn update_check(app: tauri::AppHandle, s: S<'_>) -> Result<Option<UpdateInfo>> {
+    s.current_user()?;
+    let found = find_update(&app).await?;
+    s.data(|c| settings::mark_update_checked(c, chrono::Utc::now()))?;
+    Ok(found)
+}
+
+/// After signing in: checks only when automatic checks are on and a week has passed. Being
+/// offline is normal, so failures are quiet.
+#[tauri::command]
+async fn update_auto(app: tauri::AppHandle, s: S<'_>) -> Result<Option<UpdateInfo>> {
+    if !updates_configured(&app) || !s.data(|c| settings::update_due(c, chrono::Utc::now()))? { return Ok(None); }
+    let found = find_update(&app).await.unwrap_or(None);
+    s.data(|c| settings::mark_update_checked(c, chrono::Utc::now()))?;
+    Ok(found)
+}
+
+/// Downloads the update found by the last check, verifies its signature against the key built
+/// into this copy, installs it and restarts. Only the family admin can do this.
+#[tauri::command]
+async fn update_install(app: tauri::AppHandle, s: S<'_>) -> Result<()> {
+    if s.current_user()?.role != Role::Admin { return Err(Error::Invalid("ask the family admin to install updates".into())); }
+    let update = app.state::<PendingUpdate>().0.lock().await.take().ok_or_else(|| Error::Invalid("check for updates first".into()))?;
+    update.download_and_install(|_, _| {}, || {}).await
+        .map_err(|e| Error::Invalid(format!("the update couldn't be installed ({e}); nothing was changed")))?;
+    app.restart()
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .manage(PendingUpdate::default())
         .setup(|app| {
             let demo = demo_requested();
             let (data_dir, registry) = if demo {
@@ -1017,7 +1079,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file,
+            pick_file, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,

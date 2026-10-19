@@ -26,6 +26,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { TaxPlanner } from "@/pages/TaxPlanner";
 import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
+import { UpdateNotice } from "@/components/Updates";
 import { History } from "@/pages/History";
 import { DATA_RESTORED } from "@/api";
 import { VaultSplash } from "@/components/UnlockSplash";
@@ -131,6 +132,7 @@ function Shell({ signOut }: { signOut: () => void }) {
         </main>
       </div>
       <UndoToaster />
+      <UpdateNotice />
       <QuickAdd />
       <CommandPalette onNavigate={setPage} onLock={signOut} />
     </div>

@@ -4,3 +4,4 @@ ui/dist/
 src-tauri/gen/
 .DS_Store
 *.tsbuildinfo
+src-tauri/release.conf.json

@@ -164,3 +164,19 @@ fn bulk_changes_in_one_go() {
     history::undo_last(&c).unwrap();
     assert_eq!(transactions::get_all(&c, None).unwrap().len(), 4);
 }
+
+#[test]
+fn update_checks_are_off_until_turned_on_then_weekly() {
+    use chrono::{Duration, Utc};
+    let c = vaulty_core::db::open_in_memory().unwrap();
+    let now = Utc::now();
+    assert!(!vaulty_core::settings::update_due(&c, now).unwrap(), "off by default");
+    assert!(vaulty_core::settings::update(&c, &serde_json::json!({ "update_check": "daily" })).is_err());
+    vaulty_core::settings::update(&c, &serde_json::json!({ "update_check": "weekly" })).unwrap();
+    assert!(vaulty_core::settings::update_due(&c, now).unwrap(), "never checked");
+    vaulty_core::settings::mark_update_checked(&c, now).unwrap();
+    assert!(!vaulty_core::settings::update_due(&c, now + Duration::days(6)).unwrap());
+    assert!(vaulty_core::settings::update_due(&c, now + Duration::days(7)).unwrap());
+    // Bookkeeping doesn't show up as a change made outside Vaulty.
+    assert!(vaulty_core::history::verify(&c).unwrap().changed_outside.is_empty());
+}

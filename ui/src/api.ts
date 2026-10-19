@@ -117,7 +117,10 @@ export type CardInput = Partial<{
 }>;
 
 /** Subset of user_settings the UI uses. `locale` is BCP 47, e.g. "hi-IN" (language + country). */
-export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string };
+export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string; update_check?: "off" | "weekly" };
+
+/** A newer version found by an update check. */
+export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
 
 /** A bank, card issuer, broker or wallet from the bundled directory. */
 export type Institution = { id: string; name: string; short: string; kind: "bank" | "card" | "broker" | "wallet"; country: string; aliases: string[]; logo?: string };
@@ -256,6 +259,11 @@ export const api = {
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
   files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv", label: string) => invoke<string | null>("pick_file", { kind, label }) },
+  updates: {
+    check: () => invoke<UpdateInfo | null>("update_check"),
+    auto: () => invoke<UpdateInfo | null>("update_auto"),
+    install: () => invoke<void>("update_install"),
+  },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {
     inspect: (path: string, accountId: string) => invoke<StatementInfo>("statement_inspect", { path, accountId }),

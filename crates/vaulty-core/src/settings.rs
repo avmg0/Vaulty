@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 const EDITABLE: &[&str] = &[
     "theme", "currency", "locale", "date_format", "start_of_week", "fiscal_year_start",
     "negative_format", "transaction_sort", "auto_clear_clipboard", "spellcheck_enabled",
-    "font_size", "interface_font", "monospace_font", "decimals",
+    "font_size", "interface_font", "monospace_font", "decimals", "update_check",
 ];
 
 const MONTHS: &[&str] = &["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
@@ -62,12 +62,30 @@ fn check(key: &str, v: &Value) -> Result<()> {
             Some("minus" | "parentheses") => Ok(()),
             _ => bad("expected minus or parentheses"),
         },
+        "update_check" => match v.as_str() {
+            Some("off" | "weekly") => Ok(()),
+            _ => bad("expected off or weekly"),
+        },
         "decimals" => match v.as_str() {
             Some("auto" | "0" | "2") => Ok(()),
             _ => bad("expected auto, 0 or 2"),
         },
         _ => Ok(()),
     }
+}
+
+/// True when automatic update checks are on and the last one was a week or more ago.
+pub fn update_due(conn: &Connection, now: chrono::DateTime<chrono::Utc>) -> Result<bool> {
+    if get(conn)?["update_check"] != "weekly" { return Ok(false); }
+    let last: Option<String> = conn.query_row("SELECT last_at FROM update_checks WHERE id = 1", [], |r| r.get(0)).ok();
+    let last = last.and_then(|t| chrono::DateTime::parse_from_rfc3339(&t).ok());
+    Ok(last.is_none_or(|t| now.signed_duration_since(t) >= chrono::Duration::days(7)))
+}
+
+/// Notes that an update check just happened (whether or not it found anything).
+pub fn mark_update_checked(conn: &Connection, now: chrono::DateTime<chrono::Utc>) -> Result<()> {
+    conn.execute("INSERT INTO update_checks (id, last_at) VALUES (1, ?1) ON CONFLICT (id) DO UPDATE SET last_at = ?1", [now.to_rfc3339()])?;
+    Ok(())
 }
 
 /// `language[-Script][-REGION]`, e.g. `hi`, `hi-IN`, `zh-Hant-TW`, `es-419`.

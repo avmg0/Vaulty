@@ -10,6 +10,7 @@ import { CurrencyPicker } from "@/components/CurrencyPicker";
 import { MarketCard } from "@/components/MarketCard";
 import { SnapshotsCard } from "@/components/SnapshotsCard";
 import { BackupsCard } from "@/components/BackupsCard";
+import { UpdatesCard } from "@/components/Updates";
 import { SuccessTick } from "@/components/SuccessTick";
 import { Segmented } from "@/components/Segmented";
 import { motion as m } from "motion/react";
@@ -57,6 +58,7 @@ export function Settings() {
       <FamilySharingCard />
       <AppearanceCard />
       <MarketCard />
+      <UpdatesCard />
     </div>
   );
 }
