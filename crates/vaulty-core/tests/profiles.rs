@@ -152,3 +152,26 @@ fn senior_mode_is_set_by_the_member_or_by_the_admin_for_them() {
     assert!(matches!(r.set_senior(&jane, &jenny, true), Err(Error::Auth(_))), "but not for someone else");
     assert!(r.set_senior(&admin.user_id, "nobody", true).is_err());
 }
+
+#[test]
+fn failed_attempts_are_reported_once_after_the_next_sign_in() {
+    use vaulty_core::profiles::{failure_notice, FailureNotice};
+    let now = 1_800_000_000;
+    // A typo or two just before signing in is the member's own: not reported.
+    assert_eq!(failure_notice(&[now - 20, now - 5], now), None);
+    // Earlier attempts are reported, without the member's own typos.
+    assert_eq!(failure_notice(&[now - 7200, now - 3600, now - 5], now), Some(FailureNotice { count: 2, last_at: now - 3600 }));
+    // A burst that reached the lockout is reported in full, even if recent.
+    let burst: Vec<i64> = (0..6).map(|i| now - 60 + i).collect();
+    assert_eq!(failure_notice(&burst, now).map(|n| n.count), Some(6));
+
+    // Through a real sign-in: two old failures, then a typo, then the right password.
+    let (r, admin) = setup();
+    r.conn_for_tests().execute("INSERT INTO sign_in_failures (user_id, at) VALUES (?1, strftime('%s','now') - 7200), (?1, strftime('%s','now') - 3600)", [&admin]).unwrap();
+    assert!(r.sign_in_with_password(&admin, "wrong-password").is_err());
+    assert!(r.sign_in_with_password(&admin, "parent-password").is_ok());
+    assert_eq!(r.take_failure_notice(&admin).unwrap().map(|n| n.count), Some(2));
+    assert_eq!(r.take_failure_notice(&admin).unwrap(), None, "shown once");
+    assert!(r.sign_in_with_password(&admin, "parent-password").is_ok());
+    assert_eq!(r.take_failure_notice(&admin).unwrap(), None, "nothing new");
+}

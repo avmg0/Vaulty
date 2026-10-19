@@ -318,7 +318,7 @@ function SecurityCard() {
   );
 }
 
-function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+export function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const [cur, setCur] = useState(""), [next, setNext] = useState(""), [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const reset = () => { setCur(""); setNext(""); setConfirm(""); setError(""); };

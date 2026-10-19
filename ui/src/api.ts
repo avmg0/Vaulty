@@ -22,7 +22,9 @@ export type Role = "admin" | "member" | "child";
 export type User = { id: string; name: string; color: string; role: Role; active: boolean; totp_enabled: boolean; biometric_enabled: boolean; senior: boolean };
 export type Invite = { user: User; setup_code: string };
 /** A new recovery key appears only right after it was created and must be shown once. */
-export type SignedInUser = User & { recovery_key?: string | null };
+/** Wrong passwords or codes since the profile was last signed in to (`last_at` is Unix seconds). */
+export type FailedAttempts = { count: number; last_at: number };
+export type SignedInUser = User & { recovery_key?: string | null; failed_attempts?: FailedAttempts | null };
 export type SignIn = { status: "signed_in"; user: SignedInUser } | { status: "needs_second_factor" };
 export type TotpEnrollment = { secret_base32: string; otpauth_url: string; qr_png_base64: string };
 export type TaxDeduction = { id: string; label: string; hint?: string; cap?: number; cap_senior?: number; cap_alt?: number; alt_label?: string };

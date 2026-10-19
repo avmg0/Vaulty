@@ -1139,5 +1139,14 @@
     "desc": "Larger text and buttons, and a shorter menu with just the everyday pages.",
     "turnOn": "Turn on senior mode",
     "turnOff": "Turn off senior mode"
+  },
+  "attempts": {
+    "title_one": "Someone got your password wrong",
+    "title_other": "Someone got your password wrong {{count}} times",
+    "desc_one": "Since you last signed in, a wrong password or code was entered for your profile, on {{date}} at {{time}}.",
+    "desc_other": "Since you last signed in, a wrong password or code was entered {{count}} times for your profile, most recently on {{date}} at {{time}}.",
+    "advice": "If that was you, there’s nothing to do. If not, change your password, and consider turning on 2-step sign-in in Settings.",
+    "wasMe": "That was me",
+    "change": "Change my password"
   }
 }

@@ -85,6 +85,8 @@ struct SignedIn {
     #[serde(flatten)]
     user: UserSummary,
     recovery_key: Option<String>,
+    /// Wrong passwords or codes for this profile since it was last signed in to.
+    failed_attempts: Option<vaulty_core::profiles::FailureNotice>,
 }
 
 fn poisoned<T>(_: T) -> Error {
@@ -206,9 +208,10 @@ impl AppState {
             }
         }
         let recovery_key = keys.new_recovery_key.take();
+        let failed_attempts = self.registry(|r| r.take_failure_notice(&user_id))?;
         *self.pending.lock().map_err(poisoned)? = None;
         *self.session.lock().map_err(poisoned)? = Some(Session::new(user.clone(), conn, keys, household, household_ready));
-        Ok(SignedIn { user, recovery_key })
+        Ok(SignedIn { user, recovery_key, failed_attempts })
     }
 
     fn delete_user_files(&self, user_id: &str) {

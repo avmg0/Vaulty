@@ -76,6 +76,28 @@ pub struct Invite {
     pub setup_code: String,
 }
 
+/// Wrong passwords or codes for a profile since it was last signed in to.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
+pub struct FailureNotice {
+    pub count: i64,
+    /// Unix time of the most recent one.
+    pub last_at: i64,
+}
+
+/// Mistakes made in the last few minutes before a successful sign-in are almost always the member's
+/// own typing, so a short run of them is left out. A run that reached the lockout is still reported.
+pub const OWN_TYPING_SECS: i64 = 5 * 60;
+
+pub fn failure_notice(times: &[i64], signed_in_at: i64) -> Option<FailureNotice> {
+    let recent = times.iter().filter(|&&t| signed_in_at - t <= OWN_TYPING_SECS).count() as i64;
+    let counted: Vec<i64> = if recent < MAX_FREE_ATTEMPTS {
+        times.iter().copied().filter(|&t| signed_in_at - t > OWN_TYPING_SECS).collect()
+    } else {
+        times.to_vec()
+    };
+    counted.iter().max().map(|&last_at| FailureNotice { count: counted.len() as i64, last_at })
+}
+
 /// Keys released by a successful sign-in. Kept in memory for the session only and wiped on drop.
 #[derive(Clone)]
 pub struct Unlocked {
@@ -792,15 +814,36 @@ impl Registry {
             let secs = (30i64 << (n - MAX_FREE_ATTEMPTS).min(10)).min(MAX_LOCKOUT_SECS);
             self.conn.execute("UPDATE users SET locked_until = ? WHERE id = ?", params![now() + secs, user_id])?;
         }
+        // Remembered (at most the latest 500) until the next successful sign-in, to tell the member.
+        self.conn.execute("INSERT INTO sign_in_failures (user_id, at) VALUES (?, ?)", params![user_id, now()])?;
+        self.conn.execute(
+            "DELETE FROM sign_in_failures WHERE user_id = ?1 AND rowid NOT IN
+               (SELECT rowid FROM sign_in_failures WHERE user_id = ?1 ORDER BY at DESC, rowid DESC LIMIT 500)",
+            [user_id],
+        )?;
         Ok(())
     }
 
     fn record_success(&self, user_id: &str) -> Result<()> {
+        let times: Vec<i64> = self.conn
+            .prepare("SELECT at FROM sign_in_failures WHERE user_id = ? ORDER BY at")?
+            .query_map([user_id], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        let notice = failure_notice(&times, now());
+        self.conn.execute("DELETE FROM sign_in_failures WHERE user_id = ?", [user_id])?;
         self.conn.execute(
-            "UPDATE users SET failed_attempts = 0, locked_until = 0, last_login_at = CURRENT_TIMESTAMP WHERE id = ?",
-            [user_id],
+            "UPDATE users SET failed_attempts = 0, locked_until = 0, last_login_at = CURRENT_TIMESTAMP,
+                failure_notice = COALESCE(?2, failure_notice) WHERE id = ?1",
+            params![user_id, notice.map(|n| serde_json::to_string(&n)).transpose()?],
         )?;
         Ok(())
+    }
+
+    /// Wrong attempts since the member last signed in, shown once after signing in. Cleared by reading.
+    pub fn take_failure_notice(&self, user_id: &str) -> Result<Option<FailureNotice>> {
+        let raw: Option<String> = self.conn.query_row("SELECT failure_notice FROM users WHERE id = ?", [user_id], |r| r.get(0)).optional()?.flatten();
+        self.conn.execute("UPDATE users SET failure_notice = NULL WHERE id = ?", [user_id])?;
+        Ok(raw.and_then(|r| serde_json::from_str(&r).ok()))
     }
 
     #[doc(hidden)]
