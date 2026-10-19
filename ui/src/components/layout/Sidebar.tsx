@@ -1,4 +1,6 @@
 import { useTranslation } from "react-i18next";
+import { useHotkeyLabels } from "@/hooks/hotkeys";
+import { withKeys } from "@/lib/keys";
 import { SENIOR_PAGES } from "@/lib/senior";
 import { motion } from "motion/react";
 import { useMotion, SPRING } from "@/lib/motion";
@@ -14,6 +16,7 @@ type Props = { page: PageId; onNavigate: (p: PageId) => void; collapsed: boolean
 
 export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
   const { user, signOut } = useSession();
+  const keys = useHotkeyLabels();
   const { t } = useTranslation();
   const item = (i: NavItem) => (
     <NavButton key={i.id} item={i} active={page === i.id} collapsed={collapsed} label={t(`nav.${i.id}`)} onClick={() => onNavigate(i.id)} />
@@ -25,11 +28,11 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
         <Logo className="w-7 shrink-0" />
         {!collapsed && <span className="font-semibold tracking-tight">Vaulty</span>}
         {!collapsed && (
-          <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title={t("nav.collapse")} aria-label={t("nav.collapse")}><PanelLeftClose /></Button>
+          <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title={withKeys(t("nav.collapse"), keys.sidebar)} aria-label={t("nav.collapse")}><PanelLeftClose /></Button>
         )}
       </div>
       <nav className="isolate flex-1 space-y-4 overflow-y-auto px-2 py-2">
-        {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title={t("nav.expand")} aria-label={t("nav.expand")}><PanelLeftOpen /></Button>}
+        {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title={withKeys(t("nav.expand"), keys.sidebar)} aria-label={t("nav.expand")}><PanelLeftOpen /></Button>}
         {/* Senior mode: one short list of everyday pages, no group headings. */}
         {user.senior ? <div className="space-y-0.5">{NAV.flatMap((g) => g.items).filter((i) => SENIOR_PAGES.includes(i.id)).map(item)}</div>
           : NAV.map((g) => (
@@ -49,7 +52,7 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
               <div className="text-muted-foreground text-xs">{t(`role.${user.role}`)}</div>
             </div>
           )}
-          <Button variant="ghost" size="icon" className="size-8" onClick={signOut} title={t("nav.lock")} aria-label={t("nav.lock")}><LogOut /></Button>
+          <Button variant="ghost" size="icon" className="size-8" onClick={signOut} title={withKeys(t("nav.lock"), keys.lock)} aria-label={t("nav.lock")}><LogOut /></Button>
         </div>
       </div>
     </aside>

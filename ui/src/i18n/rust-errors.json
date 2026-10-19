@@ -60,6 +60,10 @@
   "re": "^that code didn't match; check the time on your phone and try again$"
  },
  {
+  "id": "e43eb186c",
+  "re": "^that shortcut belongs to the system \\(copy, paste, quit and so on\\)$"
+ },
+ {
   "id": "e6c4717b8",
   "re": "^turn on Family sharing in Settings to see what your family shares$"
  },
@@ -74,6 +78,10 @@
  {
   "id": "eb988c1cd",
   "re": "^app updates can't be undone; restore a safety copy instead$"
+ },
+ {
+  "id": "e09b47d45",
+  "re": "^use Ctrl \\(Cmd on a Mac\\), Shift and Alt with one other key$"
  },
  {
   "id": "eb8488838",
@@ -184,6 +192,10 @@
   "re": "^expected auto or a month name such as april$"
  },
  {
+  "id": "e7184ceb6",
+  "re": "^a shortcut needs Ctrl \\(Cmd on a Mac\\) or Alt$"
+ },
+ {
   "id": "e08b45d14",
   "re": "^choose a preset, colour, gradient or image$"
  },
@@ -270,6 +282,10 @@
  {
   "id": "eebc4b887",
   "re": "^the amount must be greater than zero$"
+ },
+ {
+  "id": "efdd36dff",
+  "re": "^that key can't be used in a shortcut$"
  },
  {
   "id": "e3d60c603",
@@ -856,6 +872,10 @@
   "re": "^unknown transaction type `([\\s\\S]+?)`$"
  },
  {
+  "id": "e00954acc",
+  "re": "^unknown shortcut action `([\\s\\S]+?)`$"
+ },
+ {
   "id": "e088d19ab",
   "re": "^unknown snapshot reason `([\\s\\S]+?)`$"
  },
@@ -970,6 +990,10 @@
  {
   "id": "e91b59850",
   "re": "^([\\s\\S]+?)/([\\s\\S]+?) needs slabs for age 0$"
+ },
+ {
+  "id": "e30919696",
+  "re": "^([\\s\\S]+?) is already used for ([\\s\\S]+?)$"
  },
  {
   "id": "e7b8dfd3e",

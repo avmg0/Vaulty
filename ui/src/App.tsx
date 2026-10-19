@@ -28,6 +28,7 @@ import { TaxPlanner } from "@/pages/TaxPlanner";
 import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
 import { UpdateNotice } from "@/components/Updates";
+import { HotkeysProvider, useHotkey } from "@/hooks/hotkeys";
 import { applySenior } from "@/lib/senior";
 import { History } from "@/pages/History";
 import { DATA_RESTORED } from "@/api";
@@ -50,7 +51,7 @@ export function App() {
   const [attempts, setAttempts] = useState<FailedAttempts | null>(null);
   const [unlocking, setUnlocking] = useState(false);
   const [locking, setLocking] = useState(false);
-  const { motion } = useTheme();
+  const { motion, setHideBalances } = useTheme();
   const signedIn = (u: SignedInUser, fresh?: boolean) => {
     setUser(u);
     setUnlocking(true);
@@ -65,6 +66,13 @@ export function App() {
   };
   // Locking closes the vault: the app blurs away and the logo's dial turns clockwise before the
   // sign-in screen appears. The data is closed straight away; only the picture lingers.
+  // The panic shortcut: gone at once, no animation, balances hidden for whoever signs in next.
+  const lockNow = useCallback(() => {
+    setHideBalances(true);
+    setLocking(false);
+    setUser(null);
+    void api.auth.signOut().catch(() => {});
+  }, [setHideBalances]);
   const signOut = useCallback(() => {
     const done = api.auth.signOut();
     if (motion === "off") { void done.finally(() => setUser(null)); return; }
@@ -85,7 +93,7 @@ export function App() {
   return (
     <SessionProvider value={{ user, setUser, signOut }}>
       <div className={locking ? "pointer-events-none opacity-0 blur-md transition-[opacity,filter] duration-300" : "transition-[opacity,filter] duration-300"}>
-        <Shell key={user.id} signOut={signOut} />
+        <Shell key={user.id} signOut={signOut} lockNow={lockNow} />
       </div>
       {unlocking && !locking && <VaultSplash mode="open" onDone={unlockFinished} />}
       {locking && <VaultSplash mode="close" onDone={lockFinished} />}
@@ -95,7 +103,11 @@ export function App() {
   );
 }
 
-function Shell({ signOut }: { signOut: () => void }) {
+function Shell(props: { signOut: () => void; lockNow: () => void }) {
+  return <HotkeysProvider><ShellBody {...props} /></HotkeysProvider>;
+}
+
+function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => void }) {
   const { t } = useTranslation();
   const [page, setPage] = useState<PageId>("dashboard");
   const [collapsed, setCollapsed] = useState(false);
@@ -109,20 +121,20 @@ function Shell({ signOut }: { signOut: () => void }) {
     return () => window.removeEventListener(DATA_RESTORED, bump);
   }, []);
 
-  // Keyboard shortcuts. Ctrl on Windows/Linux, Cmd on macOS.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
-      const k = e.key.toLowerCase();
-      if (k === "b") { e.preventDefault(); setCollapsed((c) => !c); }
-      else if (k === "l") { e.preventDefault(); signOut(); }
-      else if (k === "h") { e.preventDefault(); setHideBalances(!hideBalances); }
-      else if (k === ",") { e.preventDefault(); setPage("settings"); }
-      else if (k >= "1" && k <= "4") { e.preventDefault(); setPage((["dashboard", "transactions", "accounts", "reports"] as PageId[])[+k - 1]); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [signOut, hideBalances, setHideBalances]);
+  // Keyboard shortcuts (each member can change them in Settings). Ctrl on Windows/Linux, Cmd on macOS.
+  useHotkey("sidebar", () => setCollapsed((c) => !c));
+  useHotkey("lock", () => signOut());
+  useHotkey("panic", () => lockNow());
+  useHotkey("hide_balances", () => setHideBalances(!hideBalances));
+  useHotkey("settings", () => setPage("settings"));
+  useHotkey("go_dashboard", () => setPage("dashboard"));
+  useHotkey("go_transactions", () => setPage("transactions"));
+  useHotkey("go_accounts", () => setPage("accounts"));
+  useHotkey("go_reports", () => setPage("reports"));
+  useHotkey("go_budgets", () => setPage("budgets"));
+  useHotkey("go_recurring", () => setPage("recurring"));
+  useHotkey("go_cards", () => setPage("cards"));
+  useHotkey("go_import", () => setPage("import"));
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
   const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, history: <History /> }[page as string];

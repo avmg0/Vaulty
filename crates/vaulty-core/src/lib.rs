@@ -12,6 +12,7 @@ pub mod demo;
 pub mod error;
 pub mod export;
 pub mod history;
+pub mod hotkeys;
 pub mod household;
 pub mod institutions;
 pub mod ledger;

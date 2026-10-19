@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, DATA_CHANGED, errorText, type HistoryItem } from "@/api";
 import { Button } from "@/components/ui/button";
 import { useOptionalSession } from "@/hooks/session";
+import { useHotkey } from "@/hooks/hotkeys";
 
 type Toast = { id: number; text: string; batch?: number };
 
@@ -47,20 +48,20 @@ export function UndoToaster() {
         if (last && !last.undone) show({ id: Date.now(), text: t("history.toastDone", { what: label(last) }), batch: last.id });
       }).catch(() => {});
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== "z") return;
-      const el = e.target as HTMLElement | null;
-      if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return; // keep text undo
-      if (document.querySelector("[role=dialog]")) return;
-      e.preventDefault();
-      api.history.undoLast()
-        .then((done) => show({ id: Date.now(), text: done ? t("history.toastUndone", { what: label(done) }) : t("history.nothing") }, 4000))
-        .catch((err) => show({ id: Date.now(), text: errorText(err) }, 6000));
-    };
+
     window.addEventListener(DATA_CHANGED, onChange);
-    window.addEventListener("keydown", onKey);
-    return () => { window.removeEventListener(DATA_CHANGED, onChange); window.removeEventListener("keydown", onKey); clearTimeout(timer.current); };
+    return () => { window.removeEventListener(DATA_CHANGED, onChange); clearTimeout(timer.current); };
   }, [label, show, t]);
+
+  // Outside text fields only: there, the shortcut undoes typing as usual.
+  useHotkey("undo", (e) => {
+    const el = e.target as HTMLElement | null;
+    if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return false;
+    if (document.querySelector("[role=dialog]")) return false;
+    api.history.undoLast()
+      .then((done) => show({ id: Date.now(), text: done ? t("history.toastUndone", { what: label(done) }) : t("history.nothing") }, 4000))
+      .catch((err) => show({ id: Date.now(), text: errorText(err) }, 6000));
+  });
 
   const undo = async () => {
     if (!toast?.batch) return;

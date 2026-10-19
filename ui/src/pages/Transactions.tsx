@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { useHotkeyLabel } from "@/hooks/hotkeys";
 import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, CheckSquare, Eye, EyeOff, Fingerprint, Loader2, Lock, NotebookText, Plus, Search, Tag, Trash2, X } from "lucide-react";
 import type { BulkAction } from "@/api";
 import { TransactionDialog } from "@/components/TransactionDialog";
@@ -117,6 +118,7 @@ function periodRange(p: Period): { startDate?: string; endDate?: string } {
 
 export function Transactions() {
   const { t: tr } = useTranslation();
+  const undoKeys = useHotkeyLabel("undo");
   const { hideBalances, hiddenInMain } = useTheme();
   const [tab, setTab] = useState<"all" | "hidden">("all");
   const [hiddenCount, setHiddenCount] = useState(0);
@@ -171,7 +173,7 @@ export function Transactions() {
   const toggleSelect = (id: string) => setSelected((cur) => { const n = new Set(cur); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const runBulk = async (action: BulkAction) => {
     const n = await api.transactions.bulk([...selected], action);
-    setBulkNote(tr("bulk.done", { count: n })); load(); setReloadHidden((x) => x + 1);
+    setBulkNote(tr("bulk.done", { count: n }) + (undoKeys ? " " + tr("bulk.undoHint", { keys: undoKeys }) : "")); load(); setReloadHidden((x) => x + 1);
     if ("delete" in action || "hidden" in action) setSelected(new Set());
   };
   const [bulkNote, setBulkNote] = useState("");

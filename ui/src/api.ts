@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -121,6 +121,9 @@ export type CardInput = Partial<{
 
 /** Subset of user_settings the UI uses. `locale` is BCP 47, e.g. "hi-IN" (language + country). */
 export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string; update_check?: "off" | "weekly"; auto_lock_minutes?: number };
+
+/** A keyboard shortcut: `keys` like "Mod+Shift+K" ("" = off). */
+export type Hotkey = { action: string; keys: string; default: string; custom: boolean };
 
 /** A newer version found by an update check. */
 export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
@@ -271,6 +274,12 @@ export const api = {
     check: () => invoke<UpdateInfo | null>("update_check"),
     auto: () => invoke<UpdateInfo | null>("update_auto"),
     install: () => invoke<void>("update_install"),
+  },
+  hotkeys: {
+    list: () => invoke<Hotkey[]>("hotkeys_list"),
+    /** `keys`: the new combination, "" to turn it off, or null for the default. */
+    set: (action: string, keys: string | null) => invoke<Hotkey[]>("hotkeys_set", { action, keys }),
+    reset: () => invoke<Hotkey[]>("hotkeys_reset"),
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {

@@ -26,9 +26,9 @@
     "business": "Business",
     "family": "Family",
     "settings": "Settings",
-    "collapse": "Collapse sidebar (Ctrl+B)",
-    "expand": "Expand sidebar (Ctrl+B)",
-    "lock": "Lock / switch profile (Ctrl+L)",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar",
+    "lock": "Lock / switch profile",
     "history": "History",
     "budgets": "Budgets",
     "skip": "Skip to content"
@@ -41,7 +41,7 @@
   "header": {
     "offline": "Offline",
     "online": "Online",
-    "hideBalances": "Hide balances (Ctrl+H)",
+    "hideBalances": "Hide balances",
     "theme": "Theme: {{theme}}",
     "pricesOnline": "Online for prices"
   },
@@ -143,7 +143,7 @@
       "accent": "Accent colour",
       "logoFollows": "The logo follows your accent",
       "hide": "Hide balances (incognito)",
-      "hideDesc": "Mask amounts everywhere until toggled off (Ctrl/Cmd+H)",
+      "hideDesc": "Mask amounts everywhere until toggled off",
       "motion": "Motion",
       "motionDesc": "How much the interface moves. Reduced keeps gentle fades and is used automatically when your system asks for less motion.",
       "motionFull": "Full",
@@ -276,7 +276,7 @@
     "toastDone": "{{what}}",
     "toastUndone": "Undone: {{what}}",
     "nothing": "Nothing to undo",
-    "shortcut": "Ctrl+Z undoes your last change.",
+    "shortcut": "{{keys}} undoes your last change.",
     "actions": {
       "account": {
         "create": "Added account",
@@ -333,6 +333,10 @@
         "add": "Added a category rule",
         "delete": "Deleted a category rule",
         "apply": "Categorised transactions by rules"
+      },
+      "hotkeys": {
+        "set": "Changed a shortcut",
+        "reset": "Reset the shortcuts"
       }
     },
     "check": {
@@ -1101,8 +1105,9 @@
     "addTag": "Add tag",
     "confirmDelete_one": "Delete {{count}} transaction",
     "confirmDelete_other": "Delete {{count}} transactions",
-    "done_one": "{{count}} transaction changed. Ctrl+Z undoes it.",
-    "done_other": "{{count}} transactions changed. Ctrl+Z undoes it."
+    "done_one": "{{count}} transaction changed.",
+    "done_other": "{{count}} transactions changed.",
+    "undoHint": "{{keys}} undoes it."
   },
   "palette": {
     "title": "Go to or do anything",
@@ -1165,10 +1170,12 @@
     "eaf09b6a7": "full card numbers are never stored; send only `last4` and `network`",
     "e74d10347": "encrypted copy failed its integrity check; original left untouched",
     "efb0cbd19": "that code didn't match; check the time on your phone and try again",
+    "e43eb186c": "that shortcut belongs to the system (copy, paste, quit and so on)",
     "e6c4717b8": "turn on Family sharing in Settings to see what your family shares",
     "e315f7835": "that spreadsheet couldn't be opened (is it password protected?)",
     "ee9d57d74": "transfers between different currencies aren't supported yet",
     "eb988c1cd": "app updates can't be undone; restore a safety copy instead",
+    "e09b47d45": "use Ctrl (Cmd on a Mac), Shift and Alt with one other key",
     "eb8488838": "choose the amount column, or the debit and credit columns",
     "eb69e5843": "this category has sub-categories, so it can't become one",
     "e46964378": "sign out and in again to finish upgrading this profile",
@@ -1196,6 +1203,7 @@
     "e7e707449": "choose the bank account this debit card uses",
     "ea257c422": "an admin already exists; ask them to add you",
     "e2002b090": "expected auto or a month name such as april",
+    "e7184ceb6": "a shortcut needs Ctrl (Cmd on a Mac) or Alt",
     "e08b45d14": "choose a preset, colour, gradient or image",
     "ed3195400": "select at most 5000 transactions at a time",
     "e97070588": "type the member's name exactly to confirm",
@@ -1218,6 +1226,7 @@
     "ee1fc6b52": "that file is too large to be a backup",
     "e74a5c73f": "an entry needs at least two postings",
     "eebc4b887": "the amount must be greater than zero",
+    "efdd36dff": "that key can't be used in a shortcut",
     "e3d60c603": "the hint can't contain the password",
     "eb8ec1a2a": "invalid or already-used backup code",
     "eef1a8ef3": "this profile hasn't been set up yet",
@@ -1364,6 +1373,7 @@
     "e946b691f": "{{p0}} has several default regimes",
     "edb41ef32": "`{{p0}}` isn't a date (YYYY-MM-DD)",
     "e06328306": "unknown transaction type `{{p0}}`",
+    "e00954acc": "unknown shortcut action `{{p0}}`",
     "e088d19ab": "unknown snapshot reason `{{p0}}`",
     "e26b468f4": "`{{p0}}` is not a valid amount",
     "e71d2a651": "unknown card network `{{p0}}`",
@@ -1393,6 +1403,7 @@
     "ede1457aa": "entry does not balance in {{p0}} (off by {{p1}})",
     "e3f05e09b": "{{p0}} is too long (at most {{p1}} characters)",
     "e91b59850": "{{p0}}/{{p1}} needs slabs for age 0",
+    "e30919696": "{{p0}} is already used for {{p1}}",
     "e7b8dfd3e": "`{{p0}}` must be {{p1}}",
     "e7e7b299c": "tax pack {{p0}}: {{p1}}",
     "ea546073a": "{{p0}}: {{p1}}",
@@ -1404,5 +1415,39 @@
     "file": "That file couldn’t be read or written. Check it still exists and that Vaulty is allowed to use that folder.",
     "format": "That file isn’t in a format Vaulty understands.",
     "csv": "That spreadsheet file couldn’t be read. Try saving it again as CSV from your bank’s website or Excel."
+  },
+  "hotkeys": {
+    "title": "Keyboard shortcuts",
+    "desc": "Change any shortcut to keys that suit you. They’re saved with your profile.",
+    "groups": {
+      "general": "General",
+      "go": "Go to"
+    },
+    "actions": {
+      "quick_add": "Quick add",
+      "palette": "Command palette",
+      "undo": "Undo the last change",
+      "hide_balances": "Hide or show balances",
+      "lock": "Lock / switch profile",
+      "panic": "Lock at once and hide balances",
+      "sidebar": "Show or hide the sidebar",
+      "settings": "Settings",
+      "go_dashboard": "Dashboard",
+      "go_transactions": "Transactions",
+      "go_accounts": "Accounts",
+      "go_reports": "Reports",
+      "go_budgets": "Budgets",
+      "go_recurring": "Recurring",
+      "go_cards": "Cards",
+      "go_import": "Import statements"
+    },
+    "press": "Press the new keys…",
+    "none": "None",
+    "changeFor": "Change the shortcut for {{action}}",
+    "reset": "Back to the default",
+    "resetFor": "Put back the default for {{action}}",
+    "resetAll": "Reset all",
+    "taken": "{{keys}} is already used for “{{action}}”. Change that one first.",
+    "hint": "Click a shortcut, then press the keys. Esc cancels; Backspace turns it off."
   }
 }

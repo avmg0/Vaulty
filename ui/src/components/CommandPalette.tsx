@@ -7,6 +7,7 @@ import { ALL_ITEMS, type PageId } from "@/nav";
 import { QUICK_ADD_EVENT } from "@/components/QuickAdd";
 import { useTheme } from "@/hooks/theme";
 import { rememberFocus, returnFocus } from "@/lib/focus";
+import { formatKeys, useHotkey, useHotkeys } from "@/hooks/hotkeys";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 
 /** A search the Transactions page picks up when it opens (set by the palette). */
@@ -28,11 +29,8 @@ export function CommandPalette({ onNavigate, onLock }: { onNavigate: (p: PageId)
   const [txs, setTxs] = useState<Transaction[]>([]);
   const list = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const onKey = (e: globalThis.KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setOpen((o) => { if (!o) rememberFocus(); return !o; }); } };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  useHotkey("palette", () => setOpen((o) => { if (!o) rememberFocus(); return !o; }));
+  const keys = useHotkeys().keys;
   useEffect(() => {
     if (!open) return;
     setQ(""); setActive(0);
@@ -45,15 +43,15 @@ export function CommandPalette({ onNavigate, onLock }: { onNavigate: (p: PageId)
     const go = (p: PageId) => () => { close(); onNavigate(p); };
     const pages: Item[] = ALL_ITEMS.map((i) => ({ id: `page-${i.id}`, label: t(`nav.${i.id}`), icon: i.icon, group: t("palette.go"), run: go(i.id), keywords: i.id }));
     const actions: Item[] = [
-      { id: "quick", label: t("quick.button"), hint: "Ctrl+J", icon: Zap, group: t("palette.do"), run: () => { close(); window.dispatchEvent(new Event(QUICK_ADD_EVENT)); }, keywords: "add new transaction expense" },
-      { id: "balances", label: hideBalances ? t("palette.showBalances") : t("palette.hideBalances"), hint: "Ctrl+H", icon: Eye, group: t("palette.do"), run: () => { close(); setHideBalances(!hideBalances); } },
+      { id: "quick", label: t("quick.button"), hint: formatKeys(keys.quick_add), icon: Zap, group: t("palette.do"), run: () => { close(); window.dispatchEvent(new Event(QUICK_ADD_EVENT)); }, keywords: "add new transaction expense" },
+      { id: "balances", label: hideBalances ? t("palette.showBalances") : t("palette.hideBalances"), hint: formatKeys(keys.hide_balances), icon: Eye, group: t("palette.do"), run: () => { close(); setHideBalances(!hideBalances); } },
       { id: "theme", label: t("palette.theme"), icon: Moon, group: t("palette.do"), run: () => { close(); setTheme(theme === "dark" ? "light" : "dark"); }, keywords: "dark light mode" },
       { id: "backup", label: t("backups.make"), icon: ArrowRight, group: t("palette.do"), run: go("settings"), keywords: "export backup encrypted" },
       { id: "import", label: t("import.step1"), icon: ArrowRight, group: t("palette.do"), run: go("import"), keywords: "csv statement bank excel" },
-      { id: "lock", label: t("palette.lock"), hint: "Ctrl+L", icon: Lock, group: t("palette.do"), run: () => { close(); onLock(); }, keywords: "sign out switch profile" },
+      { id: "lock", label: t("palette.lock"), hint: formatKeys(keys.lock), icon: Lock, group: t("palette.do"), run: () => { close(); onLock(); }, keywords: "sign out switch profile" },
     ];
     return [...actions, ...pages];
-  }, [t, hideBalances, theme]);
+  }, [t, hideBalances, theme, keys]);
 
   const query = q.trim();
   const shown = useMemo(() => {

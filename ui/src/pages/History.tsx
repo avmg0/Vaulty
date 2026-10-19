@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useHotkeyLabel } from "@/hooks/hotkeys";
 import { SkeletonRows } from "@/components/Skeleton";
 import { ArrowLeftRight, CreditCard, FolderTree, Info, RotateCcw, Settings2, Shapes, Undo2, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -21,6 +22,7 @@ const ICONS: Record<string, typeof Wallet> = {
 /** Recent changes with undo, and deleted items with restore. */
 export function History() {
   const { t } = useTranslation();
+  const undoKeys = useHotkeyLabel("undo");
   const [tab, setTab] = useState<"recent" | "deleted">("recent");
   const [items, setItems] = useState<HistoryItem[] | null>(null);
   const [error, setError] = useState("");
@@ -45,7 +47,7 @@ export function History() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Segmented role="tablist" value={tab} onChange={(k) => { setItems(null); setTab(k); }}
           options={(["recent", "deleted"] as const).map((k) => ({ value: k, label: t(`history.${k}`) }))} />
-        <span className="text-muted-foreground text-xs">{t("history.shortcut")}</span>
+        <span className="text-muted-foreground text-xs">{undoKeys && t("history.shortcut", { keys: undoKeys })}</span>
       </div>
       <p className="text-muted-foreground flex gap-2 text-xs"><Info className="mt-px size-3.5 shrink-0" />{t("history.keep")}</p>
       {tab === "recent" && <HistoryCheck />}

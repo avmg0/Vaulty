@@ -271,7 +271,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Password-protected backups (`.vaulty`, open format in docs/BACKUP_FORMAT.md) and a printable recovery sheet
 - [x] Command palette (Ctrl/Cmd+K); period and category filters, bulk actions, lists that grow in pages
 - [ ] Quick add from anywhere: tray / menu-bar icon and an OS-wide shortcut (needs the Tauri tray and global-shortcut plugins, tested on each OS)
-- [ ] Hotkey editor
+- [x] Hotkey editor (Settings → Keyboard shortcuts; per profile, clash and system-key checks, undoable)
 - **Done when:** the family uses it for a month instead of a spreadsheet.
 
 ### Phase 2: Security before public release (v0.5, public beta)
@@ -491,13 +491,14 @@ Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. S
 ### Security
 - [ ] Shared recovery key: split a recovery key into parts held by trusted family members (e.g. any 2 of 3 rebuild it, Shamir's secret sharing); no single person can unlock the data, and losing one part isn't fatal (Phase 2, top pick).
 
-## Keyboard shortcuts (current)
+## Keyboard shortcuts (defaults; each member can change them in Settings)
 | Keys | Action |
 |---|---|
 | Ctrl/Cmd + 1–4 | Dashboard, Transactions, Accounts, Reports |
 | Ctrl/Cmd + B | Toggle sidebar |
 | Ctrl/Cmd + H | Hide or show balances |
 | Ctrl/Cmd + L | Lock / switch profile |
+| Ctrl/Cmd + Shift + L | Lock at once, no animation, balances hidden |
 | Ctrl/Cmd + , | Settings |
 | Ctrl/Cmd + K | Command palette: pages, actions, find a transaction |
 | Ctrl/Cmd + J | Quick add |

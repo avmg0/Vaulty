@@ -8,6 +8,7 @@ import { NativeSelect } from "@/components/ui/input";
 import { TransactionDialog } from "@/components/TransactionDialog";
 import { useTheme } from "@/hooks/theme";
 import { rememberFocus, returnFocus } from "@/lib/focus";
+import { useHotkey } from "@/hooks/hotkeys";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 
 const LAST_ACCOUNT = "vaulty.quick.account";
@@ -35,11 +36,10 @@ export function QuickAdd() {
 
   useEffect(() => {
     const show = () => { rememberFocus(); setOpen(true); };
-    const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") { e.preventDefault(); show(); } };
-    window.addEventListener("keydown", onKey);
     window.addEventListener(QUICK_ADD_EVENT, show);
-    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener(QUICK_ADD_EVENT, show); };
+    return () => window.removeEventListener(QUICK_ADD_EVENT, show);
   }, []);
+  useHotkey("quick_add", () => { rememberFocus(); setOpen(true); });
   useEffect(() => {
     if (!open) return;
     setText(""); setParsed(null); setError(""); setSaved(null);

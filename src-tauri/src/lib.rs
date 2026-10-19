@@ -903,6 +903,14 @@ fn restore_backup(s: &AppState, data: Value) -> Result<Value> {
 #[tauri::command] fn cards_update(s: S, id: String, card: Value) -> Result<Value> { limits::check(&card)?; s.act("card.update", |c| vaulty_core::cards::update(c, &id, &card)) }
 #[tauri::command] fn cards_delete(s: S, id: String) -> Result<()> { s.act("card.delete", |c| vaulty_core::cards::delete(c, &id)) }
 
+#[tauri::command] fn hotkeys_list(s: S) -> Result<Vec<vaulty_core::hotkeys::Hotkey>> { s.data(vaulty_core::hotkeys::list) }
+/// `keys`: the new combination, `""` to turn it off, or nothing to put back the default.
+#[tauri::command] fn hotkeys_set(s: S, action: String, keys: Option<String>) -> Result<Vec<vaulty_core::hotkeys::Hotkey>> {
+    limits::text("keys", keys.as_deref().unwrap_or_default(), 40)?;
+    s.act("hotkeys.set", |c| vaulty_core::hotkeys::set(c, &action, keys.as_deref()))
+}
+#[tauri::command] fn hotkeys_reset(s: S) -> Result<Vec<vaulty_core::hotkeys::Hotkey>> { s.act("hotkeys.reset", vaulty_core::hotkeys::reset_all) }
+
 #[tauri::command] fn market_get(s: S) -> Result<Value> { s.data(vaulty_core::market::prefs_view) }
 #[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { limits::check(&prefs)?; s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
 /// `which` is `stock` or `crypto`; an empty key removes it.
@@ -1153,7 +1161,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, users_set_senior, session_touch, update_check, update_auto, update_install,
+            pick_file, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
             sign_in, sign_in_totp, sign_in_backup_code, sign_in_biometric, sign_out,
