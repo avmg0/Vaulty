@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Check, Loader2, MoreHorizontal, Pause, Pencil, Play, Plus, Repeat, SkipForward, Trash2, Zap } from "lucide-react";
+import { ArrowDownRight, ArrowLeftRight, ArrowUpRight, Check, Loader2, MoreHorizontal, Pause, Pencil, Play, Plus, Repeat, SkipForward, Sparkles, Trash2, TrendingUp, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
-import { api, DATA_RESTORED, errorText, type Account, type Category, type Recurring, type RecurringInput } from "@/api";
+import { api, DATA_RESTORED, errorText, type Account, type Category, type PriceChange, type Recurring, type RecurringInput, type RecurringRise, type SubscriptionCandidate } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +48,11 @@ export function RecurringPage() {
   const [paying, setPaying] = useState<Recurring | null>(null);
   const [error, setError] = useState("");
 
-  const load = () => api.recurring.list().then(setItems).catch((e) => setError(errorText(e)));
+  const [rises, setRises] = useState<Record<string, RecurringRise>>({});
+  const load = () => {
+    api.recurring.list().then(setItems).catch((e) => setError(errorText(e)));
+    api.subscriptions.rises().then((l) => setRises(Object.fromEntries(l.map((r) => [r.recurring_id, r])))).catch(() => {});
+  };
   useEffect(() => {
     load();
     api.accounts.getAll().then(setAccounts);
@@ -90,6 +94,7 @@ export function RecurringPage() {
         <Button className="ml-auto" onClick={() => setEditing("new")} disabled={!accounts.length} title={accounts.length ? "" : t("tx.needAccount")}><Plus />{t("recurring.add")}</Button>
       </div>
       {error && <p className="text-destructive text-sm">{error}</p>}
+      {accounts.length > 0 && <SubscriptionSuggestions hidden={hideBalances} onTracked={load} />}
       {!items && <Card><CardContent><SkeletonRows rows={4} /></CardContent></Card>}
       {items?.length === 0 && (
         <Card><CardContent className="flex flex-col items-center gap-3 py-10 text-center">
@@ -105,7 +110,7 @@ export function RecurringPage() {
             <AnimatedList>
               {list.map((r) => (
                 <AnimatedItem key={r.id}>
-                  <Row r={r} hidden={hideBalances} onPay={() => setPaying(r)} onEdit={() => setEditing(r)}
+                  <Row r={r} rise={rises[r.id]} hidden={hideBalances} onPay={() => setPaying(r)} onEdit={() => setEditing(r)}
                     onSkip={() => act(() => api.recurring.skip(r.id))} onToggle={() => act(() => api.recurring.setActive(r.id, r.is_active !== 1))}
                     onDelete={() => act(() => api.recurring.delete(r.id))} />
                 </AnimatedItem>
@@ -121,8 +126,8 @@ export function RecurringPage() {
   );
 }
 
-function Row({ r, hidden, onPay, onEdit, onSkip, onToggle, onDelete }: {
-  r: Recurring; hidden: boolean; onPay: () => void; onEdit: () => void; onSkip: () => void; onToggle: () => void; onDelete: () => void;
+function Row({ r, rise, hidden, onPay, onEdit, onSkip, onToggle, onDelete }: {
+  r: Recurring; rise?: RecurringRise; hidden: boolean; onPay: () => void; onEdit: () => void; onSkip: () => void; onToggle: () => void; onDelete: () => void;
 }) {
   const { t } = useTranslation();
   const [menu, setMenu] = useState(false);
@@ -150,6 +155,7 @@ function Row({ r, hidden, onPay, onEdit, onSkip, onToggle, onDelete }: {
         <div className={cn("text-xs", r.status === "overdue" ? "text-destructive" : "text-muted-foreground")}>
           {r.status === "paused" ? t("recurring.paused") : r.next_due_date ? `${formatDate(r.next_due_date, { day: "numeric", month: "short" })} · ${dueText(t, r.days_until)}` : t("recurring.noMore")}
         </div>
+        {rise && <PriceRise change={rise} currency={rise.currency} hidden={hidden} />}
       </div>
       {r.next_due_date && r.is_active === 1
         ? <Button size="sm" variant={urgent ? "default" : "outline"} onClick={onPay}><Check />{t("recurring.markPaid")}</Button>
@@ -283,5 +289,65 @@ function RecurringDialog({ initial, accounts, categories, onClose, onSaved }: {
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** "Went up 30% (₹499 → ₹649)", in amber: worth a look, not an error. */
+function PriceRise({ change, currency, hidden }: { change: PriceChange; currency: string; hidden: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center gap-1 text-xs text-amber-800 dark:text-amber-300">
+      <TrendingUp className="size-3" aria-hidden />
+      {t("subscriptions.rose", { percent: Math.round(change.percent), from: formatMoney(change.from, currency, hidden), to: formatMoney(change.to, currency, hidden) })}
+    </div>
+  );
+}
+
+/** Regular charges that look like subscriptions: track one as a recurring payment, or say it isn't one. */
+function SubscriptionSuggestions({ hidden, onTracked }: { hidden: boolean; onTracked: () => void }) {
+  const { t } = useTranslation();
+  const [list, setList] = useState<SubscriptionCandidate[]>([]);
+  const [error, setError] = useState("");
+  const load = () => api.subscriptions.detect().then(setList).catch(() => setList([]));
+  useEffect(() => { load(); }, []);
+  if (!list.length) return null;
+
+  const track = async (c: SubscriptionCandidate) => {
+    setError("");
+    try {
+      await api.recurring.create({ name: c.name, merchant: c.name, type: "expense", amount: String(c.amount), account_id: c.account_id ?? "",
+        category_id: c.category_id ?? undefined, frequency: c.frequency, every: c.every, start_date: c.next_date, reminder_days: 3 });
+      await load(); onTracked();
+    } catch (e) { setError(errorText(e)); }
+  };
+  const dismiss = async (c: SubscriptionCandidate) => {
+    try { await api.subscriptions.dismiss(c.key); setList((l) => l.filter((x) => x.key !== c.key)); } catch (e) { setError(errorText(e)); }
+  };
+  return (
+    <Card className="py-2">
+      <CardHeader className="pt-3">
+        <CardTitle className="flex items-center gap-2 text-sm"><Sparkles className="size-4" />{t("subscriptions.title")}</CardTitle>
+        <p className="text-muted-foreground text-xs">{t("subscriptions.desc")}</p>
+      </CardHeader>
+      <CardContent className="divide-y">
+        {list.map((c) => (
+          <div key={c.key} className="flex flex-wrap items-center gap-3 py-2.5">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-medium">{c.name}</div>
+              <div className="text-muted-foreground text-xs">
+                {t(`subscriptions.rhythm.${c.rhythm}`)} · {t("subscriptions.seen", { count: c.count })} · {t("subscriptions.next", { date: formatDate(c.next_date, { day: "numeric", month: "short" }) })}
+              </div>
+              {c.price_change && <PriceRise change={c.price_change} currency={c.currency} hidden={hidden} />}
+            </div>
+            <span className="text-sm tabular-nums">{formatMoney(c.amount, c.currency, hidden)}</span>
+            <div className="flex gap-1">
+              <Button size="sm" variant="outline" disabled={!c.account_id} onClick={() => track(c)}>{t("subscriptions.track")}</Button>
+              <Button size="sm" variant="ghost" onClick={() => dismiss(c)}>{t("subscriptions.notOne")}</Button>
+            </div>
+          </div>
+        ))}
+        {error && <p className="text-destructive py-2 text-sm">{error}</p>}
+      </CardContent>
+    </Card>
   );
 }

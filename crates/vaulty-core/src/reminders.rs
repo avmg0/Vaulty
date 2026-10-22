@@ -16,7 +16,7 @@ pub const OVERDUE_DAYS: i64 = 7;
 pub struct Due {
     /// Stable id: the same reminder is never shown twice.
     pub key: String,
-    /// bill, income, transfer, card, budget, owed (someone owes you; `days` since you last dealt)
+    /// bill, income, transfer, card, budget, price (went up), owed (someone owes you; `days` since you last dealt)
     pub kind: String,
     pub name: String,
     pub date: String,
@@ -24,8 +24,10 @@ pub struct Due {
     pub days: i64,
     pub amount: Option<f64>,
     pub currency: Option<String>,
-    /// Budgets: 80 or 100.
+    /// Budgets: 80 or 100. Price rises: the rise in percent, rounded.
     pub percent: Option<i64>,
+    /// Price rises: what it cost before (`amount` is the new price).
+    pub previous: Option<f64>,
 }
 
 fn stage(days: i64) -> &'static str {
@@ -45,7 +47,7 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
         let id = r["id"].as_str().unwrap_or_default();
         out.push(Due {
             key: format!("{kind}:{id}:{date}:{}", stage(days)), kind: kind.into(), name: r["name"].as_str().unwrap_or_default().into(),
-            date: date.into(), days, amount: r["amount"].as_f64(), currency: r["currency"].as_str().map(str::to_string), percent: None,
+            date: date.into(), days, amount: r["amount"].as_f64(), currency: r["currency"].as_str().map(str::to_string), percent: None, previous: None,
         });
     }
     // Credit cards: the next due date, if something is owed.
@@ -64,7 +66,7 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
         out.push(Due {
             key: format!("card:{}:{date}:{}", c["id"].as_str().unwrap_or_default(), stage(days)), kind: "card".into(),
             name: c["name"].as_str().unwrap_or_default().into(), date: date.to_string(), days,
-            amount: Some(money::to_decimal(owed, cur)), currency: Some(cur.into()), percent: None,
+            amount: Some(money::to_decimal(owed, cur)), currency: Some(cur.into()), percent: None, previous: None,
         });
     }
     // Money owed to you with nothing happening for 30 days: once per quiet spell.
@@ -75,9 +77,21 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
                 key: format!("owed:{}:{}:{last}", p["id"].as_str().unwrap_or_default(), b["currency"].as_str().unwrap_or_default()),
                 kind: "owed".into(), name: p["name"].as_str().unwrap_or_default().into(), date: last.into(),
                 days: NaiveDate::parse_from_str(last, "%Y-%m-%d").map(|d| (today - d).num_days()).unwrap_or(0),
-                amount: b["amount"].as_f64(), currency: b["currency"].as_str().map(str::to_string), percent: None,
+                amount: b["amount"].as_f64(), currency: b["currency"].as_str().map(str::to_string), percent: None, previous: None,
             });
         }
+    }
+    // Price rises in the last 30 days: subscriptions Vaulty spotted and recurring payments.
+    let recent = |date: &str| NaiveDate::parse_from_str(date, "%Y-%m-%d").is_ok_and(|d| (today - d).num_days() <= 30);
+    let rise = |key: String, name: &str, cur: &str, c: &crate::subscriptions::PriceChange| Due {
+        key, kind: "price".into(), name: name.into(), date: c.date.clone(), days: 0, amount: Some(c.to), currency: Some(cur.into()),
+        percent: Some(c.percent.round() as i64), previous: Some(c.from),
+    };
+    for s in crate::subscriptions::detect(conn, today)? {
+        if let Some(c) = s.price_change.as_ref().filter(|c| recent(&c.date)) { out.push(rise(format!("price:{}:{}:{}", s.key, c.date, c.to), &s.name, &s.currency, c)); }
+    }
+    for r in crate::subscriptions::recurring_rises(conn)? {
+        if recent(&r.change.date) { out.push(rise(format!("price:{}:{}:{}", r.recurring_id, r.change.date, r.change.to), &r.name, &r.currency, &r.change)); }
     }
     // Budgets this month: the highest level reached.
     let month = format!("{:04}-{:02}", today.year(), today.month());
@@ -91,7 +105,7 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
         out.push(Due {
             key: format!("budget:{}:{month}:{level}", c["id"].as_str().unwrap_or_default()), kind: "budget".into(),
             name: c["name"].as_str().unwrap_or_default().into(), date: today.to_string(), days: 0,
-            amount: c["spent"].as_f64(), currency: Some(cur.clone()), percent: Some(level),
+            amount: c["spent"].as_f64(), currency: Some(cur.clone()), percent: Some(level), previous: None,
         });
     }
     Ok(out)

@@ -1589,7 +1589,8 @@
     "many_one": "{{count}} रिमाइंडर",
     "many_other": "{{count}} रिमाइंडर",
     "overdue": "{{name}}: {{when}}",
-    "owed": "{{name}} पर अभी भी आपका उधार है"
+    "owed": "{{name}} पर अभी भी आपका उधार है",
+    "price": "{{name}} {{percent}}% महँगा हुआ"
   },
   "reports": {
     "safe": {
@@ -1706,5 +1707,21 @@
       "to": "{{name}} को",
       "from": "{{name}} से"
     }
+  },
+  "subscriptions": {
+    "title": "यह सदस्यता लगती है",
+    "desc": "नियमित रूप से कटता है पर अभी ट्रैक नहीं होता। ट्रैक करें ताकि यह आने से पहले दिखे और याद दिलाया जाए।",
+    "rhythm": {
+      "weekly": "हर हफ़्ते",
+      "monthly": "हर महीने",
+      "quarterly": "हर 3 महीने",
+      "yearly": "हर साल"
+    },
+    "seen_one": "{{count}} बार दिखा",
+    "seen_other": "{{count}} बार दिखा",
+    "next": "अगला लगभग {{date}}",
+    "track": "ट्रैक करें",
+    "notOne": "सदस्यता नहीं है",
+    "rose": "{{percent}}% बढ़ा ({{from}} → {{to}})"
   }
 }

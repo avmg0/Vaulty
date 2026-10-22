@@ -20,7 +20,7 @@ pub const BACKUP_VERSION: i64 = 2;
 const TABLES: &[&str] = &[
     "workspaces", "accounts", "cards", "categories", "people", "ledger_accounts", "entries", "postings",
     "credit_cards", "recurring_payments", "tasks", "investments", "investment_events",
-    "journal_entries", "goals", "calendar_events", "budgets", "category_rules", "import_templates", "hotkeys",
+    "journal_entries", "goals", "calendar_events", "budgets", "category_rules", "import_templates", "hotkeys", "subscription_dismissed",
 ];
 
 pub fn to_json(conn: &Connection) -> Result<Value> {

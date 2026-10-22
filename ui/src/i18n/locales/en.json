@@ -1588,7 +1588,8 @@
     "many_one": "{{count}} reminder",
     "many_other": "{{count}} reminders",
     "overdue": "{{name}}: {{when}}",
-    "owed": "{{name}} still owes you"
+    "owed": "{{name}} still owes you",
+    "price": "{{name}} went up {{percent}}%"
   },
   "reports": {
     "safe": {
@@ -1705,5 +1706,21 @@
       "to": "To {{name}}",
       "from": "From {{name}}"
     }
+  },
+  "subscriptions": {
+    "title": "Looks like a subscription",
+    "desc": "Charged at a steady rhythm but not tracked yet. Track one to see it coming and get reminded.",
+    "rhythm": {
+      "weekly": "Every week",
+      "monthly": "Every month",
+      "quarterly": "Every 3 months",
+      "yearly": "Every year"
+    },
+    "seen_one": "seen {{count}} time",
+    "seen_other": "seen {{count}} times",
+    "next": "next around {{date}}",
+    "track": "Track it",
+    "notOne": "Not a subscription",
+    "rose": "Went up {{percent}}% ({{from}} → {{to}})"
   }
 }

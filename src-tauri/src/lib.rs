@@ -1015,6 +1015,12 @@ fn notify_show(app: tauri::AppHandle, s: S, title: String, body: String) -> Resu
 #[tauri::command] fn people_update(s: S, id: String, person: Value) -> Result<Value> { limits::check(&person)?; s.act("person.update", |c| vaulty_core::people::update(c, &id, &person)) }
 #[tauri::command] fn people_delete(s: S, id: String) -> Result<()> { s.act("person.delete", |c| vaulty_core::people::delete(c, &id)) }
 
+// ============================================================ subscriptions
+
+#[tauri::command] fn subscriptions_detect(s: S) -> Result<Vec<vaulty_core::subscriptions::Candidate>> { s.data(|c| vaulty_core::subscriptions::detect(c, today())) }
+#[tauri::command] fn subscriptions_dismiss(s: S, key: String) -> Result<()> { limits::text("key", &key, 100)?; s.data(|c| vaulty_core::subscriptions::dismiss(c, &key)) }
+#[tauri::command] fn subscriptions_rises(s: S) -> Result<Vec<vaulty_core::subscriptions::RecurringRise>> { s.data(vaulty_core::subscriptions::recurring_rises) }
+
 // ============================================================ reports
 
 #[tauri::command]
@@ -1276,7 +1282,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

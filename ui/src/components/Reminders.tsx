@@ -18,6 +18,10 @@ export function wordReminder(r: Reminder, amounts: boolean): { title: string; bo
   const when = r.days < 0 ? t("reminders.when.overdue", { count: -r.days }) : r.days === 0 ? t("reminders.when.today") : t("reminders.when.in", { count: r.days });
   const money = amounts && r.amount != null ? formatMoney(r.amount, r.currency ?? "INR") : "";
   const date = formatDate(r.date, { weekday: "short", day: "numeric", month: "short" });
+  if (r.kind === "price") {
+    const was = amounts && r.previous != null ? formatMoney(r.previous, r.currency ?? "INR") : "";
+    return { title: t("reminders.price", { name: r.name, percent: r.percent }), body: money && was ? `${was} → ${money}` : date };
+  }
   if (r.kind === "budget") return { title: t("reminders.budget.title", { name: r.name, percent: r.percent }), body: money ? t("reminders.budget.spent", { amount: money }) : t("reminders.budget.body") };
   const title = r.days < 0 ? t("reminders.overdue", { name: r.name, when }) : t(`reminders.${r.kind}`, { name: r.name, when });
   return { title, body: money ? `${money} · ${date}` : date };

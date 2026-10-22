@@ -133,7 +133,7 @@ export type CalendarEvent = { id: string; title: string; date: string; time: str
 export type IcsEvent = { uid: string | null; title: string; date: string; time: string | null; repeat: string | null; notes: string | null };
 
 /** A reminder due now (see crates/vaulty-core/src/reminders.rs). `days` < 0 means overdue. */
-export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null };
+export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null };
 
 export type ReportSlice = { id: string | null; name: string; icon: string | null; color: string | null; amount: number; count: number };
 /** A period's income and spending (main currency). Names "\u0000uncategorised" and "\u0000hidden" are placeholders. */
@@ -151,6 +151,14 @@ export type SafeToSpend = { currency: string; balance: number; committed: number
 export type Person = { id: string; name: string; phone: string | null; notes: string | null; balances: { currency: string; amount: number; amount_minor: number }[]; last_date: string | null };
 /** One event with a person, newest first; `amount` > 0 means they came to owe you more. */
 export type PersonEvent = { entry_id: string; kind: string; what: "lent" | "received" | "split" | "they_paid"; date: string; merchant: string | null; description: string | null; memo: string | null; amount: number; balance: number; currency: string };
+
+export type PriceChange = { from: number; to: number; percent: number; date: string };
+/** A regular charge that looks like a subscription and isn't tracked yet. */
+export type SubscriptionCandidate = {
+  key: string; name: string; rhythm: "weekly" | "monthly" | "quarterly" | "yearly"; frequency: Frequency; every: number; amount: number; currency: string;
+  count: number; last_date: string; next_date: string; account_id: string | null; category_id: string | null; price_change: PriceChange | null;
+};
+export type RecurringRise = PriceChange & { recurring_id: string; name: string; currency: string };
 
 /** A newer version found by an update check. */
 export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
@@ -200,7 +208,7 @@ export type Recurring = {
   days_until: number | null; status: "overdue" | "due" | "soon" | "upcoming" | "paused" | "ended";
 };
 export type RecurringInput = {
-  name: string; type: Recurring["type"]; amount: string; account_id: string; to_account_id?: string; category_id?: string; notes?: string;
+  name: string; type: Recurring["type"]; amount: string; account_id: string; to_account_id?: string; category_id?: string; notes?: string; merchant?: string;
   frequency: Frequency; every: number; start_date: string; end_date?: string; reminder_days: number; auto_pay?: boolean;
 };
 export type Occurrence = { recurring_id: string; name: string; type: Recurring["type"]; date: string; amount: number; currency: string; category_icon: string | null; account_name: string | null };
@@ -339,6 +347,11 @@ export const api = {
     create: (person: { name: string; phone?: string; notes?: string }) => invoke<Person>("people_create", { person }),
     update: (id: string, person: { name: string; phone?: string; notes?: string }) => invoke<Person>("people_update", { id, person }),
     delete: (id: string) => invoke<void>("people_delete", { id }),
+  },
+  subscriptions: {
+    detect: () => invoke<SubscriptionCandidate[]>("subscriptions_detect"),
+    dismiss: (key: string) => invoke<void>("subscriptions_dismiss", { key }),
+    rises: () => invoke<RecurringRise[]>("subscriptions_rises"),
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {

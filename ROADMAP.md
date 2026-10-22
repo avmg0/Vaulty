@@ -294,7 +294,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [ ] Cards: statements, minimum due, benefits tracker, best card for today
 - [x] Reports page on the chart kit (by month, category, place and income source; any period incl. the financial year); 60-day cash-flow forecast with and without everyday spending; "safe to spend" until the next income
 - [x] Lend and borrow: people with what they owe or you owe, lent / borrowed / repaid, splitting a bill you paid (only your share is spending), settle-up, history, a copyable reminder message, reminders after 30 quiet days
-- [ ] Subscription detector; price-rise alerts
+- [x] Subscription detector (weekly, monthly, quarterly, yearly charges not yet tracked; track or dismiss) and price-rise alerts (detected subscriptions and recurring payments, 3%+; shown on the item and as a reminder)
 - [ ] To-do linked to bills and transactions
 - [ ] Shared recovery key (any 2 of 3 family members)
 - [ ] XLSX and PDF report exports
