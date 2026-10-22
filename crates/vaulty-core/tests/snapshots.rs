@@ -27,6 +27,7 @@ fn snapshot_is_encrypted_and_restores() {
 
 #[test]
 fn rejects_bad_names_and_lists_newest_first() {
+    let started = std::time::Instant::now();
     let dir = tempfile::tempdir().unwrap();
     let snaps = dir.path().join("snapshots");
     let c = db::open_in_memory().unwrap();
@@ -39,7 +40,10 @@ fn rejects_bad_names_and_lists_newest_first() {
     assert!(snapshots::path_of(&snaps, "../m.db").is_err());
     assert!(snapshots::path_of(&snaps, "20261016T000000Z-daily.db").is_err(), "must exist");
     assert!(snapshots::take(&c, &key(), &snaps, "../evil").is_err());
-    assert!(snapshots::age_of_latest(&snaps).unwrap().unwrap() < 60);
+    // As old as this test has been running, give or take a second (slow CI machines can take a
+    // while, so no fixed limit).
+    let age = snapshots::age_of_latest(&snaps).unwrap().unwrap();
+    assert!((-2..=started.elapsed().as_secs() as i64 + 2).contains(&age), "age {age}s after {:?}", started.elapsed());
 }
 
 #[test]
