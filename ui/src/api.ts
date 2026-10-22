@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -125,7 +125,7 @@ export type UserSettings = { locale: string; currency: string; date_format: stri
 /** A keyboard shortcut: `keys` like "Mod+Shift+K" ("" = off). */
 export type Hotkey = { action: string; keys: string; default: string; custom: boolean };
 
-export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday";
+export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday" | "task";
 /** One thing on the calendar. `pay_by` is set when banks are closed on the due date. */
 export type CalendarItem = { kind: CalendarKind; date: string; title: string; time?: string; amount?: number; currency?: string; icon?: string; source_id?: string; overdue: boolean; pay_by?: string };
 export type CalendarEventInput = { title: string; date: string; time: string; type: "custom" | "reminder" | "holiday"; repeat: "none" | "monthly" | "yearly"; amount: string; icon: string; notes: string };
@@ -159,6 +159,14 @@ export type SubscriptionCandidate = {
   count: number; last_date: string; next_date: string; account_id: string | null; category_id: string | null; price_change: PriceChange | null;
 };
 export type RecurringRise = PriceChange & { recurring_id: string; name: string; currency: string };
+
+export type TaskLink = "recurring" | "transaction" | "person" | "event";
+/** A to-do. `linked_name` is the linked item's current name (or the saved one if it's gone: `link_missing`). */
+export type Task = {
+  id: string; title: string; notes: string | null; due_date: string | null; priority: "low" | "medium" | "high"; status: "pending" | "done";
+  linked_type: TaskLink | null; linked_id: string | null; linked_name: string | null; link_missing: boolean; overdue: boolean; completed_at: string | null;
+};
+export type TaskInput = { title: string; notes?: string; due_date?: string; priority: Task["priority"]; linked_type?: TaskLink | ""; linked_id?: string };
 
 /** A newer version found by an update check. */
 export type UpdateInfo = { version: string; current: string; notes: string | null; date: string | null };
@@ -352,6 +360,13 @@ export const api = {
     detect: () => invoke<SubscriptionCandidate[]>("subscriptions_detect"),
     dismiss: (key: string) => invoke<void>("subscriptions_dismiss", { key }),
     rises: () => invoke<RecurringRise[]>("subscriptions_rises"),
+  },
+  tasks: {
+    list: (status: "open" | "done" | "all") => invoke<Task[]>("tasks_list", { status }),
+    create: (task: TaskInput) => invoke<Task>("tasks_create", { task }),
+    update: (id: string, task: TaskInput) => invoke<Task>("tasks_update", { id, task }),
+    setDone: (id: string, done: boolean) => invoke<Task>("tasks_set_done", { id, done }),
+    delete: (id: string) => invoke<void>("tasks_delete", { id }),
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {

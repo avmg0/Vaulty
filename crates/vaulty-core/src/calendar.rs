@@ -19,7 +19,7 @@ pub const MAX_ICS_EVENTS: usize = 5_000;
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct Item {
-    /// bill, income, transfer, paid, card_due, statement, event, reminder, holiday
+    /// bill, income, transfer, paid, card_due, statement, task, event, reminder, holiday
     pub kind: String,
     pub date: String,
     pub title: String,
@@ -122,6 +122,13 @@ pub fn range(conn: &Connection, from: &str, to: &str, country: &str, today: Naiv
             out.push(it);
         }
     }
+    // Open to-dos with a due date.
+    for t in crate::tasks::due_between(conn, &from.to_string(), &to.to_string())? {
+        let mut it = Item::new("task", day(t["due_date"].as_str().unwrap_or_default())?, t["title"].as_str().unwrap_or_default());
+        it.source_id = t["id"].as_str().map(str::to_string);
+        it.overdue = it.date < today.to_string();
+        out.push(it);
+    }
     let holidays: Vec<NaiveDate> = out.iter().filter(|i| i.kind == "holiday").filter_map(|i| day(&i.date).ok()).collect();
 
     // Bills and income still to come (overdue ones start before today).
@@ -179,7 +186,7 @@ pub fn range(conn: &Connection, from: &str, to: &str, country: &str, today: Naiv
         let d = day(&it.date)?;
         if bank_closed(d, country, &holidays) { it.pay_by = Some(last_working_day_before(d, country, &holidays).to_string()); }
     }
-    let order = |k: &str| ["holiday", "card_due", "bill", "transfer", "income", "statement", "paid", "reminder", "event"].iter().position(|x| *x == k).unwrap_or(9);
+    let order = |k: &str| ["holiday", "card_due", "bill", "transfer", "income", "task", "statement", "paid", "reminder", "event"].iter().position(|x| *x == k).unwrap_or(9);
     out.sort_by(|a, b| a.date.cmp(&b.date).then(order(&a.kind).cmp(&order(&b.kind))).then(a.title.cmp(&b.title)));
     Ok(out)
 }

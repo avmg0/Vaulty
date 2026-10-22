@@ -29,6 +29,7 @@ const KIND: Record<CalendarKind, { dot: string; icon: string }> = {
   holiday: { dot: "bg-violet-500", icon: "🏖️" },
   event: { dot: "bg-sky-500", icon: "📌" },
   reminder: { dot: "bg-teal-500", icon: "⏰" },
+  task: { dot: "bg-indigo-500", icon: "☑️" },
 };
 const OWN: CalendarKind[] = ["event", "reminder", "holiday"];
 

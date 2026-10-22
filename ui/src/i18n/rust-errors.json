@@ -368,6 +368,10 @@
   "re": "^the parent category doesn't exist$"
  },
  {
+  "id": "e9a1bc23e",
+  "re": "^a to-do needs 1 to 200 characters$"
+ },
+ {
   "id": "eb22e36dd",
   "re": "^ticker settings must be an object$"
  },
@@ -430,6 +434,10 @@
  {
   "id": "e282844f2",
   "re": "^that isn't a Vaulty backup file$"
+ },
+ {
+  "id": "e2a67b08b",
+  "re": "^priority is low, medium or high$"
  },
  {
   "id": "e3658f510",
@@ -510,6 +518,10 @@
  {
   "id": "e4292026a",
   "re": "^the spreadsheet has no sheets$"
+ },
+ {
+  "id": "e53af76ed",
+  "re": "^the linked item doesn't exist$"
  },
  {
   "id": "ea414ef1b",
@@ -812,6 +824,10 @@
   "re": "^no such person$"
  },
  {
+  "id": "e2abe41b8",
+  "re": "^no such to-do$"
+ },
+ {
   "id": "e6a286dbd",
   "re": "^no such event$"
  },
@@ -920,12 +936,20 @@
   "re": "^the sheet has more than ([\\s\\S]+?) rows$"
  },
  {
+  "id": "ecd15cb08",
+  "re": "^a to-do can't be linked to `([\\s\\S]+?)`$"
+ },
+ {
   "id": "e31919f98",
   "re": "^that file is larger than ([\\s\\S]+?) MB$"
  },
  {
   "id": "e946b691f",
   "re": "^([\\s\\S]+?) has several default regimes$"
+ },
+ {
+  "id": "e9c193fe8",
+  "re": "^`([\\s\\S]+?)` isn't a date \\(YYYY-MM-DD\\)$"
  },
  {
   "id": "edb41ef32",

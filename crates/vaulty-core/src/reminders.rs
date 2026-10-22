@@ -16,7 +16,7 @@ pub const OVERDUE_DAYS: i64 = 7;
 pub struct Due {
     /// Stable id: the same reminder is never shown twice.
     pub key: String,
-    /// bill, income, transfer, card, budget, price (went up), owed (someone owes you; `days` since you last dealt)
+    /// bill, income, transfer, card, budget, price (went up), owed, task (someone owes you; `days` since you last dealt)
     pub kind: String,
     pub name: String,
     pub date: String,
@@ -80,6 +80,16 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
                 amount: b["amount"].as_f64(), currency: b["currency"].as_str().map(str::to_string), percent: None, previous: None,
             });
         }
+    }
+    // To-dos due today, or overdue (once each way).
+    for t in crate::tasks::list(conn, "open", today)? {
+        let Some(due) = t["due_date"].as_str().and_then(|d| NaiveDate::parse_from_str(d, "%Y-%m-%d").ok()) else { continue };
+        let days = (due - today).num_days();
+        if !(-OVERDUE_DAYS..=0).contains(&days) { continue; }
+        out.push(Due {
+            key: format!("task:{}:{due}:{}", t["id"].as_str().unwrap_or_default(), if days == 0 { "today" } else { "overdue" }), kind: "task".into(),
+            name: t["title"].as_str().unwrap_or_default().into(), date: due.to_string(), days, amount: None, currency: None, percent: None, previous: None,
+        });
     }
     // Price rises in the last 30 days: subscriptions Vaulty spotted and recurring payments.
     let recent = |date: &str| NaiveDate::parse_from_str(date, "%Y-%m-%d").is_ok_and(|d| (today - d).num_days() <= 30);

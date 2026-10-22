@@ -17,6 +17,18 @@ What changed in each version, for people using Vaulty. Newest first.
 - Demo mode with sample data.
 - Updates: check from Settings, or once a week if you turn it on. Installs are signature-checked
   and admin-only.
+- Auto-lock after a set idle time (enforced by the app), and a notice of wrong passwords since
+  you last signed in. Easy-to-guess passwords are refused.
+- Errors from the app shown in your language.
+- Keyboard shortcuts you can change in Settings.
+- Calendar: bills, income, card due dates, holidays (with "pay by" when a bank holiday falls on a
+  due date), your own events, and .ics import and export.
+- Reminders as system notifications, with an optional morning reminder while Vaulty is locked.
+- Reports: spending by category and month, a cash-flow forecast, and "safe to spend".
+- Lend and borrow: track money with people, including shares of a split bill.
+- Subscriptions spotted in your transactions, and alerts when a regular charge goes up.
+- To-do list: link a to-do to a bill, transaction, person or event; it ticks itself off when the
+  bill is marked paid, and due dates show on the calendar and as reminders.
 
 ### Fixed
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.

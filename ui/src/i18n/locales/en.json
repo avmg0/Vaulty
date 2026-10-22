@@ -353,6 +353,13 @@
         "create": "Added a person",
         "update": "Changed a person",
         "delete": "Removed a person"
+      },
+      "task": {
+        "create": "Added a to-do",
+        "update": "Changed a to-do",
+        "done": "Ticked off a to-do",
+        "reopen": "Reopened a to-do",
+        "delete": "Deleted a to-do"
       }
     },
     "check": {
@@ -1263,6 +1270,7 @@
     "e4495eaf0": "a split can have at most 50 parts",
     "e59b3e445": "that isn't a calendar (.ics) file",
     "e5fa1869e": "the parent category doesn't exist",
+    "e9a1bc23e": "a to-do needs 1 to 200 characters",
     "eb22e36dd": "ticker settings must be an object",
     "eb2a5db8e": "pick a range of at most ten years",
     "edf18e1e7": "text colour must be light or dark",
@@ -1279,6 +1287,7 @@
     "efb9bd45c": "no history for that kind of item",
     "e04bb4364": "Unlock the Hidden section first",
     "e282844f2": "that isn't a Vaulty backup file",
+    "e2a67b08b": "priority is low, medium or high",
     "e3658f510": "a name needs 1 to 80 characters",
     "e402662bb": "show switches are true or false",
     "e4040e3f9": "angle must be between 0 and 360",
@@ -1299,6 +1308,7 @@
     "e1ff07609": "a solid fill takes one colour",
     "e363ef9a1": "expected minus or parentheses",
     "e4292026a": "the spreadsheet has no sheets",
+    "e53af76ed": "the linked item doesn't exist",
     "ea414ef1b": "speed is slow, normal or fast",
     "eb8c3cc37": "enabled must be true or false",
     "e10e1fb6d": "name must be 1–40 characters",
@@ -1374,6 +1384,7 @@
     "eaa3417ab": "incorrect code",
     "eae67ea0b": "bad public key",
     "ed10140f4": "no such person",
+    "e2abe41b8": "no such to-do",
     "e6a286dbd": "no such event",
     "e1999cbaa": "no such user",
     "e47072ca1": "unknown type",
@@ -1401,8 +1412,10 @@
     "eb40f2e2c": "unknown bank or institution `{{p0}}`",
     "e1411eb71": "couldn't check for updates ({{p0}})",
     "e2447391d": "the sheet has more than {{p0}} rows",
+    "ecd15cb08": "a to-do can't be linked to `{{p0}}`",
     "e31919f98": "that file is larger than {{p0}} MB",
     "e946b691f": "{{p0}} has several default regimes",
+    "e9c193fe8": "`{{p0}}` isn't a date (YYYY-MM-DD)",
     "edb41ef32": "`{{p0}}` isn't a date (YYYY-MM-DD)",
     "e06328306": "unknown transaction type `{{p0}}`",
     "e00954acc": "unknown shortcut action `{{p0}}`",
@@ -1510,7 +1523,8 @@
       "statement": "Card statement",
       "event": "Event",
       "reminder": "Reminder",
-      "holiday": "Holiday"
+      "holiday": "Holiday",
+      "task": "To-do"
     },
     "addTitle": "Add to the calendar",
     "editTitle": "Edit",
@@ -1589,7 +1603,8 @@
     "many_other": "{{count}} reminders",
     "overdue": "{{name}}: {{when}}",
     "owed": "{{name}} still owes you",
-    "price": "{{name}} went up {{percent}}%"
+    "price": "{{name}} went up {{percent}}%",
+    "task": "To-do due {{when}}: {{name}}"
   },
   "reports": {
     "safe": {
@@ -1722,5 +1737,47 @@
     "track": "Track it",
     "notOne": "Not a subscription",
     "rose": "Went up {{percent}}% ({{from}} → {{to}})"
+  },
+  "tasks": {
+    "new": "Add a to-do…",
+    "add": "Add",
+    "show": "Show",
+    "open": "To do",
+    "doneTab": "Done",
+    "emptyTitle": "Nothing to do",
+    "emptyDesc": "Note what needs doing: renew insurance, ask for a refund, compare plans. Link a to-do to a bill and it ticks itself off when you mark the bill paid.",
+    "noneDone": "Nothing done yet.",
+    "groups": {
+      "overdue": "Overdue",
+      "today": "Today",
+      "week": "This week",
+      "later": "Later",
+      "undated": "No date",
+      "done": "Done"
+    },
+    "markDone": "Mark “{{title}}” done",
+    "markOpen": "Mark “{{title}}” not done",
+    "priority": {
+      "high": "High priority",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "priorityLabel": "Priority",
+    "linkGone": "no longer exists",
+    "edit": "Edit to-do",
+    "editDesc": "Optionally link it to what it’s about.",
+    "title": "What needs doing",
+    "due": "Due (optional)",
+    "notes": "Notes",
+    "linkTo": "About",
+    "choose": "Choose…",
+    "links": {
+      "none": "Nothing",
+      "recurring": "A bill",
+      "person": "A person",
+      "event": "A calendar event",
+      "transaction": "A transaction"
+    },
+    "billHint": "Ticks itself off when you mark this bill paid."
   }
 }

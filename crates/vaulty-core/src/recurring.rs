@@ -240,6 +240,7 @@ pub fn mark_paid(conn: &Connection, id: &str, date_override: Option<&str>, amoun
         if row["account_id"].is_null() { return Err(Error::Invalid("this recurring payment's account was archived; edit it to choose another".into())); }
         let created = transactions::create(tx, &t)?;
         advance(tx, &row, due, true)?;
+        crate::tasks::complete_for_recurring(tx, id)?;
         Ok(created)
     })
 }

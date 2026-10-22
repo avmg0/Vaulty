@@ -31,6 +31,7 @@ pub mod rules;
 pub mod rows;
 pub mod settings;
 pub mod subscriptions;
+pub mod tasks;
 pub mod snapshots;
 pub mod statements;
 pub mod tax;
