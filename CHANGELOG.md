@@ -31,6 +31,7 @@ What changed in each version, for people using Vaulty. Newest first.
   bill is marked paid, and due dates show on the calendar and as reminders.
 - Low-balance reminders: set a minimum on a bank or cash account and get reminded when it drops
   below, or when a bill in the next two weeks would take it there.
+- Reports: save as an Excel workbook, or print or save as a PDF.
 
 ### Fixed
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.

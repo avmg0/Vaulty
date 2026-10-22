@@ -1,13 +1,14 @@
 import { createRoot } from "react-dom/client";
 import i18n from "@/i18n";
 import { formatDate } from "@/lib/utils";
+import { printNow } from "@/lib/print";
 
 /** The sheet itself: plain, black on white, meant for paper. */
 function Sheet({ name, recoveryKey, child }: { name: string; recoveryKey?: string; child?: boolean }) {
   const t = i18n.t.bind(i18n);
   const line = <div style={{ borderBottom: "1px solid #999", height: "2.2em" }} />;
   return (
-    <div style={{ fontFamily: "system-ui, sans-serif", color: "#000", background: "#fff", padding: "12mm 14mm", fontSize: "11pt", lineHeight: 1.45 }}>
+    <div style={{ fontFamily: "system-ui, sans-serif", color: "#000", background: "#fff", padding: "2mm 4mm", fontSize: "11pt", lineHeight: 1.45 }}>
       <h1 style={{ fontSize: "20pt", fontWeight: 700, margin: 0 }}>{t("sheet.title")}</h1>
       <p style={{ margin: "2mm 0 8mm", color: "#444" }}>{t("sheet.for", { name, date: formatDate(new Date()) })}</p>
       <h2 style={{ fontSize: "12pt", fontWeight: 700, margin: "0 0 2mm" }}>{t("sheet.keyTitle")}</h2>
@@ -34,12 +35,6 @@ export function printRecoverySheet(opts: { name: string; recoveryKey?: string; c
   document.body.classList.add("printing-sheet");
   const root = createRoot(host);
   root.render(<Sheet {...opts} />);
-  const cleanup = () => {
-    window.removeEventListener("afterprint", cleanup);
-    // The key must not linger in the page after printing.
-    root.unmount(); host.remove(); document.body.classList.remove("printing-sheet");
-  };
-  window.addEventListener("afterprint", cleanup);
-  // Let React paint before the print dialog opens.
-  setTimeout(() => window.print(), 50);
+  // The key must not linger in the page after printing.
+  printNow(() => { root.unmount(); host.remove(); document.body.classList.remove("printing-sheet"); });
 }

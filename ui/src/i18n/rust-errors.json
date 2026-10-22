@@ -308,6 +308,10 @@
   "re": "^the hint can't contain the password$"
  },
  {
+  "id": "e6f8ca333",
+  "re": "^the spreadsheet couldn't be written$"
+ },
+ {
   "id": "eb8ec1a2a",
   "re": "^invalid or already-used backup code$"
  },
@@ -654,6 +658,10 @@
  {
   "id": "e8ae2935f",
   "re": "^a field name is too long$"
+ },
+ {
+  "id": "ea044bf7d",
+  "re": "^printing isn't available$"
  },
  {
   "id": "eea354a80",

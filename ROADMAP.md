@@ -296,8 +296,9 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Lend and borrow: people with what they owe or you owe, lent / borrowed / repaid, splitting a bill you paid (only your share is spending), settle-up, history, a copyable reminder message, reminders after 30 quiet days
 - [x] Subscription detector (weekly, monthly, quarterly, yearly charges not yet tracked; track or dismiss) and price-rise alerts (detected subscriptions and recurring payments, 3%+; shown on the item and as a reminder)
 - [x] To-do linked to bills, transactions, people and events (ticks itself off when the bill is paid; due dates on the calendar and as reminders)
-- [ ] Shared recovery key (any 2 of 3 family members)
-- [ ] XLSX and PDF report exports
+- [ ] Shared recovery: any 2 of 3 helpers (adult members on the device or printed helper cards) restore full access, 2FA stays on
+- [ ] Nominee access: a printed nominee card plus one helper, after a 7-day wait the member can cancel by signing in; read-only, with the "In case of emergency" estate summary and an optional letter
+- [x] Report exports: Excel workbook (summary, by month, 90-day forecast; labels in the member's language) and print or save as PDF through the system print dialog
 - **Done when:** no bill or card payment is missed.
 
 ### Phase 4: Mobile and sync (v0.8)

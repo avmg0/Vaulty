@@ -321,7 +321,7 @@ export const api = {
     exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
-  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar", label: string) => invoke<string | null>("pick_file", { kind, label }) },
+  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report", label: string) => invoke<string | null>("pick_file", { kind, label }) },
   updates: {
     check: () => invoke<UpdateInfo | null>("update_check"),
     auto: () => invoke<UpdateInfo | null>("update_auto"),
@@ -354,6 +354,7 @@ export const api = {
     forecast: (days: number) => invoke<Forecast>("reports_forecast", { days }),
     safeToSpend: () => invoke<SafeToSpend>("reports_safe_to_spend"),
     lowBalances: () => invoke<LowBalance[]>("reports_low_balances"),
+    exportXlsx: (path: string, from: string, to: string, labels: Record<string, string>) => invoke<void>("reports_export_xlsx", { path, from, to, labels }),
   },
   people: {
     list: () => invoke<Person[]>("people_list"),

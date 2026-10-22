@@ -26,6 +26,7 @@ pub mod profiles;
 pub mod quick;
 pub mod recurring;
 pub mod reminders;
+pub mod report_export;
 pub mod reports;
 pub mod rules;
 pub mod rows;

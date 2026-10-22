@@ -517,7 +517,7 @@ fn biometric_disable(s: S) -> Result<()> {
 /// What a file dialog is for. The kind decides the file types offered and whether it opens or saves.
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar }
+enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport }
 
 impl AppState {
     /// Refuses a path the person didn't choose in a file dialog this run.
@@ -543,6 +543,7 @@ async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String) -
         Pick::SaveCsv => d.add_filter(label, &["csv"]).set_file_name(format!("vaulty-transactions-{stamp}.csv")).save_file(move |p| { let _ = tx.send(p); }),
         Pick::Calendar => d.add_filter(label, &["ics"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveCalendar => d.add_filter(label, &["ics"]).set_file_name(format!("vaulty-calendar-{stamp}.ics")).save_file(move |p| { let _ = tx.send(p); }),
+        Pick::SaveReport => d.add_filter(label, &["xlsx"]).set_file_name(format!("vaulty-report-{stamp}.xlsx")).save_file(move |p| { let _ = tx.send(p); }),
     }
     let Some(chosen) = rx.await.ok().flatten() else { return Ok(None) };
     let path = chosen.into_path().map_err(|_| Error::Invalid("that location can't be used".into()))?.to_string_lossy().into_owned();
@@ -1038,6 +1039,23 @@ fn reports_forecast(s: S, days: i64) -> Result<vaulty_core::reports::Forecast> {
 #[tauri::command]
 fn reports_safe_to_spend(s: S) -> Result<vaulty_core::reports::SafeToSpend> { s.data(|c| vaulty_core::reports::safe_to_spend(c, today())) }
 
+/// Writes the report for `from`–`to` (and the forecast from today) as an Excel file the person chose.
+/// `labels`: the sheet and column names in the interface's language.
+#[tauri::command]
+fn reports_export_xlsx(s: S, path: String, from: String, to: String, labels: Value) -> Result<()> {
+    limits::check(&labels)?;
+    s.chosen(&path)?;
+    let bytes = s.data(|c| vaulty_core::report_export::to_xlsx(c, &from, &to, today(), &labels))?;
+    std::fs::write(path, bytes)?;
+    Ok(())
+}
+
+/// Opens the system print dialog for the window (where "Save as PDF" is offered).
+#[tauri::command]
+fn print_window(window: tauri::WebviewWindow) -> Result<()> {
+    window.print().map_err(|_| Error::Invalid("printing isn't available".into()))
+}
+
 #[tauri::command]
 fn reports_low_balances(s: S) -> Result<Vec<vaulty_core::reports::LowBalance>> { s.data(|c| vaulty_core::reports::low_balances(c, today())) }
 
@@ -1293,7 +1311,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, reports_low_balances, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

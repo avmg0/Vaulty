@@ -174,5 +174,18 @@ html[data-senior] body { line-height: 1.6; }
 @media print {
   body.printing-sheet > *:not(#print-root) { display: none !important; }
   body.printing-sheet { background: #fff !important; }
-  @page { size: A4; margin: 0; }
+  @page { size: A4; margin: 10mm; }
+}
+
+/* A page printed alone (Reports): only the page content, flowing onto as many sheets as needed. */
+@media print {
+  body.printing-page > :not(:has(#content)),
+  body.printing-page :has(#content) > :not(:has(#content)):not(#content),
+  body.printing-page .print-hide { display: none !important; }
+  body.printing-page, body.printing-page :has(#content), body.printing-page #content {
+    display: block !important; height: auto !important; overflow: visible !important; background: #fff !important;
+  }
+  body.printing-page #content { padding: 0 !important; }
+  body.printing-page .page-enter { animation: none !important; }
+  body.printing-page [data-slot="card"] { break-inside: avoid; box-shadow: none !important; }
 }

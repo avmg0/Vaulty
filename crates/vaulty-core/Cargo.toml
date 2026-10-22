@@ -23,6 +23,7 @@ zeroize = { version = "1", features = ["derive"] }
 # Sealed boxes (X25519 + XSalsa20-Poly1305, libsodium-compatible) for sharing keys between members.
 crypto_box = { version = "0.9", features = ["seal", "chacha20"] }
 calamine = { version = "0.37", default-features = false, features = ["dates"] }
+rust_xlsxwriter = { version = "0.101", default-features = false }
 
 [dev-dependencies]
 totp-rs = { version = "6", features = ["otpauth", "gen_secret"] }

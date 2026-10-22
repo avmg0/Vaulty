@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { FileSpreadsheet, Printer } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, DATA_RESTORED, errorText, type Forecast, type ReportOverview, type SafeToSpend } from "@/api";
 import { BarChart } from "@/components/charts/BarChart";
@@ -6,11 +7,13 @@ import { Donut } from "@/components/charts/Donut";
 import { LineChart } from "@/components/charts/LineChart";
 import { CHART_COLORS, INCOME_COLOR, LINE_COLOR, SPENDING_COLOR } from "@/components/charts/palette";
 import { Segmented } from "@/components/Segmented";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/input";
 import { useLocale } from "@/hooks/locale";
 import { useTheme } from "@/hooks/theme";
 import { MONTH_IDS, resolveFiscalStart } from "@/lib/formats";
+import { printPage } from "@/lib/print";
 import { cn, formatCompactMoney, formatDate, formatMoney } from "@/lib/utils";
 
 type Period = "month" | "3m" | "6m" | "12m" | "year" | "fy";
@@ -40,13 +43,26 @@ export function Reports() {
   const [safe, setSafe] = useState<SafeToSpend | null>(null);
   const [typical, setTypical] = useState(true);
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState("");
   const [version, setVersion] = useState(0);
+  const [from, to] = bounds(period, fiscalMonth);
+
+  const toExcel = async () => {
+    setError(""); setSaved("");
+    try {
+      const path = await api.files.pick("save_report", t("reports.export.fileType"));
+      if (!path) return;
+      const keys = ["title", "summary", "months", "forecast", "period", "currency", "income", "spending", "net", "savingsRate", "categories", "category", "amount", "count", "share",
+        "incomeSources", "source", "places", "place", "month", "date", "scheduled", "expected", "balance", "typicalDay", "comingUp", "item", "uncategorised", "hidden", "otherCurrencies"];
+      await api.reports.exportXlsx(path, from, to, Object.fromEntries(keys.map((k) => [k, t(`reports.export.labels.${k}`)])));
+      setSaved(t("reports.export.saved"));
+    } catch (e) { setError(errorText(e)); }
+  };
 
   useEffect(() => { const bump = () => setVersion((v) => v + 1); window.addEventListener(DATA_RESTORED, bump); return () => window.removeEventListener(DATA_RESTORED, bump); }, []);
   useEffect(() => {
-    const [from, to] = bounds(period, fiscalMonth);
     api.reports.overview(from, to).then(setOverview).catch((e) => setError(errorText(e)));
-  }, [period, fiscalMonth, version]);
+  }, [from, to, version]);
   useEffect(() => {
     api.reports.forecast(60).then(setForecast).catch((e) => setError(errorText(e)));
     api.reports.safeToSpend().then(setSafe).catch(() => {});
@@ -71,6 +87,15 @@ export function Reports() {
 
   return (
     <div className="max-w-6xl space-y-4">
+      <div className="hidden print:block">
+        <h1 className="text-xl font-semibold">{t("reports.export.labels.title")}</h1>
+        <p className="text-muted-foreground text-sm">{formatDate(from, { day: "numeric", month: "long", year: "numeric" })} – {formatDate(to, { day: "numeric", month: "long", year: "numeric" })}</p>
+      </div>
+      <div className="print-hide flex flex-wrap items-center justify-end gap-2">
+        {saved && <p role="status" className="text-muted-foreground me-auto text-sm">{saved}</p>}
+        <Button variant="outline" size="sm" onClick={toExcel}><FileSpreadsheet />{t("reports.export.excel")}</Button>
+        <Button variant="outline" size="sm" onClick={printPage}><Printer />{t("reports.export.print")}</Button>
+      </div>
       {error && <p className="text-destructive text-sm">{error}</p>}
 
       <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
@@ -98,8 +123,8 @@ export function Reports() {
           <CardHeader className="flex-row flex-wrap items-start justify-between gap-2">
             <div className="space-y-1.5"><CardTitle>{t("reports.forecast.title")}</CardTitle>
               <CardDescription>{forecast && t("reports.forecast.desc", { amount: money(forecast.typical_day) })}</CardDescription></div>
-            <Segmented value={typical ? "typical" : "scheduled"} onChange={(v) => setTypical(v === "typical")} label={t("reports.forecast.title")}
-              options={[{ value: "typical", label: t("reports.forecast.typical") }, { value: "scheduled", label: t("reports.forecast.scheduledOnly") }]} />
+            <div className="print-hide"><Segmented value={typical ? "typical" : "scheduled"} onChange={(v) => setTypical(v === "typical")} label={t("reports.forecast.title")}
+              options={[{ value: "typical", label: t("reports.forecast.typical") }, { value: "scheduled", label: t("reports.forecast.scheduledOnly") }]} /></div>
           </CardHeader>
           <CardContent>
             {points.length > 1 && <LineChart points={points} format={compact} color={LINE_COLOR} label={t("reports.forecast.title")} height={210}
@@ -121,7 +146,7 @@ export function Reports() {
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <h2 className="text-lg font-semibold">{t("reports.period.heading")}</h2>
-        <NativeSelect aria-label={t("reports.period.label")} className="w-auto" value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
+        <NativeSelect aria-label={t("reports.period.label")} className="print-hide w-auto" value={period} onChange={(e) => setPeriod(e.target.value as Period)}>
           {(["month", "3m", "6m", "12m", "year", "fy"] as Period[]).map((p) => <option key={p} value={p}>{t(`reports.period.${p}`)}</option>)}
         </NativeSelect>
       </div>
