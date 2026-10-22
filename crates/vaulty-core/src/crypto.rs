@@ -82,15 +82,22 @@ pub fn new_keypair() -> (String, Key) {
 }
 
 /// Seals `key` so only the holder of `public_hex`'s secret key can open it (anonymous sealed box).
-pub fn seal_to(public_hex: &str, key: &Key) -> Result<String> {
+pub fn seal_to(public_hex: &str, key: &Key) -> Result<String> { seal_bytes_to(public_hex, key.as_ref()) }
+
+/// Seals any bytes to a member's public key.
+pub fn seal_bytes_to(public_hex: &str, data: &[u8]) -> Result<String> {
     let pk: [u8; 32] = from_hex(public_hex)?.try_into().map_err(|_| Error::Invalid("bad public key".into()))?;
-    let ct = crypto_box::PublicKey::from(pk).seal(&mut OsRng, key.as_ref()).map_err(|_| Error::Auth("encryption failed".into()))?;
+    let ct = crypto_box::PublicKey::from(pk).seal(&mut OsRng, data).map_err(|_| Error::Auth("encryption failed".into()))?;
     Ok(to_hex(&ct))
 }
 
-pub fn open_sealed(secret: &Key, sealed_hex: &str) -> Result<Key> {
+pub fn open_sealed_bytes(secret: &Key, sealed_hex: &str) -> Result<Zeroizing<Vec<u8>>> {
     let sk = crypto_box::SecretKey::from(**secret);
-    let plain = Zeroizing::new(sk.unseal(&from_hex(sealed_hex)?).map_err(|_| Error::Auth("could not open shared key".into()))?);
+    Ok(Zeroizing::new(sk.unseal(&from_hex(sealed_hex)?).map_err(|_| Error::Auth("could not open shared key".into()))?))
+}
+
+pub fn open_sealed(secret: &Key, sealed_hex: &str) -> Result<Key> {
+    let plain = open_sealed_bytes(secret, sealed_hex)?;
     let arr: [u8; 32] = plain.as_slice().try_into().map_err(|_| Error::Auth("shared key is corrupt".into()))?;
     Ok(Zeroizing::new(arr))
 }

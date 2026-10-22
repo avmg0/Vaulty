@@ -11,13 +11,17 @@
 //!   to each parent's public key. Any one of these unlocks it; none of them is the key itself.
 //! - Each member has an X25519 key pair. Its secret half is sealed under their data key; the
 //!   public half lets others share keys with them (the family store key, a child's data key).
-//! - An admin cannot open an adult member's data. Adults recover with their own recovery key.
+//! - An admin cannot open an adult member's data. Adults recover with their own recovery key, or
+//!   with any 2 of 3 helpers they chose (see `helpers`).
 use crate::crypto::{self, Key};
 use crate::error::{Error, Result};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::Serialize;
 use std::path::Path;
 use totp_rs::{Builder, Secret, Totp};
+
+mod helpers;
+pub use helpers::{HelperCard, HelperChoice, HelperNotice, HelperShare, HelperSlot, Helpers};
 
 pub const MIN_PASSWORD_LEN: usize = 8;
 const MAX_FREE_ATTEMPTS: i64 = 5;
@@ -358,6 +362,11 @@ impl Registry {
         // Copies sealed to their old key pair are useless now; children re-share on next sign-in.
         self.conn.execute("DELETE FROM user_keys WHERE kind = 'guardian' AND holder = ?", [user_id])?;
         self.conn.execute("DELETE FROM household_keys WHERE user_id = ?", [user_id])?;
+        // Their own helpers protected the old data key; shares they held for others are sealed to
+        // their old key pair, so those can't be used any more (the owner is told to update them).
+        self.conn.execute("DELETE FROM helper_shares WHERE user_id = ?", [user_id])?;
+        self.conn.execute("DELETE FROM helper_sets WHERE user_id = ?", [user_id])?;
+        self.conn.execute("UPDATE helper_shares SET sealed = NULL WHERE helper_id = ?", [user_id])?;
         self.issue_fresh_keys(user_id, &code, role, admin)?;
         self.clear_sign_in(user_id, &code)?;
         tx.commit()?;

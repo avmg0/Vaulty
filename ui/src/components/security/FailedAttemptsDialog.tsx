@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { HeartHandshake, ShieldAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { FailedAttempts } from "@/api";
+import type { FailedAttempts, HelpedNotice } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChangePasswordDialog } from "@/pages/Settings";
@@ -31,5 +31,26 @@ export function FailedAttemptsDialog({ attempts, onDone }: { attempts: FailedAtt
       </Dialog>
       <ChangePasswordDialog open={change} onOpenChange={(o) => { if (!o) { setChange(false); onDone(); } }} />
     </>
+  );
+}
+
+/** Shown once to a helper whose approval let a family member back into their profile. */
+export function HelpedDialog({ helped, onDone }: { helped: HelpedNotice[]; onDone: () => void }) {
+  const { t } = useTranslation();
+  if (!helped.length) return null;
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onDone(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><HeartHandshake className="size-5" />{t("helpers.notice.title")}</DialogTitle>
+          <DialogDescription>{t("helpers.notice.desc")}</DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-1 text-sm">
+          {helped.map((h, i) => <li key={i}>{t("helpers.notice.line", { name: h.owner_name, date: formatDate(new Date(h.at * 1000)) })}</li>)}
+        </ul>
+        <p className="text-muted-foreground text-sm">{t("helpers.notice.advice")}</p>
+        <DialogFooter><Button onClick={onDone}>{t("helpers.notice.ok")}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -42,6 +42,7 @@ pub const REGISTRY_MIGRATIONS: Migrations = &[
     ("0003_senior", include_str!("../migrations/registry/0003_senior.sql")),
     ("0004_sign_in_failures", include_str!("../migrations/registry/0004_sign_in_failures.sql")),
     ("0005_locked_reminders", include_str!("../migrations/registry/0005_locked_reminders.sql")),
+    ("0006_helpers", include_str!("../migrations/registry/0006_helpers.sql")),
 ];
 
 /// Opens (creating if needed) a member's encrypted finance database.

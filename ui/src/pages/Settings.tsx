@@ -31,6 +31,7 @@ import { PasswordDialog } from "@/components/security/PasswordDialog";
 import { TotpSetupDialog } from "@/components/security/TotpSetupDialog";
 import { BackupCodes } from "@/components/security/BackupCodes";
 import { RecoveryKeyDialog } from "@/components/security/RecoveryKeyDialog";
+import { HelpersCard } from "@/components/security/HelpersCard";
 import { AUTO_LOCK_CHANGED, AUTO_LOCK_CHOICES, getAutoLockMinutes, setAutoLockMinutes } from "@/hooks/idle";
 import { FamilySharingCard } from "@/components/FamilySharingCard";
 import { useTheme, type Accent, type Theme } from "@/hooks/theme";
@@ -55,6 +56,7 @@ export function Settings() {
       <LanguageRegionCard />
       <FormatsCard />
       <SecurityCard />
+      <HelpersSection />
       <RemindersCard />
       <BackupsCard />
       <SnapshotsCard />
@@ -65,6 +67,12 @@ export function Settings() {
       <UpdatesCard />
     </div>
   );
+}
+
+/** Children are helped back in by a parent, so they don't choose helpers. */
+function HelpersSection() {
+  const { user } = useSession();
+  return user.role === "child" ? null : <HelpersCard />;
 }
 
 function Row({ icon: Icon, label, desc, children }: { icon?: typeof Sun; label: string; desc?: ReactNode; children: ReactNode }) {

@@ -39,6 +39,18 @@ the profile locks for 30 seconds, doubling each time up to 15 minutes. Two-step 
 second factor. Recovery keys (24 characters) are as strong as a random key. Admins *cannot* open
 adults' data; parents hold a sealed recovery copy for children only.
 
+**Family helpers (optional).** An adult can choose three helpers, any two of whom can let them back
+in. A random 128-bit secret is split with Shamir's scheme (2 of 3); one share reveals nothing about
+it. A family member's share is sealed to their own key pair, so they approve by entering their own
+password (wrong guesses lock *their* profile as usual). A printed card's share exists only on the
+card. Recovering still needs the 2FA code when 2FA is on, so two helpers alone can't get past it;
+the helpers on the device are told afterwards. Choosing new helpers retires every old share and card.
+
+*Not covered:* two helpers who conspire (with the 2FA code, if it's on) can open the member's data.
+That is the point of the feature, so members should choose people they'd trust with it. A thief who
+steals two printed cards and the device has the same power, which is why the cards say to keep them
+private and to give the code only to the member in person.
+
 *Not covered:* the registry is readable, so an attacker learns names, roles and that profiles exist,
 and can attack an Argon2 hash offline (as with any password system). Weak passwords remain the
 weakest point; the minimum is 8 characters.
@@ -83,8 +95,8 @@ Keys live in Rust memory only while a profile is unlocked and are wiped on lock 
   protect content but not the hint and creation date.
 - **Screenshots and screen sharing.** Protection per platform is planned (see Roadmap decision 6);
   Linux can't prevent capture.
-- **Lost passwords.** With no password and no recovery key, an adult's data cannot be recovered by
-  anyone, including Vaulty's maintainers. This is intended.
+- **Lost passwords.** With no password, no recovery key and no family helpers, an adult's data cannot
+  be recovered by anyone, including Vaulty's maintainers. This is intended.
 - **Legal compliance.** Vaulty helps prepare tax and business records but is not a certified
   accounting product; filings should be reviewed by a professional.
 

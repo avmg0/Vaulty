@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_DISPLAY, displayFrom, useLocale } from "@/hooks/locale";
-import { api, type FailedAttempts, type SignedInUser, type User } from "@/api";
+import { api, type FailedAttempts, type HelpedNotice, type SignedInUser, type User } from "@/api";
 import { RecoveryKeyDialog } from "@/components/security/RecoveryKeyDialog";
-import { FailedAttemptsDialog } from "@/components/security/FailedAttemptsDialog";
+import { FailedAttemptsDialog, HelpedDialog } from "@/components/security/FailedAttemptsDialog";
 import { useIdleLock } from "@/hooks/idle";
 import { ALL_ITEMS, type PageId } from "@/nav";
 import { Sidebar } from "@/components/layout/Sidebar";
@@ -54,6 +54,7 @@ export function App() {
   const { locale, currency, setLocale, setCurrency, setDisplay } = useLocale();
   const [recoveryKey, setRecoveryKey] = useState<string | null>(null);
   const [attempts, setAttempts] = useState<FailedAttempts | null>(null);
+  const [helped, setHelped] = useState<HelpedNotice[]>([]);
   const [unlocking, setUnlocking] = useState(false);
   const [locking, setLocking] = useState(false);
   const { motion, setHideBalances } = useTheme();
@@ -62,6 +63,7 @@ export function App() {
     setUnlocking(true);
     if (u.recovery_key) setRecoveryKey(u.recovery_key);
     setAttempts(u.failed_attempts ?? null);
+    setHelped(u.helped ?? []);
     // A new profile starts in the language and currency chosen on this device; an existing one
     // brings its own (which also becomes this device's default for the sign-in screens).
     if (fresh) { api.settings.update({ locale, currency }).catch(() => {}); setDisplay(DEFAULT_DISPLAY); }
@@ -105,6 +107,7 @@ export function App() {
       {locking && <VaultSplash mode="close" onDone={lockFinished} />}
       <RecoveryKeyDialog recoveryKey={recoveryKey} child={user.role === "child"} onDone={() => setRecoveryKey(null)} />
       {!recoveryKey && !unlocking && <FailedAttemptsDialog attempts={attempts} onDone={() => setAttempts(null)} />}
+      {!recoveryKey && !unlocking && !attempts && <HelpedDialog helped={helped} onDone={() => setHelped([])} />}
     </SessionProvider>
   );
 }

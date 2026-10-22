@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { applySenior } from "@/lib/senior";
-import { ArrowLeft, Fingerprint, KeyRound, Languages, Loader2, Plus, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Check, FileText, Fingerprint, KeyRound, Languages, Loader2, Plus, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { useMotion } from "@/lib/motion";
@@ -8,7 +8,7 @@ import { Shake } from "@/components/Shake";
 import { LANGUAGES } from "@/i18n";
 import { useLocale } from "@/hooks/locale";
 import { Logo } from "@/components/Logo";
-import { api, biometricLabel, errorText, type SignedInUser, type User } from "@/api";
+import { api, biometricLabel, errorText, type Helpers, type HelperSlot, type SignedInUser, type User } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,7 +24,8 @@ type Step =
   | { kind: "password"; user: User }
   | { kind: "claim"; user: User }
   | { kind: "totp"; user: User; backup: boolean }
-  | { kind: "recover"; user: User };
+  | { kind: "recover"; user: User }
+  | { kind: "helpers"; user: User };
 
 /** `fresh` is true when the profile was created just now, so it can inherit the device language. */
 export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: SignedInUser, fresh?: boolean) => void; lastUserId?: string }) {
@@ -55,7 +56,9 @@ export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: SignedInU
         <PasswordStep user={step.user} onBack={back} onSignedIn={onSignedIn} onNeedsCode={() => setStep({ kind: "totp", user: step.user, backup: false })}
           onForgot={() => setStep({ kind: "recover", user: step.user })} />
       )}
-      {step.kind === "recover" && <RecoverStep user={step.user} onBack={() => setStep({ kind: "password", user: step.user })} onDone={onSignedIn} />}
+      {step.kind === "recover" && <RecoverStep user={step.user} onBack={() => setStep({ kind: "password", user: step.user })} onDone={onSignedIn}
+        onHelpers={() => setStep({ kind: "helpers", user: step.user })} />}
+      {step.kind === "helpers" && <HelpersStep user={step.user} onBack={() => { api.helpers.cancel().catch(() => {}); setStep({ kind: "recover", user: step.user }); }} onDone={onSignedIn} />}
       {step.kind === "claim" && <ClaimStep user={step.user} onBack={() => setStep({ kind: "pick" })} onDone={(u) => onSignedIn(u, true)} />}
       {step.kind === "totp" && (
         <SecondFactorStep user={step.user} backup={step.backup} onToggle={() => setStep({ ...step, backup: !step.backup })}
@@ -335,8 +338,10 @@ function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; o
 }
 
 /** Forgot password: the recovery key unlocks the data and a new password is set. */
-function RecoverStep({ user, onBack, onDone }: { user: User; onBack: () => void; onDone: (u: SignedInUser) => void }) {
+function RecoverStep({ user, onBack, onDone, onHelpers }: { user: User; onBack: () => void; onDone: (u: SignedInUser) => void; onHelpers: () => void }) {
   const { t } = useTranslation();
+  const [helpers, setHelpers] = useState<Helpers | null>(null);
+  useEffect(() => { api.helpers.forUser(user.id).then(setHelpers).catch(() => {}); }, [user.id]);
   const [key, setKey] = useState("");
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -366,7 +371,100 @@ function RecoverStep({ user, onBack, onDone }: { user: User; onBack: () => void;
             {error && <p className="text-destructive text-sm">{error}</p>}
             <Button className="w-full" disabled={busy}>{busy && <Loader2 className="animate-spin" />}{t("recovery.recover")}</Button>
             <p className="text-muted-foreground text-center text-xs">{user.role === "child" ? t("recovery.childHint") : t("recovery.adultHint")}</p>
+            {helpers?.set_up && helpers.usable >= 2 && (
+              <Button type="button" variant="outline" className="w-full" onClick={onHelpers}><UsersRound />{t("helpers.signIn.cta")}</Button>
+            )}
           </form>
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+/** Forgot password and recovery key: two of the member's three helpers let them back in. */
+function HelpersStep({ user, onBack, onDone }: { user: User; onBack: () => void; onDone: (u: SignedInUser) => void }) {
+  const { t } = useTranslation();
+  const [helpers, setHelpers] = useState<Helpers | null>(null);
+  const [approved, setApproved] = useState<number[]>([]);
+  const [open, setOpen] = useState<number | null>(null);
+  const [secret, setSecret] = useState("");
+  const [pw, setPw] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [code, setCode] = useState("");
+  const approve = useSubmit();
+  const finish = useSubmit();
+  useEffect(() => { api.helpers.forUser(user.id).then(setHelpers).catch((e) => approve.setError(errorText(e))); }, [user.id]);
+  const ready = approved.length >= 2;
+
+  const submitApproval = (s: HelperSlot) => (e: FormEvent) => {
+    e.preventDefault();
+    approve.run(async () => {
+      const slots = s.kind === "member" && s.helper_id ? await api.helpers.approveMember(user.id, s.helper_id, secret) : await api.helpers.approveCard(user.id, secret);
+      setApproved(slots); setOpen(null); setSecret("");
+    });
+  };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    if (pw !== confirm) return finish.setError(t("auth.mismatch"));
+    finish.run(async () => onDone(await api.helpers.signIn(user.id, pw, user.totp_enabled ? code : undefined)));
+  };
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="text-muted-foreground mb-2 -ml-2" onClick={onBack}><ArrowLeft />{t("common.back")}</Button>
+      <Card>
+        <CardHeader className="items-center text-center">
+          <div className="bg-secondary mb-2 grid size-11 place-items-center rounded-xl"><UsersRound className="size-5" /></div>
+          <CardTitle className="text-xl"><h1>{t("helpers.signIn.title")}</h1></CardTitle>
+          <CardDescription>{ready ? t("helpers.signIn.ready", { name: user.name.split(" ")[0] }) : t("helpers.signIn.desc", { count: approved.length })}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <ul className="space-y-2">
+            {helpers?.slots.filter((s) => s.usable).map((s) => {
+              const done = approved.includes(s.slot);
+              return (
+                <li key={s.slot} className="rounded-lg border">
+                  <div className="flex items-center gap-3 p-3">
+                    {s.kind === "card" ? <FileText className="text-muted-foreground size-4 shrink-0" aria-hidden /> : <UserRound className="text-muted-foreground size-4 shrink-0" aria-hidden />}
+                    <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{s.name}</div>
+                      <div className="text-muted-foreground text-xs">{s.kind === "card" ? t("helpers.kindCard") : t("helpers.kindMember")}</div></div>
+                    {done ? <span className="text-success flex items-center gap-1 text-sm font-medium"><Check className="size-4" aria-hidden />{t("helpers.signIn.approved")}</span>
+                      : !ready && open !== s.slot && <Button size="sm" variant="outline" onClick={() => { setOpen(s.slot); setSecret(""); approve.setError(""); }}>{t("helpers.signIn.approve")}</Button>}
+                  </div>
+                  {open === s.slot && !done && (
+                    <form onSubmit={submitApproval(s)} className="space-y-2 border-t p-3">
+                      <Label htmlFor={`help-${s.slot}`} className="text-xs">{s.kind === "card" ? t("helpers.signIn.cardCode", { holder: s.name }) : t("helpers.signIn.memberPassword", { name: s.name.split(" ")[0] })}</Label>
+                      <Shake trigger={approve.fails}>
+                        {s.kind === "card"
+                          ? <Input id={`help-${s.slot}`} autoFocus autoComplete="off" spellCheck={false} placeholder="XXXXX-XXXXX-…" className="font-mono tracking-wider uppercase" value={secret} onChange={(e) => setSecret(e.target.value)} required />
+                          : <Input id={`help-${s.slot}`} autoFocus type="password" value={secret} onChange={(e) => setSecret(e.target.value)} required />}
+                      </Shake>
+                      {approve.error && <p className="text-destructive text-sm">{approve.error}</p>}
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(null)}>{t("common.cancel")}</Button>
+                        <Button size="sm" disabled={approve.busy}>{approve.busy && <Loader2 className="animate-spin" />}{t("helpers.signIn.approve")}</Button>
+                      </div>
+                    </form>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {!ready && approve.error && open === null && <p className="text-destructive text-sm">{approve.error}</p>}
+          {ready && (
+            <form onSubmit={submit} className="space-y-4 border-t pt-4">
+              <NewPasswordFields pw={pw} setPw={setPw} confirm={confirm} setConfirm={setConfirm} />
+              {user.totp_enabled && (
+                <div className="space-y-2">
+                  <Label htmlFor="help-2fa">{t("helpers.signIn.twoStep")}</Label>
+                  <Input id="help-2fa" autoComplete="one-time-code" placeholder="123456" className="font-mono tracking-widest" value={code} onChange={(e) => setCode(e.target.value)} required />
+                  <p className="text-muted-foreground text-xs">{t("helpers.signIn.twoStepHint")}</p>
+                </div>
+              )}
+              {finish.error && <p className="text-destructive text-sm">{finish.error}</p>}
+              <Button className="w-full" disabled={finish.busy}>{finish.busy && <Loader2 className="animate-spin" />}{t("recovery.recover")}</Button>
+            </form>
+          )}
         </CardContent>
       </Card>
     </>

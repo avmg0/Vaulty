@@ -31,6 +31,7 @@ pub mod reports;
 pub mod rules;
 pub mod rows;
 pub mod settings;
+pub mod shamir;
 pub mod subscriptions;
 pub mod tasks;
 pub mod snapshots;

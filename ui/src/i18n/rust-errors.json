@@ -40,8 +40,16 @@
   "re": "^a low-balance reminder is for bank and cash accounts, not cards or loans$"
  },
  {
+  "id": "eb3da7915",
+  "re": "^those helpers' shares don't open this profile; the set may have changed$"
+ },
+ {
   "id": "e6a5f6636",
   "re": "^that's one of the most common passwords; choose something less obvious$"
+ },
+ {
+  "id": "e4db8238a",
+  "re": "^a helper card code has 37 letters and numbers; check it and try again$"
  },
  {
   "id": "e5d8128d4",
@@ -72,8 +80,20 @@
   "re": "^turn on Family sharing in Settings to see what your family shares$"
  },
  {
+  "id": "ed4c930a3",
+  "re": "^this card is from an older set of helpers, or for another profile$"
+ },
+ {
   "id": "e315f7835",
   "re": "^that spreadsheet couldn't be opened \\(is it password protected\\?\\)$"
+ },
+ {
+  "id": "ee8ed2244",
+  "re": "^a helper must be an adult family member with their own profile$"
+ },
+ {
+  "id": "e324c1114",
+  "re": "^enter the code from your authenticator app, or a backup code$"
  },
  {
   "id": "ee9d57d74",
@@ -94,6 +114,10 @@
  {
   "id": "eb69e5843",
   "re": "^this category has sub-categories, so it can't become one$"
+ },
+ {
+  "id": "ed24307a6",
+  "re": "^need at least 2 shares, and no fewer shares than needed$"
  },
  {
   "id": "e46964378",
@@ -132,6 +156,10 @@
   "re": "^sub-categories can't have their own sub-categories$"
  },
  {
+  "id": "e2651cf7d",
+  "re": "^say who will keep each card \\(up to 60 characters\\)$"
+ },
+ {
   "id": "e9a8a9438",
   "re": "^only a debit card's linked account can be changed$"
  },
@@ -148,12 +176,20 @@
   "re": "^snapshot can't be opened with this profile's key$"
  },
  {
+  "id": "e79721fd8",
+  "re": "^the helpers' approvals timed out; ask them again$"
+ },
+ {
   "id": "eb0f4c487",
   "re": "^changed again since; undo the later change first$"
  },
  {
   "id": "efa47e7b1",
   "re": "^you can't erase your own profile while signed in$"
+ },
+ {
+  "id": "e34074ab1",
+  "re": "^that code has a typo; check it against the card$"
  },
  {
   "id": "e67f096c7",
@@ -174,6 +210,10 @@
  {
   "id": "e54fd4405",
   "re": "^expected a 3-letter ISO 4217 code such as INR$"
+ },
+ {
+  "id": "e8042e6ac",
+  "re": "^shared recovery isn't set up for this profile$"
  },
  {
   "id": "e1ad35ad7",
@@ -216,6 +256,14 @@
   "re": "^settle up first: there's still money owed$"
  },
  {
+  "id": "e87eac2a5",
+  "re": "^choose a different person for each helper$"
+ },
+ {
+  "id": "e91e190db",
+  "re": "^they aren't one of this profile's helpers$"
+ },
+ {
   "id": "e97070588",
   "re": "^type the member's name exactly to confirm$"
  },
@@ -250,6 +298,10 @@
  {
   "id": "eabb91343",
   "re": "^that change is no longer in the history$"
+ },
+ {
+  "id": "eca34fa26",
+  "re": "^children are helped back in by a parent$"
  },
  {
   "id": "ee8270e4f",
@@ -412,6 +464,10 @@
   "re": "^the end date is before the start$"
  },
  {
+  "id": "e4df0b146",
+  "re": "^two different helpers are needed$"
+ },
+ {
   "id": "e5d1046fe",
   "re": "^the request is nested too deeply$"
  },
@@ -488,6 +544,10 @@
   "re": "^the request has too many fields$"
  },
  {
+  "id": "efde08a12",
+  "re": "^those shares don't fit together$"
+ },
+ {
   "id": "e211f7e1a",
   "re": "^credit limit can't be negative$"
  },
@@ -510,6 +570,10 @@
  {
   "id": "ea56748c5",
   "re": "^this profile is already set up$"
+ },
+ {
+  "id": "eb8c997dd",
+  "re": "^this helper's share is damaged$"
  },
  {
   "id": "edf09116c",
@@ -734,6 +798,10 @@
  {
   "id": "e948728d5",
   "re": "^incorrect setup code$"
+ },
+ {
+  "id": "eaec50c42",
+  "re": "^choose three helpers$"
  },
  {
   "id": "e4b334f26",

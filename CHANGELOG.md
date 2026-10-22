@@ -32,6 +32,8 @@ What changed in each version, for people using Vaulty. Newest first.
 - Low-balance reminders: set a minimum on a bank or cash account and get reminded when it drops
   below, or when a bill in the next two weeks would take it there.
 - Reports: save as an Excel workbook, or print or save as a PDF.
+- Family helpers: choose three people (family members on this device, or printed cards for others),
+  any two of whom can get you back in if you lose your password and recovery key.
 
 ### Fixed
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.

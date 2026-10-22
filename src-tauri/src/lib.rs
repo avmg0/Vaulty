@@ -19,6 +19,8 @@ use vaulty_core::{
 
 /// How long a "password OK, now enter your code" step stays valid.
 const SECOND_FACTOR_TTL: Duration = Duration::from_secs(5 * 60);
+/// How long helpers' approvals are kept while a member recovers with their help.
+const HELPING_TTL: Duration = Duration::from_secs(10 * 60);
 /// How long the Hidden section stays open after unlocking it.
 const HIDDEN_TTL: Duration = Duration::from_secs(5 * 60);
 /// The window locks itself when the auto-lock time is up; the app enforces the same limit this
@@ -73,12 +75,16 @@ struct AppState {
     registry: Mutex<Registry>,
     session: Mutex<Option<Session>>,
     pending: Mutex<Option<(SecondFactor, Instant)>>,
+    /// Helpers' shares collected so far for a member recovering their profile (memory only).
+    helping: Mutex<Option<Helping>>,
     /// Files the person chose in a file dialog this run. File commands only touch these, so a
     /// script injected into the interface couldn't read or overwrite any other file.
     picked: Mutex<Vec<String>>,
     /// Notifications shown in the last minute (a misbehaving window can't flood the desktop).
     shown: Mutex<Vec<Instant>>,
 }
+
+struct Helping { owner: String, shares: Vec<vaulty_core::profiles::HelperShare>, started: Instant }
 
 /// Returned by every sign-in route. `recovery_key` is set only when a new one was just created
 /// and must be shown to the member once.
@@ -89,6 +95,8 @@ struct SignedIn {
     recovery_key: Option<String>,
     /// Wrong passwords or codes for this profile since it was last signed in to.
     failed_attempts: Option<vaulty_core::profiles::FailureNotice>,
+    /// Members this person helped back into their profile since they last signed in.
+    helped: Vec<vaulty_core::profiles::HelperNotice>,
 }
 
 fn poisoned<T>(_: T) -> Error {
@@ -211,9 +219,11 @@ impl AppState {
         }
         let recovery_key = keys.new_recovery_key.take();
         let failed_attempts = self.registry(|r| r.take_failure_notice(&user_id))?;
+        let helped = self.registry(|r| r.take_helper_notices(&user_id))?;
         *self.pending.lock().map_err(poisoned)? = None;
+        *self.helping.lock().map_err(poisoned)? = None;
         *self.session.lock().map_err(poisoned)? = Some(Session::new(user.clone(), conn, keys, household, household_ready));
-        Ok(SignedIn { user, recovery_key, failed_attempts })
+        Ok(SignedIn { user, recovery_key, failed_attempts, helped })
     }
 
     fn delete_user_files(&self, user_id: &str) {
@@ -311,6 +321,88 @@ fn sign_in_recovery(s: S, user_id: String, recovery_key: String, new_password: S
     s.start_session(keys)
 }
 
+// ------------------------------------------------------------ shared recovery (helpers)
+
+/// Who can help this member back in (names only), on the sign-in screen.
+#[tauri::command]
+fn helpers_for(s: S, user_id: String) -> Result<vaulty_core::profiles::Helpers> {
+    s.registry(|r| r.helpers(&user_id))
+}
+
+impl AppState {
+    /// Adds an approval, starting over if it's for someone else or has gone stale. Returns the
+    /// helper slots approved so far.
+    fn add_help(&self, owner: &str, share: vaulty_core::profiles::HelperShare) -> Result<Vec<u8>> {
+        let mut h = self.helping.lock().map_err(poisoned)?;
+        if h.as_ref().is_none_or(|x| x.owner != owner || x.started.elapsed() > HELPING_TTL) {
+            *h = Some(Helping { owner: owner.into(), shares: vec![], started: Instant::now() });
+        }
+        let help = h.as_mut().expect("just set");
+        help.shares.retain(|x| x.slot() != share.slot());
+        help.shares.push(share);
+        Ok(help.shares.iter().map(|x| x.slot()).collect())
+    }
+}
+
+/// A family member helper approves with their own password.
+#[tauri::command]
+fn helpers_approve_member(s: S, user_id: String, helper_id: String, password: String) -> Result<Vec<u8>> {
+    let share = s.registry(|r| r.helper_share_from_member(&user_id, &helper_id, &password))?;
+    s.add_help(&user_id, share)
+}
+
+/// A printed helper card's code.
+#[tauri::command]
+fn helpers_approve_card(s: S, user_id: String, code: String) -> Result<Vec<u8>> {
+    limits::text("code", &code, 100)?;
+    let share = s.registry(|r| r.helper_share_from_card(&user_id, &code))?;
+    s.add_help(&user_id, share)
+}
+
+#[tauri::command]
+fn helpers_cancel(s: S) -> Result<()> {
+    *s.helping.lock().map_err(poisoned)? = None;
+    Ok(())
+}
+
+/// With two helpers' approvals: a new password (and the 2FA code, if 2FA is on), then signed in.
+#[tauri::command]
+fn sign_in_helpers(s: S, user_id: String, new_password: String, code: Option<String>) -> Result<SignedIn> {
+    let shares = {
+        let h = s.helping.lock().map_err(poisoned)?;
+        match h.as_ref() {
+            Some(x) if x.owner == user_id && x.started.elapsed() <= HELPING_TTL => x.shares.clone(),
+            _ => return Err(Error::Auth("the helpers' approvals timed out; ask them again".into())),
+        }
+    };
+    let keys = s.registry(|r| r.recover_with_helpers(&user_id, &shares, &new_password, code.as_deref()))?;
+    s.start_session(keys)
+}
+
+/// The signed-in member's own helpers.
+#[tauri::command]
+fn helpers_mine(s: S) -> Result<Value> {
+    let me = s.current_user()?;
+    let helpers = s.registry(|r| r.helpers(&me.id))?;
+    let candidates = s.registry(|r| r.helper_candidates(&me.id))?;
+    Ok(json!({ "helpers": helpers, "candidates": candidates }))
+}
+
+/// Chooses three helpers; returns the cards to print (shown once).
+#[tauri::command]
+fn helpers_set(s: S, password: String, choices: Value) -> Result<Vec<vaulty_core::profiles::HelperCard>> {
+    limits::check(&choices)?;
+    let choices: Vec<vaulty_core::profiles::HelperChoice> = serde_json::from_value(choices).map_err(|_| Error::Invalid("choose three helpers".into()))?;
+    let me = s.current_user()?;
+    s.registry(|r| r.set_helpers(&me.id, &password, &choices))
+}
+
+#[tauri::command]
+fn helpers_remove(s: S, password: String) -> Result<()> {
+    let me = s.current_user()?;
+    s.registry(|r| r.remove_helpers(&me.id, &password))
+}
+
 #[tauri::command]
 fn sign_in(s: S, user_id: String, password: String) -> Result<SignIn> {
     match s.registry(|r| r.sign_in_with_password(&user_id, &password))? {
@@ -357,6 +449,7 @@ async fn sign_in_biometric(s: S<'_>, user_id: String) -> Result<SignedIn> {
 #[tauri::command]
 fn sign_out(s: S) -> Result<()> {
     *s.pending.lock().map_err(poisoned)? = None;
+    *s.helping.lock().map_err(poisoned)? = None;
     *s.session.lock().map_err(poisoned)? = None; // drops (closes) the user's DB connection
     Ok(())
 }
@@ -1304,6 +1397,7 @@ pub fn run() {
                 registry: Mutex::new(registry),
                 session: Mutex::new(None),
                 pending: Mutex::new(None),
+                helping: Mutex::new(None),
                 picked: Mutex::new(Vec::new()),
                 shown: Mutex::new(Vec::new()),
             });
@@ -1311,7 +1405,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

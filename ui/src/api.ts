@@ -25,7 +25,15 @@ export type Invite = { user: User; setup_code: string };
 /** A new recovery key appears only right after it was created and must be shown once. */
 /** Wrong passwords or codes since the profile was last signed in to (`last_at` is Unix seconds). */
 export type FailedAttempts = { count: number; last_at: number };
-export type SignedInUser = User & { recovery_key?: string | null; failed_attempts?: FailedAttempts | null };
+/** Someone this member helped back into their profile, since they last signed in (`at` is Unix seconds). */
+export type HelpedNotice = { owner_name: string; at: number };
+export type SignedInUser = User & { recovery_key?: string | null; failed_attempts?: FailedAttempts | null; helped?: HelpedNotice[] };
+/** Shared recovery: any 2 of 3 helpers. */
+export type HelperSlot = { slot: number; kind: "member" | "card"; helper_id: string | null; name: string; usable: boolean };
+export type Helpers = { set_up: boolean; created_at: string | null; slots: HelperSlot[]; usable: number };
+export type HelperChoice = { kind: "member"; id: string } | { kind: "card"; label: string };
+/** A card to print, shown only right after the helpers were chosen. */
+export type HelperCard = { slot: number; label: string; owner: string; code: string };
 export type SignIn = { status: "signed_in"; user: SignedInUser } | { status: "needs_second_factor" };
 export type TotpEnrollment = { secret_base32: string; otpauth_url: string; qr_png_base64: string };
 export type TaxDeduction = { id: string; label: string; hint?: string; cap?: number; cap_senior?: number; cap_alt?: number; alt_label?: string };
@@ -281,6 +289,17 @@ export const api = {
     signInRecovery: (userId: string, recoveryKey: string, newPassword: string) =>
       invoke<SignedInUser>("sign_in_recovery", { userId, recoveryKey, newPassword }),
     signOut: () => invoke<void>("sign_out"),
+  },
+  helpers: {
+    /** On the sign-in screen: who can help this member back in. */
+    forUser: (userId: string) => invoke<Helpers>("helpers_for", { userId }),
+    approveMember: (userId: string, helperId: string, password: string) => invoke<number[]>("helpers_approve_member", { userId, helperId, password }),
+    approveCard: (userId: string, code: string) => invoke<number[]>("helpers_approve_card", { userId, code }),
+    cancel: () => invoke<void>("helpers_cancel"),
+    signIn: (userId: string, newPassword: string, code?: string) => invoke<SignedInUser>("sign_in_helpers", { userId, newPassword, code: code || null }),
+    mine: () => invoke<{ helpers: Helpers; candidates: User[] }>("helpers_mine"),
+    set: (password: string, choices: HelperChoice[]) => invoke<HelperCard[]>("helpers_set", { password, choices }),
+    remove: (password: string) => invoke<void>("helpers_remove", { password }),
   },
   security: {
     status: () => invoke<SecurityStatus>("security_status"),
