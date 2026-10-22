@@ -26,6 +26,7 @@ pub const DATA_MIGRATIONS: Migrations = &[
     ("0017_reminders", include_str!("../migrations/data/0017_reminders.sql")),
     ("0018_people", include_str!("../migrations/data/0018_people.sql")),
     ("0019_subscriptions", include_str!("../migrations/data/0019_subscriptions.sql")),
+    ("0020_low_balance", include_str!("../migrations/data/0020_low_balance.sql")),
 ];
 
 /// Device-level family sharing store.

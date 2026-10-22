@@ -1038,6 +1038,9 @@ fn reports_forecast(s: S, days: i64) -> Result<vaulty_core::reports::Forecast> {
 #[tauri::command]
 fn reports_safe_to_spend(s: S) -> Result<vaulty_core::reports::SafeToSpend> { s.data(|c| vaulty_core::reports::safe_to_spend(c, today())) }
 
+#[tauri::command]
+fn reports_low_balances(s: S) -> Result<Vec<vaulty_core::reports::LowBalance>> { s.data(|c| vaulty_core::reports::low_balances(c, today())) }
+
 #[tauri::command] fn market_get(s: S) -> Result<Value> { s.data(vaulty_core::market::prefs_view) }
 #[tauri::command] fn market_update(s: S, prefs: Value) -> Result<Value> { limits::check(&prefs)?; s.data(|c| vaulty_core::market::update_prefs(c, &prefs)) }
 /// `which` is `stock` or `crypto`; an empty key removes it.
@@ -1290,7 +1293,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, reports_low_balances, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

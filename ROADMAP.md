@@ -290,7 +290,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Calendar: bills and income, card due and statement dates, paid bills, own events and reminders, holidays (fixed national ones built in; the rest added or imported, since festival and state bank holidays vary); due dates on bank-closed days show the day to pay by; `.ics` import and export (amounts left out unless asked)
 - [ ] Calendar: document expiry (once Documents exists)
 - [x] OS notifications: bills (each bill's own "remind N days before"), card payments 3 days ahead, overdue bills, budgets at 80% and 100%; amounts off by default; optional dates-only reminders while locked
-- [ ] Low-balance alerts (needs a per-account threshold)
+- [x] Low-balance alerts: a level per bank or cash account; reminded when below it, or when a bill in the next two weeks would take it there
 - [ ] Cards: statements, minimum due, benefits tracker, best card for today
 - [x] Reports page on the chart kit (by month, category, place and income source; any period incl. the financial year); 60-day cash-flow forecast with and without everyday spending; "safe to spend" until the next income
 - [x] Lend and borrow: people with what they owe or you owe, lent / borrowed / repaid, splitting a bill you paid (only your share is spending), settle-up, history, a copyable reminder message, reminders after 30 quiet days

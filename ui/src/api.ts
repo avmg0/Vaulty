@@ -82,10 +82,14 @@ export type Account = {
   institution_logo?: string | null; logo?: string | null;
   current_balance: number; current_balance_minor: number;
   initial_balance: number; initial_balance_minor: number;
+  /** Remind when the balance is (or is heading) below this. Bank and cash accounts only. */
+  low_balance: number | null;
 };
 export type NewAccount = {
   name: string; type: string; currency: string; initial_balance?: string | number; color?: string; icon?: string;
   institution_id?: string | null; logo?: string | null;
+  /** Amount as text; "" removes the level. */
+  low_balance?: string | number | null;
 };
 export type CardNetwork = "visa" | "mastercard" | "amex" | "discover" | "rupay" | "diners" | "jcb" | "unionpay" | "maestro";
 export type CardDesign = "midnight" | "ocean" | "aurora" | "sunset" | "graphite" | "emerald" | "rose" | "gold";
@@ -133,7 +137,9 @@ export type CalendarEvent = { id: string; title: string; date: string; time: str
 export type IcsEvent = { uid: string | null; title: string; date: string; time: string | null; repeat: string | null; notes: string | null };
 
 /** A reminder due now (see crates/vaulty-core/src/reminders.rs). `days` < 0 means overdue. */
-export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null };
+export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
+/** An account below its low-balance level, or a scheduled payment in the next 14 days that would take it there. */
+export type LowBalance = { account_id: string; name: string; currency: string; balance: number; level: number; now: boolean; date: string; because: string | null; lowest: number };
 
 export type ReportSlice = { id: string | null; name: string; icon: string | null; color: string | null; amount: number; count: number };
 /** A period's income and spending (main currency). Names "\u0000uncategorised" and "\u0000hidden" are placeholders. */
@@ -347,6 +353,7 @@ export const api = {
     overview: (from: string, to: string) => invoke<ReportOverview>("reports_overview", { from, to }),
     forecast: (days: number) => invoke<Forecast>("reports_forecast", { days }),
     safeToSpend: () => invoke<SafeToSpend>("reports_safe_to_spend"),
+    lowBalances: () => invoke<LowBalance[]>("reports_low_balances"),
   },
   people: {
     list: () => invoke<Person[]>("people_list"),

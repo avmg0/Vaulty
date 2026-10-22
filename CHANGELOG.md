@@ -29,6 +29,8 @@ What changed in each version, for people using Vaulty. Newest first.
 - Subscriptions spotted in your transactions, and alerts when a regular charge goes up.
 - To-do list: link a to-do to a bill, transaction, person or event; it ticks itself off when the
   bill is marked paid, and due dates show on the calendar and as reminders.
+- Low-balance reminders: set a minimum on a bank or cash account and get reminded when it drops
+  below, or when a bill in the next two weeks would take it there.
 
 ### Fixed
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.

@@ -36,6 +36,10 @@
   "re": "^this recurring payment's account was archived; edit it to choose another$"
  },
  {
+  "id": "e77a63b22",
+  "re": "^a low-balance reminder is for bank and cash accounts, not cards or loans$"
+ },
+ {
   "id": "e6a5f6636",
   "re": "^that's one of the most common passwords; choose something less obvious$"
  },
@@ -202,6 +206,10 @@
  {
   "id": "ed3195400",
   "re": "^select at most 5000 transactions at a time$"
+ },
+ {
+  "id": "e245b50f5",
+  "re": "^the low-balance level can't be below zero$"
  },
  {
   "id": "e5ed7ca34",

@@ -466,7 +466,19 @@
     "archive": "Archive",
     "inCredit": "In credit by {{amount}}",
     "owed": "Owed",
-    "notImage": "That file isn't an image Vaulty can read."
+    "notImage": "That file isn't an image Vaulty can read.",
+    "low": {
+      "button": "Low-balance reminder",
+      "title": "Remind me when the balance is low",
+      "desc": "Vaulty reminds you when {{name}} goes below this, or when a bill scheduled in the next two weeks would take it there.",
+      "label": "Remind me below ({{currency}})",
+      "hint": "Counts bills, income and transfers set up on this account. Credit card payments aren’t counted, as they don’t say which account pays them.",
+      "remove": "Turn off",
+      "set": "Reminds you below {{amount}}",
+      "below": "Below your minimum of {{amount}}",
+      "heading": "{{payment}} on {{date}} takes it below {{amount}}",
+      "headingPlain": "Goes below {{amount}} on {{date}}"
+    }
   },
   "tx": {
     "untitled": "Untitled",
@@ -1187,6 +1199,7 @@
     "e0d4cf818": "that password is mostly your name; choose something others wouldn't guess",
     "eef6b9570": "that password is one character repeated; choose something harder to guess",
     "e59abd20d": "this recurring payment's account was archived; edit it to choose another",
+    "e77a63b22": "a low-balance reminder is for bank and cash accounts, not cards or loans",
     "e6a5f6636": "that's one of the most common passwords; choose something less obvious",
     "e5d8128d4": "can't change the currency of an account that already has transactions",
     "e42f5c1a4": "can't switch a category between income and expense once it's in use",
@@ -1229,6 +1242,7 @@
     "e7184ceb6": "a shortcut needs Ctrl (Cmd on a Mac) or Alt",
     "e08b45d14": "choose a preset, colour, gradient or image",
     "ed3195400": "select at most 5000 transactions at a time",
+    "e245b50f5": "the low-balance level can't be below zero",
     "e5ed7ca34": "settle up first: there's still money owed",
     "e97070588": "type the member's name exactly to confirm",
     "ec58b24c9": "expected auto, sunday, monday or saturday",
@@ -1567,7 +1581,7 @@
     "title": "Reminders",
     "desc": "Notifications for bills, card payments and budgets, so nothing is missed.",
     "on": "Remind me",
-    "onDesc": "Bills a few days before (as set on each), card payments 3 days before, and budgets at 80% and 100%. While Vaulty is open and you’re signed in.",
+    "onDesc": "Bills a few days before (as set on each), card payments 3 days before, budgets at 80% and 100%, and accounts running low. While Vaulty is open and you’re signed in.",
     "amounts": "Show amounts in notifications",
     "amountsDesc": "Off by default: notifications can appear on a locked screen.",
     "locked": {
@@ -1604,7 +1618,15 @@
     "overdue": "{{name}}: {{when}}",
     "owed": "{{name}} still owes you",
     "price": "{{name}} went up {{percent}}%",
-    "task": "To-do due {{when}}: {{name}}"
+    "task": "To-do due {{when}}: {{name}}",
+    "low": {
+      "now": "{{name}} is below your minimum",
+      "nowBody": "Balance {{amount}}; your minimum is {{level}}.",
+      "open": "Open Vaulty to see your accounts.",
+      "soon": "{{name}} may go below your minimum {{when}}",
+      "because": "Because of {{payment}}.",
+      "becauseAmount": "Because of {{payment}}: lowest {{amount}}."
+    }
   },
   "reports": {
     "safe": {

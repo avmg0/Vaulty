@@ -304,3 +304,75 @@ pub fn safe_to_spend(conn: &Connection, today: NaiveDate) -> Result<SafeToSpend>
         until: until.to_string(), days, income_name: next_income.map(|s| s.2.clone()), short: left < 0, currency: cur,
     })
 }
+
+// ------------------------------------------------------------ low balance
+
+/// How far ahead to look for a bill that would take an account below its level.
+pub const LOW_BALANCE_DAYS: i64 = 14;
+
+#[derive(Debug, Serialize, PartialEq)]
+pub struct LowBalance {
+    pub account_id: String,
+    pub name: String,
+    pub currency: String,
+    pub balance: f64,
+    /// The level the member set.
+    pub level: f64,
+    /// Already below it.
+    pub now: bool,
+    /// When it goes below (today when `now`).
+    pub date: String,
+    /// The scheduled payment that takes it below, when not `now`.
+    pub because: Option<String>,
+    /// The lowest balance in the next 14 days, counting scheduled payments.
+    pub lowest: f64,
+}
+
+/// Accounts with a low-balance level that are below it, or that a bill, income or transfer
+/// scheduled in the next 14 days would take below it. Only payments scheduled on the account
+/// itself count (credit card payments don't say which account pays them).
+pub fn low_balances(conn: &Connection, today: NaiveDate) -> Result<Vec<LowBalance>> {
+    let to = today + Duration::days(LOW_BALANCE_DAYS);
+    let watched: Vec<_> = crate::accounts::get_all(conn)?.into_iter()
+        .filter(|a| a["ledger_kind"] != "liability" && a["low_balance_minor"].as_i64().is_some()).collect();
+    if watched.is_empty() { return Ok(vec![]); }
+    // recurring id -> (from account, to account, currency of the amount)
+    let rules: BTreeMap<String, (Option<String>, Option<String>)> = recurring::list(conn, today)?.into_iter()
+        .map(|r| (r["id"].as_str().unwrap_or_default().to_string(), (r["account_id"].as_str().map(str::to_string), r["to_account_id"].as_str().map(str::to_string))))
+        .collect();
+    let upcoming = recurring::upcoming(conn, today, to)?;
+    let mut out = vec![];
+    for a in watched {
+        let (id, cur) = (a["id"].as_str().unwrap_or_default(), a["currency"].as_str().unwrap_or("INR"));
+        let level = a["low_balance_minor"].as_i64().unwrap_or(0);
+        let balance = a["current_balance_minor"].as_i64().unwrap_or(0);
+        let (mut bal, mut lowest, mut crossed): (i64, i64, Option<(String, String)>) = (balance, balance, None);
+        for u in &upcoming {
+            if u["currency"].as_str() != Some(cur) { continue; }
+            let (from, to_acc) = rules.get(u["recurring_id"].as_str().unwrap_or_default()).cloned().unwrap_or_default();
+            let (out_of, into) = (from.as_deref() == Some(id), to_acc.as_deref() == Some(id));
+            let sign = match u["type"].as_str() {
+                Some("income") if out_of => 1,
+                Some("transfer") => into as i64 - out_of as i64,
+                Some("expense") if out_of => -1,
+                _ => 0,
+            };
+            if sign == 0 { continue; }
+            bal += sign * money::parse_minor(&u["amount"], cur).unwrap_or(0);
+            lowest = lowest.min(bal);
+            if crossed.is_none() && bal < level {
+                crossed = Some((day(u["date"].as_str().unwrap_or_default())?.max(today).to_string(), u["name"].as_str().unwrap_or_default().to_string()));
+            }
+        }
+        let now = balance < level;
+        if !now && crossed.is_none() { continue; }
+        let (date, because) = if now { (today.to_string(), None) } else { crossed.map(|(d, n)| (d, Some(n))).unwrap_or_default() };
+        out.push(LowBalance {
+            account_id: id.into(), name: a["name"].as_str().unwrap_or_default().into(), currency: cur.into(),
+            balance: money::to_decimal(balance, cur), level: money::to_decimal(level, cur), now, date, because,
+            lowest: money::to_decimal(lowest, cur),
+        });
+    }
+    out.sort_by(|a, b| (!a.now, &a.date).cmp(&(!b.now, &b.date)));
+    Ok(out)
+}

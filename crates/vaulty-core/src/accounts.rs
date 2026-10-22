@@ -30,6 +30,8 @@ fn decorate(mut row: Value) -> Value {
         o.insert("current_balance".into(), json!(money::to_decimal(current, &currency)));
         o.insert("initial_balance".into(), json!(money::to_decimal(initial, &currency)));
         o.insert("initial_balance_minor".into(), json!(initial));
+        let low = o.get("low_balance_minor").and_then(Value::as_i64);
+        o.insert("low_balance".into(), json!(low.map(|m| money::to_decimal(m, &currency))));
         o.remove("opening_minor");
         // Badge info from the institution directory (monogram text and optional bundled logo file).
         let inst = o.get("institution_id").and_then(Value::as_str).and_then(crate::institutions::get);
@@ -69,6 +71,22 @@ fn opening_minor(a: &Value, currency: &str, kind: Kind) -> Result<Option<i64>> {
         Some(v) => {
             let m = money::parse_minor(v, currency)?;
             Ok(Some(if kind == Kind::Liability { -m } else { m }))
+        }
+    }
+}
+
+/// The low-balance reminder level: `None` = key absent (keep), `Some(None)` = none.
+/// Only for bank, cash and similar accounts, and never below zero.
+fn low_balance_change(a: &Value, currency: &str, kind: Kind) -> Result<Change<i64>> {
+    match a.get("low_balance") {
+        None => Ok(None),
+        Some(Value::Null) => Ok(Some(None)),
+        Some(Value::String(s)) if s.trim().is_empty() => Ok(Some(None)),
+        Some(v) => {
+            if kind == Kind::Liability { return Err(Error::Invalid("a low-balance reminder is for bank and cash accounts, not cards or loans".into())); }
+            let m = money::parse_minor(v, currency)?;
+            if m < 0 { return Err(Error::Invalid("the low-balance level can't be below zero".into())); }
+            Ok(Some(Some(m)))
         }
     }
 }
@@ -123,11 +141,12 @@ pub fn create(conn: &Connection, a: &Value) -> Result<Value> {
     let opening = opening_minor(a, &currency, kind)?.unwrap_or(0);
     let institution = institution_change(a)?.flatten();
     let logo = logo_change(a)?.flatten();
+    let low = low_balance_change(a, &currency, kind)?.flatten();
 
     atomic(conn, |tx| {
         tx.execute(
-            "INSERT INTO accounts (id, name, type, institution, institution_id, logo, currency, color, icon, notes, include_in_total)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO accounts (id, name, type, institution, institution_id, logo, currency, color, icon, notes, include_in_total, low_balance_minor)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![
                 id,
                 name,
@@ -140,6 +159,7 @@ pub fn create(conn: &Connection, a: &Value) -> Result<Value> {
                 str_field(a, "icon").unwrap_or("💰"),
                 str_field(a, "notes"),
                 bool_field(a, "include_in_total", true),
+                low,
             ],
         )?;
         let ledger_id = ledger::create_account_ledger(tx, &id, name, kind)?;
@@ -198,11 +218,17 @@ pub fn update(conn: &Connection, id: &str, a: &Value) -> Result<Value> {
         None => keep("logo"),
         Some(v) => v,
     };
+    // A card or loan never keeps a level.
+    let low = match low_balance_change(a, &currency, kind)? {
+        None if kind == Kind::Liability => None,
+        None => current["low_balance_minor"].as_i64(),
+        Some(v) => v,
+    };
 
     atomic(conn, |tx| {
         tx.execute(
             "UPDATE accounts SET name = ?, type = ?, currency = ?, notes = ?, color = ?, icon = ?,
-                    institution = ?, institution_id = ?, logo = ? WHERE id = ?",
+                    institution = ?, institution_id = ?, logo = ?, low_balance_minor = ? WHERE id = ?",
             params![
                 name,
                 account_type,
@@ -213,6 +239,7 @@ pub fn update(conn: &Connection, id: &str, a: &Value) -> Result<Value> {
                 institution_name,
                 institution_id,
                 logo,
+                low,
                 id
             ],
         )?;

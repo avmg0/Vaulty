@@ -16,7 +16,9 @@ pub const OVERDUE_DAYS: i64 = 7;
 pub struct Due {
     /// Stable id: the same reminder is never shown twice.
     pub key: String,
-    /// bill, income, transfer, card, budget, price (went up), owed, task (someone owes you; `days` since you last dealt)
+    /// bill, income, transfer, card, budget, price (went up), owed (someone owes you; `days` since you
+    /// last dealt), task, low (an account below, or heading below, its low-balance level; `amount` is
+    /// the balance now or the lowest coming)
     pub kind: String,
     pub name: String,
     pub date: String,
@@ -26,8 +28,10 @@ pub struct Due {
     pub currency: Option<String>,
     /// Budgets: 80 or 100. Price rises: the rise in percent, rounded.
     pub percent: Option<i64>,
-    /// Price rises: what it cost before (`amount` is the new price).
+    /// Price rises: what it cost before (`amount` is the new price). Low balance: the level set.
     pub previous: Option<f64>,
+    /// Low balance: the payment that would take it below (none when already below).
+    pub detail: Option<String>,
 }
 
 fn stage(days: i64) -> &'static str {
@@ -47,7 +51,7 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
         let id = r["id"].as_str().unwrap_or_default();
         out.push(Due {
             key: format!("{kind}:{id}:{date}:{}", stage(days)), kind: kind.into(), name: r["name"].as_str().unwrap_or_default().into(),
-            date: date.into(), days, amount: r["amount"].as_f64(), currency: r["currency"].as_str().map(str::to_string), percent: None, previous: None,
+            date: date.into(), days, amount: r["amount"].as_f64(), currency: r["currency"].as_str().map(str::to_string), percent: None, previous: None, detail: None,
         });
     }
     // Credit cards: the next due date, if something is owed.
@@ -66,7 +70,7 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
         out.push(Due {
             key: format!("card:{}:{date}:{}", c["id"].as_str().unwrap_or_default(), stage(days)), kind: "card".into(),
             name: c["name"].as_str().unwrap_or_default().into(), date: date.to_string(), days,
-            amount: Some(money::to_decimal(owed, cur)), currency: Some(cur.into()), percent: None, previous: None,
+            amount: Some(money::to_decimal(owed, cur)), currency: Some(cur.into()), percent: None, previous: None, detail: None,
         });
     }
     // Money owed to you with nothing happening for 30 days: once per quiet spell.
@@ -77,7 +81,7 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
                 key: format!("owed:{}:{}:{last}", p["id"].as_str().unwrap_or_default(), b["currency"].as_str().unwrap_or_default()),
                 kind: "owed".into(), name: p["name"].as_str().unwrap_or_default().into(), date: last.into(),
                 days: NaiveDate::parse_from_str(last, "%Y-%m-%d").map(|d| (today - d).num_days()).unwrap_or(0),
-                amount: b["amount"].as_f64(), currency: b["currency"].as_str().map(str::to_string), percent: None, previous: None,
+                amount: b["amount"].as_f64(), currency: b["currency"].as_str().map(str::to_string), percent: None, previous: None, detail: None,
             });
         }
     }
@@ -88,20 +92,29 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
         if !(-OVERDUE_DAYS..=0).contains(&days) { continue; }
         out.push(Due {
             key: format!("task:{}:{due}:{}", t["id"].as_str().unwrap_or_default(), if days == 0 { "today" } else { "overdue" }), kind: "task".into(),
-            name: t["title"].as_str().unwrap_or_default().into(), date: due.to_string(), days, amount: None, currency: None, percent: None, previous: None,
+            name: t["title"].as_str().unwrap_or_default().into(), date: due.to_string(), days, amount: None, currency: None, percent: None, previous: None, detail: None,
         });
     }
     // Price rises in the last 30 days: subscriptions Vaulty spotted and recurring payments.
     let recent = |date: &str| NaiveDate::parse_from_str(date, "%Y-%m-%d").is_ok_and(|d| (today - d).num_days() <= 30);
     let rise = |key: String, name: &str, cur: &str, c: &crate::subscriptions::PriceChange| Due {
         key, kind: "price".into(), name: name.into(), date: c.date.clone(), days: 0, amount: Some(c.to), currency: Some(cur.into()),
-        percent: Some(c.percent.round() as i64), previous: Some(c.from),
+        percent: Some(c.percent.round() as i64), previous: Some(c.from), detail: None,
     };
     for s in crate::subscriptions::detect(conn, today)? {
         if let Some(c) = s.price_change.as_ref().filter(|c| recent(&c.date)) { out.push(rise(format!("price:{}:{}:{}", s.key, c.date, c.to), &s.name, &s.currency, c)); }
     }
     for r in crate::subscriptions::recurring_rises(conn)? {
         if recent(&r.change.date) { out.push(rise(format!("price:{}:{}:{}", r.recurring_id, r.change.date, r.change.to), &r.name, &r.currency, &r.change)); }
+    }
+    // Accounts below their low-balance level now (once per dip), or a bill taking them below.
+    for l in crate::reports::low_balances(conn, today)? {
+        let days = NaiveDate::parse_from_str(&l.date, "%Y-%m-%d").map(|d| (d - today).num_days()).unwrap_or(0);
+        out.push(Due {
+            key: if l.now { format!("low:{}:now", l.account_id) } else { format!("low:{}:{}:{}", l.account_id, l.date, l.because.as_deref().unwrap_or_default()) },
+            kind: "low".into(), name: l.name, date: l.date, days,
+            amount: Some(if l.now { l.balance } else { l.lowest }), currency: Some(l.currency), percent: None, previous: Some(l.level), detail: l.because,
+        });
     }
     // Budgets this month: the highest level reached.
     let month = format!("{:04}-{:02}", today.year(), today.month());
@@ -115,7 +128,7 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
         out.push(Due {
             key: format!("budget:{}:{month}:{level}", c["id"].as_str().unwrap_or_default()), kind: "budget".into(),
             name: c["name"].as_str().unwrap_or_default().into(), date: today.to_string(), days: 0,
-            amount: c["spent"].as_f64(), currency: Some(cur.clone()), percent: Some(level), previous: None,
+            amount: c["spent"].as_f64(), currency: Some(cur.clone()), percent: Some(level), previous: None, detail: None,
         });
     }
     Ok(out)
@@ -126,8 +139,14 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
 pub fn take_due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
     if crate::settings::get(conn)?["notifications"] == "off" { return Ok(vec![]); }
     conn.execute("DELETE FROM reminders_sent WHERE at < datetime('now', '-120 days')", [])?;
+    let all = due(conn, today)?;
+    // An account back above its level is reminded again the next time it dips.
+    let below: Vec<&str> = all.iter().filter(|d| d.kind == "low" && d.key.ends_with(":now")).map(|d| d.key.as_str()).collect();
+    let shown: Vec<String> = conn.prepare("SELECT key FROM reminders_sent WHERE key LIKE 'low:%:now'")?
+        .query_map([], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+    for k in shown.iter().filter(|k| !below.contains(&k.as_str())) { conn.execute("DELETE FROM reminders_sent WHERE key = ?", [k])?; }
     let mut fresh = vec![];
-    for d in due(conn, today)? {
+    for d in all {
         if conn.execute("INSERT OR IGNORE INTO reminders_sent (key) VALUES (?)", [&d.key])? == 0 { continue; }
         if d.percent == Some(100) {
             let eighty = d.key.replace(":100", ":80");
