@@ -169,6 +169,7 @@ pub fn range(conn: &Connection, from: &str, to: &str, country: &str, today: Naiv
     for c in cards {
         let name = c["name"].as_str().unwrap_or_default().to_string();
         let owed = owed_minor(conn, c["account_id"].as_str())?;
+        let statement_due = crate::card_cycles::next_due(conn, c["id"].as_str().unwrap_or_default(), today)?;
         let cur = c["currency"].as_str().unwrap_or("INR").to_string();
         for (y, m) in months(from, to) {
             if let Some(sd) = c["statement_day"].as_i64().and_then(|d| clamp_day(y, m, d as u32)).filter(|d| (from..=to).contains(d)) {
@@ -181,8 +182,13 @@ pub fn range(conn: &Connection, from: &str, to: &str, country: &str, today: Naiv
                     let mut it = Item::new("card_due", dd, name.clone());
                     it.source_id = c["id"].as_str().map(str::to_string);
                     it.currency = Some(cur.clone());
-                    // Only the next due date knows its amount: what's owed now.
-                    if Some(dd) == next_due_of(due_day as u32) && owed > 0 { it.amount = Some(money::to_decimal(owed, &cur)); }
+                    // Only the next due date knows its amount: what the latest statement asks for
+                    // (or, without statement days, what's owed now).
+                    match &statement_due {
+                        Some((d, left, _)) if *d == dd => it.amount = Some(money::to_decimal(*left, &cur)),
+                        None if Some(dd) == next_due_of(due_day as u32) && owed > 0 => it.amount = Some(money::to_decimal(owed, &cur)),
+                        _ => {}
+                    }
                     out.push(it);
                 }
             }

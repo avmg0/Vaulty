@@ -12,6 +12,7 @@ import { useLocale } from "@/hooks/locale";
 import { InstitutionPicker } from "@/components/InstitutionPicker";
 import { CardVisual, type CardVisualData } from "@/components/cards/CardVisual";
 import { LookEditor } from "@/components/cards/LookEditor";
+import { BenefitsCard, BestCardFinder, StatementCard } from "@/components/cards/CreditExtras";
 import { KIND_LABEL, NETWORK_NAME, detectNetwork, expiryText, luhnOk, maskedNumber, monthsUntilExpiry, nextDay, ordinal } from "@/lib/cards";
 import { useTheme } from "@/hooks/theme";
 import { cn, formatDate } from "@/lib/utils";
@@ -83,6 +84,8 @@ export function Cards() {
           </> }))} />
         <Button onClick={() => setDialog({ mode: "add" })}><Plus />{t("cards.add")}</Button>
       </div>
+
+      {(filter === "all" || filter === "credit") && counts.credit > 1 && <BestCardFinder />}
 
       {shown.length === 0 ? (
         <EmptyState kind={filter} onAdd={() => setDialog({ mode: "add" })} />
@@ -210,6 +213,7 @@ function Details({ card, hideBalances, onEdit, onRemove }: { card: WalletCard; h
       </motion.div>
       <motion.div variants={row} className="space-y-4">
       {card.kind === "credit" && <CreditDetails card={card} money={money} />}
+      {card.kind === "credit" && <BenefitsCard card={card} money={money} />}
       {card.kind === "debit" && (
         <Card><CardContent className="flex items-center gap-4">
           <div className="bg-secondary grid size-10 place-items-center rounded-lg"><Landmark className="size-5" /></div>
@@ -254,7 +258,7 @@ function CreditDetails({ card, money }: { card: WalletCard; money: (n: number | 
           </div>
         </CardContent>
       </Card>
-      <Card>
+      {card.statement_day && card.due_day ? <StatementCard card={card} money={money} /> : <Card>
         <CardContent className="flex items-center gap-4">
           {/* Only "due today/tomorrow" moves, a few times, then settles. */}
           <motion.div className={cn("grid size-10 place-items-center rounded-lg", due && due.days <= 3 ? "bg-destructive/10 text-destructive" : "bg-secondary")}
@@ -270,7 +274,7 @@ function CreditDetails({ card, money }: { card: WalletCard; money: (n: number | 
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
       {u != null && u >= 0.3 && (
         <p className="text-muted-foreground flex items-start gap-2 text-sm"><Info className="mt-0.5 size-4 shrink-0" />
           {t("cards.under30")}</p>
@@ -391,6 +395,11 @@ function CardDialog({ initial, defaultKind, onClose, onSaved }: { initial: Walle
   const [limit, setLimit] = useState(initial?.credit_limit != null ? String(initial.credit_limit) : "");
   const [statementDay, setStatementDay] = useState(initial?.statement_day ? String(initial.statement_day) : "");
   const [dueDay, setDueDay] = useState(initial?.due_day ? String(initial.due_day) : "");
+  const [minPct, setMinPct] = useState(initial?.min_due_percent != null ? String(initial.min_due_percent) : "");
+  const [minFloor, setMinFloor] = useState(initial?.min_due_floor != null ? String(initial.min_due_floor) : "");
+  const [fee, setFee] = useState(initial?.annual_fee != null ? String(initial.annual_fee) : "");
+  const [yearMonth, setYearMonth] = useState(initial?.card_year_start ? String(Number(initial.card_year_start.slice(0, 2))) : "");
+  const [yearDay, setYearDay] = useState(initial?.card_year_start ? String(Number(initial.card_year_start.slice(3))) : "");
   const [expMonth, setExpMonth] = useState(initial?.expiry_month ? String(initial.expiry_month) : "");
   const [expYear, setExpYear] = useState(initial?.expiry_year ? String(initial.expiry_year) : "");
   const [accountId, setAccountId] = useState(initial?.account_id ?? "");
@@ -434,7 +443,11 @@ function CardDialog({ initial, defaultKind, onClose, onSaved }: { initial: Walle
       expiry_month: expMonth ? Number(expMonth) : null, expiry_year: expYear ? Number(expYear) : null,
       issuer_name: kind === "gift" || kind === "other" ? issuerName.trim() || null : undefined,
       notes: kind === "other" ? notes.trim() || null : undefined,
-      ...(kind === "credit" ? { credit_limit: limit || null, statement_day: statementDay ? Number(statementDay) : null, due_day: dueDay ? Number(dueDay) : null } : {}),
+      ...(kind === "credit" ? {
+        credit_limit: limit || null, statement_day: statementDay ? Number(statementDay) : null, due_day: dueDay ? Number(dueDay) : null,
+        min_due_percent: minPct || null, min_due_floor: minFloor || null, annual_fee: fee || null,
+        card_year_start: yearMonth && yearDay ? `${yearMonth.padStart(2, "0")}-${yearDay.padStart(2, "0")}` : null,
+      } : {}),
     };
     if (usesDirectory && (!editing || issuerTouched)) common.institution_id = issuer?.id ?? null;
     try {
@@ -547,6 +560,24 @@ function CardDialog({ initial, defaultKind, onClose, onSaved }: { initial: Walle
                 <Field label={t("cards.statementDay")}><NativeSelect value={statementDay} onChange={(e) => setStatementDay(e.target.value)}><option value="">{t("cards.notSet")}</option>{DAYS.map((d) => <option key={d} value={d}>{ordinal(d)}</option>)}</NativeSelect></Field>
                 <Field label={t("cards.dueDay")}><NativeSelect value={dueDay} onChange={(e) => setDueDay(e.target.value)}><option value="">{t("cards.notSet")}</option>{DAYS.map((d) => <option key={d} value={d}>{ordinal(d)}</option>)}</NativeSelect></Field>
               </div>
+            )}
+            {kind === "credit" && (
+              <details className="rounded-lg border px-3 py-2" open={!!(initial?.min_due_percent || initial?.annual_fee)}>
+                <summary className="cursor-pointer text-sm font-medium">{t("cards.more.title")}</summary>
+                <div className="mt-3 grid gap-3">
+                  <div className="grid grid-cols-2 items-end gap-3">
+                    <Field label={t("cards.more.minPct")}><Input type="number" min="0.5" max="100" step="0.1" value={minPct} onChange={(e) => setMinPct(e.target.value)} placeholder="5" /></Field>
+                    <Field label={t("cards.more.minFloor", { currency })}><Input type="number" min="0" step="1" value={minFloor} onChange={(e) => setMinFloor(e.target.value)} placeholder={currency === "INR" ? "200" : "0"} /></Field>
+                  </div>
+                  <p className="text-muted-foreground -mt-1 text-xs">{t("cards.more.minHint")}</p>
+                  <div className="grid grid-cols-3 items-end gap-3">
+                    <Field label={t("cards.more.fee", { currency })}><Input type="number" min="0" step="1" value={fee} onChange={(e) => setFee(e.target.value)} /></Field>
+                    <Field label={t("cards.more.yearMonth")}><NativeSelect value={yearMonth} onChange={(e) => setYearMonth(e.target.value)}><option value="">—</option>{MONTHS.map((m) => <option key={m} value={m}>{new Date(2024, m - 1, 1).toLocaleDateString(undefined, { month: "short" })}</option>)}</NativeSelect></Field>
+                    <Field label={t("cards.more.yearDay")}><NativeSelect value={yearDay} onChange={(e) => setYearDay(e.target.value)}><option value="">—</option>{DAYS.map((d) => <option key={d} value={d}>{d}</option>)}</NativeSelect></Field>
+                  </div>
+                  <p className="text-muted-foreground -mt-1 text-xs">{t("cards.more.yearHint")}</p>
+                </div>
+              </details>
             )}
             {editing && (kind === "prepaid" || kind === "gift" || kind === "credit") && (
               <p className="text-muted-foreground text-xs">{kind === "credit" ? t("cards.changeOwed") : t("cards.changeBalance")}</p>

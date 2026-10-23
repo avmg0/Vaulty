@@ -38,6 +38,9 @@ What changed in each version, for people using Vaulty. Newest first.
   cancel, sees a read-only "In case of emergency" summary of your money and a letter from you.
 - Documents: passports, IDs, insurance policies, property papers and wills, with encrypted scans,
   where each original is kept, and reminders before they expire. Included in encrypted backups.
+- Credit card statements: what each statement asks for, the minimum due, what's paid and what's
+  left, with a history; enter the bank's figures when they differ. Reminders use the statement.
+- Card benefits (rewards, spend milestones, perks) and "best card for today" for a purchase.
 
 ### Fixed
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.

@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -139,6 +139,7 @@ export type WalletCard = {
   currency: string; account_name: string | null; account_logo: string | null;
   // credit
   statement_day: number | null; due_day: number | null; credit_limit_minor: number | null;
+  min_due_percent?: number | null; min_due_floor?: number | null; annual_fee?: number | null; card_year_start?: string | null;
   owed?: number; credit_limit?: number | null; available?: number | null; utilization?: number | null;
   // debit / prepaid / gift
   balance?: number;
@@ -149,7 +150,26 @@ export type CardInput = Partial<{
   institution_id: string | null; issuer_name: string | null; network: CardNetwork | null; last4: string | null;
   expiry_month: number | null; expiry_year: number | null; credit_limit: string | null;
   statement_day: number | null; due_day: number | null; look: CardLook; notes: string | null;
+  min_due_percent: string | number | null; min_due_floor: string | null; annual_fee: string | null; card_year_start: string | null;
 }>;
+/** One credit card statement, worked out from the card's transactions (or as entered). */
+export type CardCycle = {
+  statement_date: string; due_date: string; total: number; min: number; paid: number; left: number; min_left: number;
+  status: "nothing_due" | "paid" | "min_paid" | "due" | "overdue" | "carried" | "missed"; entered: boolean;
+};
+export type CardCycles = {
+  card_id: string; name: string; currency: string; statement_day: number; due_day: number; current: CardCycle | null; unbilled: number;
+  next_statement: string; buy_today_due: string; interest_free_days: number; history: CardCycle[];
+};
+export type BenefitKind = "reward" | "milestone" | "perk";
+export type CardBenefit = {
+  id: string; card_id: string; kind: BenefitKind; title: string; category_id: string | null; category_name: string | null; merchant: string | null;
+  rate: number | null; cap: number | null; target: number | null; allowance: number | null; notes: string | null;
+  progress: { spent?: number; earned?: number; cap?: number | null; capped?: boolean; target?: number; left?: number | null; reached?: boolean; used?: number; allowance?: number | null; since: string };
+};
+export type BenefitInput = { kind: BenefitKind; title: string; category_id?: string | null; merchant?: string | null; rate?: string | number | null; cap?: string | null; target?: string | null; allowance?: string | number | null; notes?: string | null };
+/** A credit card's fit for a purchase today. */
+export type BestPick = { card_id: string; name: string; currency: string; reward: string | null; rate: number; earns: number | null; interest_free_days: number | null; pay_by: string | null; available: number | null; fits: boolean };
 
 /** Subset of user_settings the UI uses. `locale` is BCP 47, e.g. "hi-IN" (language + country). */
 export type UserSettings = { locale: string; currency: string; date_format: string; start_of_week: string; fiscal_year_start: string; negative_format: string; decimals: string; update_check?: "off" | "weekly"; auto_lock_minutes?: number; notifications?: "on" | "off"; notify_amounts?: number | boolean; notify_locked?: number | boolean };
@@ -372,6 +392,17 @@ export const api = {
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
   files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
+  cardExtras: {
+    cycles: (cardId: string) => invoke<CardCycles | null>("card_cycles_get", { cardId }),
+    enterStatement: (cardId: string, statement: { statement_date: string; total: string; min?: string }) => invoke<void>("card_statement_enter", { cardId, statement }),
+    forgetStatement: (cardId: string, statementDate: string) => invoke<void>("card_statement_forget", { cardId, statementDate }),
+    benefits: (cardId: string) => invoke<CardBenefit[]>("card_benefits_list", { cardId }),
+    addBenefit: (cardId: string, benefit: BenefitInput) => invoke<{ id: string }>("card_benefits_create", { cardId, benefit }),
+    updateBenefit: (id: string, benefit: BenefitInput) => invoke<void>("card_benefits_update", { id, benefit }),
+    deleteBenefit: (id: string) => invoke<void>("card_benefits_delete", { id }),
+    usePerk: (id: string, by: 1 | -1) => invoke<number>("card_benefits_use", { id, by }),
+    best: (amount?: string, categoryId?: string, place?: string) => invoke<BestPick[]>("cards_best", { amount: amount || null, categoryId: categoryId || null, place: place || null }),
+  },
   documents: {
     list: () => invoke<Doc[]>("documents_list"),
     create: (document: DocInput) => invoke<Doc>("documents_create", { document }),

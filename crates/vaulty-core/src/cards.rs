@@ -333,7 +333,7 @@ pub fn update(conn: &Connection, id: &str, v: &Value) -> Result<Value> {
     if has("look") {
         sets.push(("look", json!(normalize_look(&v["look"])?)));
     }
-    for key in ["credit_limit", "statement_day", "due_day"] {
+    for key in ["credit_limit", "statement_day", "due_day", "min_due_percent", "min_due_floor", "annual_fee", "card_year_start"] {
         if has(key) && kind != "credit" && !v[key].is_null() {
             return Err(Error::Invalid(format!("`{key}` only applies to credit cards")));
         }
@@ -354,6 +354,27 @@ pub fn update(conn: &Connection, id: &str, v: &Value) -> Result<Value> {
     }
     if has("statement_day") {
         sets.push(("statement_day", json!(day(v, "statement_day")?)));
+    }
+    if has("min_due_percent") {
+        let p = match &v["min_due_percent"] { Value::Null => None, Value::String(s) if s.trim().is_empty() => None, Value::String(s) => s.trim().parse::<f64>().ok(), x => x.as_f64() };
+        if v["min_due_percent"].as_str().is_some_and(|s| !s.trim().is_empty()) && p.is_none() { return Err(Error::Invalid("the minimum due is a percentage".into())); }
+        if p.is_some_and(|p| !(0.5..=100.0).contains(&p)) { return Err(Error::Invalid("the minimum due is 0.5% to 100% of the statement".into())); }
+        sets.push(("min_due_percent", json!(p)));
+    }
+    for (key, col) in [("min_due_floor", "min_due_floor_minor"), ("annual_fee", "annual_fee_minor")] {
+        if has(key) {
+            let m = match &v[key] { Value::Null => None, Value::String(s) if s.trim().is_empty() => None, x => Some(money::parse_minor(x, &currency)?) };
+            if m.is_some_and(|m| m < 0) { return Err(Error::Invalid("amounts can't be negative".into())); }
+            sets.push((col, json!(m)));
+        }
+    }
+    if has("card_year_start") {
+        let d = opt_str("card_year_start");
+        if let Some(s) = d.as_str() {
+            let ok = s.len() == 5 && chrono::NaiveDate::parse_from_str(&format!("2024-{s}"), "%Y-%m-%d").is_ok();
+            if !ok { return Err(Error::Invalid("the card year starts on a day like 03-15 (month-day)".into())); }
+        }
+        sets.push(("card_year_start", d));
     }
     if has("due_day") {
         sets.push(("due_day", json!(day(v, "due_day")?)));
@@ -446,6 +467,10 @@ fn decorate(conn: &Connection, mut card: Value) -> Result<Value> {
         o.insert("available_minor".into(), json!(available));
         o.insert("available".into(), json!(available.map(|a| money::to_decimal(a, &currency))));
         o.insert("utilization".into(), json!(limit.filter(|l| *l > 0).map(|l| (owed as f64 / l as f64).min(9.99))));
+        for (col, key) in [("min_due_floor_minor", "min_due_floor"), ("annual_fee_minor", "annual_fee")] {
+            let v = o[col].as_i64().map(|m| money::to_decimal(m, &currency));
+            o.insert(key.into(), json!(v));
+        }
     } else if account.is_some() {
         o.insert("balance_minor".into(), json!(balance_minor));
         o.insert("balance".into(), json!(money::to_decimal(balance_minor, &currency)));

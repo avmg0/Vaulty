@@ -29,6 +29,7 @@ pub struct Due {
     /// Budgets: 80 or 100. Price rises: the rise in percent, rounded.
     pub percent: Option<i64>,
     /// Price rises: what it cost before (`amount` is the new price). Low balance: the level set.
+    /// Card payments: the minimum due, when less than the statement (`amount`).
     pub previous: Option<f64>,
     /// Low balance: the payment that would take it below (none when already below).
     pub detail: Option<String>,
@@ -54,23 +55,33 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
             date: date.into(), days, amount: r["amount"].as_f64(), currency: r["currency"].as_str().map(str::to_string), percent: None, previous: None, detail: None,
         });
     }
-    // Credit cards: the next due date, if something is owed.
+    // Credit cards: what the latest statement asks for, by its due date (overdue ones too). Cards
+    // without statement days: everything owed, by the next due day.
     for c in crate::cards::list(conn)? {
         if c["kind"] != "credit" { continue; }
-        let (Some(due_day), Some(owed)) = (c["due_day"].as_i64(), c["owed_minor"].as_i64()) else { continue };
-        if owed <= 0 { continue; }
-        let next = (0..3).filter_map(|m| {
-            let first = NaiveDate::from_ymd_opt(today.year(), today.month(), 1)? + chrono::Months::new(m);
-            (1..=due_day as u32).rev().find_map(|d| NaiveDate::from_ymd_opt(first.year(), first.month(), d))
-        }).find(|d| *d >= today);
-        let Some(date) = next else { continue };
-        let days = (date - today).num_days();
-        if days > CARD_DAYS { continue; }
+        let id = c["id"].as_str().unwrap_or_default();
         let cur = c["currency"].as_str().unwrap_or("INR");
+        let (date, left, min_left) = match crate::card_cycles::next_due(conn, id, today)? {
+            Some(x) => x,
+            None if c["statement_day"].is_null() => {
+                let (Some(due_day), Some(owed)) = (c["due_day"].as_i64(), c["owed_minor"].as_i64()) else { continue };
+                if owed <= 0 { continue; }
+                let next = (0..3).filter_map(|m| {
+                    let first = NaiveDate::from_ymd_opt(today.year(), today.month(), 1)? + chrono::Months::new(m);
+                    (1..=due_day as u32).rev().find_map(|d| NaiveDate::from_ymd_opt(first.year(), first.month(), d))
+                }).find(|d| *d >= today);
+                let Some(date) = next else { continue };
+                (date, owed, owed)
+            }
+            None => continue,
+        };
+        let days = (date - today).num_days();
+        if !(-OVERDUE_DAYS..=CARD_DAYS).contains(&days) { continue; }
         out.push(Due {
-            key: format!("card:{}:{date}:{}", c["id"].as_str().unwrap_or_default(), stage(days)), kind: "card".into(),
+            key: format!("card:{id}:{date}:{}", stage(days)), kind: "card".into(),
             name: c["name"].as_str().unwrap_or_default().into(), date: date.to_string(), days,
-            amount: Some(money::to_decimal(owed, cur)), currency: Some(cur.into()), percent: None, previous: None, detail: None,
+            amount: Some(money::to_decimal(left, cur)), currency: Some(cur.into()), percent: None,
+            previous: (min_left < left).then(|| money::to_decimal(min_left, cur)), detail: None,
         });
     }
     // Money owed to you with nothing happening for 30 days: once per quiet spell.

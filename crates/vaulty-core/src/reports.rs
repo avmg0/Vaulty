@@ -217,6 +217,12 @@ fn scheduled(conn: &Connection, today: NaiveDate, to: NaiveDate, cur: &str, liqu
     }
     for c in crate::cards::list(conn)? {
         if c["kind"] != "credit" || c["currency"].as_str() != Some(cur) { continue; }
+        // With statement days: the latest statement's amount by its due date.
+        if let Some((d, left, _)) = crate::card_cycles::next_due(conn, c["id"].as_str().unwrap_or_default(), today)? {
+            if d <= to { out.push((d.max(today), -left, c["name"].as_str().unwrap_or_default().to_string(), "card".into())); }
+            continue;
+        }
+        if !c["statement_day"].is_null() { continue; }
         let (Some(due_day), Some(owed)) = (c["due_day"].as_i64(), c["owed_minor"].as_i64()) else { continue };
         if owed <= 0 { continue; }
         let next = (0..3).filter_map(|m| {

@@ -396,6 +396,31 @@ fn sign_in_helpers(s: S, user_id: String, new_password: String, code: Option<Str
     s.start_session(keys)
 }
 
+// ============================================================ card statements and benefits
+
+#[tauri::command]
+fn card_cycles_get(s: S, card_id: String) -> Result<Option<vaulty_core::card_cycles::CardCycles>> { s.data(|c| vaulty_core::card_cycles::for_card(c, &card_id, today())) }
+#[tauri::command]
+fn card_statement_enter(s: S, card_id: String, statement: Value) -> Result<()> { limits::check(&statement)?; s.act("card.statement", |c| vaulty_core::card_cycles::enter(c, &card_id, &statement)) }
+#[tauri::command]
+fn card_statement_forget(s: S, card_id: String, statement_date: String) -> Result<()> { s.act("card.statement", |c| vaulty_core::card_cycles::forget(c, &card_id, &statement_date)) }
+#[tauri::command]
+fn card_benefits_list(s: S, card_id: String) -> Result<Vec<Value>> { s.data(|c| vaulty_core::card_benefits::list(c, &card_id, today())) }
+#[tauri::command]
+fn card_benefits_create(s: S, card_id: String, benefit: Value) -> Result<Value> { limits::check(&benefit)?; s.act("card.benefit_create", |c| vaulty_core::card_benefits::create(c, &card_id, &benefit, today())) }
+#[tauri::command]
+fn card_benefits_update(s: S, id: String, benefit: Value) -> Result<()> { limits::check(&benefit)?; s.act("card.benefit_update", |c| vaulty_core::card_benefits::update(c, &id, &benefit, today())) }
+#[tauri::command]
+fn card_benefits_delete(s: S, id: String) -> Result<()> { s.act("card.benefit_delete", |c| vaulty_core::card_benefits::delete(c, &id)) }
+#[tauri::command]
+fn card_benefits_use(s: S, id: String, by: i64) -> Result<i64> { s.act("card.perk", |c| vaulty_core::card_benefits::use_perk(c, &id, by, today())) }
+/// Credit cards ranked for a purchase today.
+#[tauri::command]
+fn cards_best(s: S, amount: Option<Value>, category_id: Option<String>, place: Option<String>) -> Result<Vec<vaulty_core::card_benefits::Pick>> {
+    if let Some(p) = &place { limits::text("place", p, 100)?; }
+    s.data(|c| vaulty_core::card_benefits::best_for(c, today(), amount.as_ref(), category_id.as_deref(), place.as_deref()))
+}
+
 // ============================================================ documents
 
 #[tauri::command]
@@ -1555,7 +1580,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

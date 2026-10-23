@@ -27,6 +27,10 @@ export function wordReminder(r: Reminder, amounts: boolean): { title: string; bo
     if (r.days === 0 && !r.detail) return { title: t("reminders.low.now", { name: r.name }), body: money && level ? t("reminders.low.nowBody", { amount: money, level }) : t("reminders.low.open") };
     return { title: t("reminders.low.soon", { name: r.name, when }), body: r.detail ? (money ? t("reminders.low.becauseAmount", { payment: r.detail, amount: money }) : t("reminders.low.because", { payment: r.detail })) : date };
   }
+  if (r.kind === "card" && r.previous != null && amounts) {
+    const title = r.days < 0 ? t("reminders.overdue", { name: r.name, when }) : t("reminders.card", { name: r.name, when });
+    return { title, body: t("reminders.cardMin", { amount: money, min: formatMoney(r.previous, r.currency ?? "INR"), date }) };
+  }
   if (r.kind === "expiry") return { title: r.days < 0 ? t("reminders.expired", { name: r.name, when }) : r.days === 0 ? t("reminders.expiresToday", { name: r.name }) : t("reminders.expiry", { name: r.name, when }), body: date };
   if (r.kind === "budget") return { title: t("reminders.budget.title", { name: r.name, percent: r.percent }), body: money ? t("reminders.budget.spent", { amount: money }) : t("reminders.budget.body") };
   const title = r.days < 0 ? t("reminders.overdue", { name: r.name, when }) : t(`reminders.${r.kind}`, { name: r.name, when });

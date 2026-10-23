@@ -21,7 +21,7 @@ const TRACKED: &[&str] = &[
     "accounts", "cards", "categories", "entries", "postings", "ledger_accounts", "workspaces",
     "calendar_events", "goals", "investments", "investment_events", "journal_entries",
     "recurring_payments", "tasks", "user_settings", "hotkeys", "budgets", "category_rules", "import_templates", "people",
-    "vault_documents", "vault_document_files",
+    "vault_documents", "vault_document_files", "card_statements", "card_benefits",
 ];
 
 pub const TRASH_DAYS: i64 = 30;

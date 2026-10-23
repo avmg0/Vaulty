@@ -156,6 +156,10 @@
   "re": "^Unlock the Hidden section to change this transaction$"
  },
  {
+  "id": "ef7dfd1e7",
+  "re": "^the card year starts on a day like 03-15 \\(month-day\\)$"
+ },
+ {
   "id": "efbb62e75",
   "re": "^the mapping points at a column the file doesn't have$"
  },
@@ -202,6 +206,10 @@
  {
   "id": "e79721fd8",
   "re": "^the helpers' approvals timed out; ask them again$"
+ },
+ {
+  "id": "ea033c019",
+  "re": "^the minimum due is 0\\.5% to 100% of the statement$"
  },
  {
   "id": "ea9433c2e",
@@ -256,6 +264,10 @@
   "re": "^shared recovery isn't set up for this profile$"
  },
  {
+  "id": "e07f528fe",
+  "re": "^a benefit is a reward, a milestone or a perk$"
+ },
+ {
   "id": "e1ad35ad7",
   "re": "^that recovery key doesn't match this profile$"
  },
@@ -284,6 +296,10 @@
   "re": "^choose a preset, colour, gradient or image$"
  },
  {
+  "id": "e7cd47248",
+  "re": "^give the amount to spend for the milestone$"
+ },
+ {
   "id": "ed3195400",
   "re": "^select at most 5000 transactions at a time$"
  },
@@ -292,8 +308,16 @@
   "re": "^the low-balance level can't be below zero$"
  },
  {
+  "id": "e4ad95cac",
+  "re": "^a reward is more than 0% and at most 100%$"
+ },
+ {
   "id": "e5ed7ca34",
   "re": "^settle up first: there's still money owed$"
+ },
+ {
+  "id": "e5f523ce7",
+  "re": "^a perk can be used 1 to 1000 times a year$"
  },
  {
   "id": "e87eac2a5",
@@ -330,6 +354,10 @@
  {
   "id": "eb093d3fb",
   "re": "^the letter can be up to 5,000 characters$"
+ },
+ {
+  "id": "ebe3fe455",
+  "re": "^the minimum can't be more than the total$"
  },
  {
   "id": "ec60de13d",
@@ -394,6 +422,10 @@
  {
   "id": "e8f35f70a",
   "re": "^no nominee is set up for this profile$"
+ },
+ {
+  "id": "e9234758f",
+  "re": "^benefits are tracked for credit cards$"
  },
  {
   "id": "e97c1354f",
@@ -474,6 +506,10 @@
  {
   "id": "e20fa1168",
   "re": "^the waiting period isn't over yet$"
+ },
+ {
+  "id": "e2492ce78",
+  "re": "^give the reward as a percent back$"
  },
  {
   "id": "e27d8432f",
@@ -572,12 +608,20 @@
   "re": "^Unlock the Hidden section first$"
  },
  {
+  "id": "e26b56968",
+  "re": "^statements are for credit cards$"
+ },
+ {
   "id": "e282844f2",
   "re": "^that isn't a Vaulty backup file$"
  },
  {
   "id": "e2a67b08b",
   "re": "^priority is low, medium or high$"
+ },
+ {
+  "id": "e34498a62",
+  "re": "^the minimum due is a percentage$"
  },
  {
   "id": "e3658f510",
@@ -756,6 +800,10 @@
   "re": "^a budget can't be negative$"
  },
  {
+  "id": "eedf98167",
+  "re": "^choose a spending category$"
+ },
+ {
   "id": "e53f2dd48",
   "re": "^snapshot is not encrypted$"
  },
@@ -824,6 +872,10 @@
   "re": "^logo image is too large$"
  },
  {
+  "id": "e6ce43a3b",
+  "re": "^give the benefit a name$"
+ },
+ {
   "id": "e7270d4bf",
   "re": "^check for updates first$"
  },
@@ -836,8 +888,16 @@
   "re": "^could not unseal secret$"
  },
  {
+  "id": "eaab3604f",
+  "re": "^give the statement date$"
+ },
+ {
   "id": "e1e3d3524",
   "re": "^show must be an object$"
+ },
+ {
+  "id": "e25202f02",
+  "re": "^only perks are counted$"
  },
  {
   "id": "e4dd66e8b",
@@ -978,6 +1038,10 @@
  {
   "id": "eff7a2fe9",
   "re": "^no such category$"
+ },
+ {
+  "id": "e71626582",
+  "re": "^no such benefit$"
  },
  {
   "id": "ea7cb5e24",
