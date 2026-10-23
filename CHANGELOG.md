@@ -43,6 +43,9 @@ What changed in each version, for people using Vaulty. Newest first.
 - Card benefits (rewards, spend milestones, perks) and "best card for today" for a purchase.
 - Menu bar (tray) icon with quick add, open, lock and quit; an optional shortcut to quick add from
   any app; and an option to keep Vaulty running when its window is closed.
+- Investments: mutual funds, shares, deposits and gold, with value, gain, XIRR and allocation.
+  Read the CAMS or KFintech consolidated account statement (password-protected PDF) to bring in
+  every folio and transaction; reading a later statement adds only what's new.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

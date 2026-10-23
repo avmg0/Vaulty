@@ -25,6 +25,8 @@ crypto_box = { version = "0.9", features = ["seal", "chacha20"] }
 calamine = { version = "0.37", default-features = false, features = ["dates"] }
 rust_xlsxwriter = { version = "0.101", default-features = false }
 base64 = "0.22"
+lopdf = { version = "0.46", default-features = false }
+regex = "1"
 
 [dev-dependencies]
 totp-rs = { version = "6", features = ["otpauth", "gen_secret"] }

@@ -309,7 +309,8 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - **Done when:** something added on a phone appears on the desktop, and conflicts are handled.
 
 ### Phase 5: Wealth and tax (v1.0)
-- [ ] Investments: holdings, events, XIRR, allocation; AMFI NAVs; CAS import
+- [x] Investments: holdings, transactions, XIRR, allocation; CAMS/KFintech CAS import
+- [ ] Daily fund prices (AMFI NAVs), opt-in
 - [ ] Goals and calculators; insurance; net-worth timeline
 - [ ] Emergency kit, nominee tracking, documents vault, journal
 - [ ] Tax planner filled from transactions; TDS and advance tax; HRA rent receipts; Form 16 import
@@ -352,7 +353,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - ⭐ **Quick add from anywhere** (Phase 1)
   - Menu-bar / tray icon and a global shortcut open a small entry box.
   - Natural-language entry: `250 swiggy yesterday` becomes a transaction.
-- ⭐ **Mutual fund import from CAS** (Phase 3)
+- ⭐ **Mutual fund import from CAS** (Phase 3) ✅ (done)
   - Import the CAMS/KFintech consolidated account statement PDF, which covers all of a person's mutual funds in one file.
   - Automatic holdings, SIP history and returns (XIRR).
 - ⭐ **Lend and borrow tracker** (Phase 2)

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useHotkeyLabel } from "@/hooks/hotkeys";
 import { SkeletonRows } from "@/components/Skeleton";
-import { ArrowLeftRight, CreditCard, FolderTree, Info, RotateCcw, Settings2, Shapes, Undo2, Wallet } from "lucide-react";
+import { ArrowLeftRight, CreditCard, FolderTree, Info, RotateCcw, Settings2, Shapes, TrendingUp, Undo2, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, DATA_RESTORED, errorText, type HistoryItem } from "@/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import { useTheme } from "@/hooks/theme";
 import { cn, formatDate, formatMoney } from "@/lib/utils";
 
 const ICONS: Record<string, typeof Wallet> = {
-  entries: ArrowLeftRight, accounts: Wallet, cards: CreditCard, categories: FolderTree, user_settings: Settings2,
+  entries: ArrowLeftRight, accounts: Wallet, cards: CreditCard, categories: FolderTree, user_settings: Settings2, holdings: TrendingUp,
 };
 
 /** Recent changes with undo, and deleted items with restore. */

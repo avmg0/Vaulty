@@ -101,13 +101,12 @@ pub fn summary(conn: &Connection, today: NaiveDate) -> Result<Estate> {
         };
         if a["ledger_kind"] == "liability" { if h.amount.abs() > 0.004 { debts.push(h) } } else { accounts.push(h) }
     }
-    let investments: Vec<Holding> = crate::rows::query(conn, "SELECT name, symbol, type, quantity, current_price, buy_price, notes FROM investments ORDER BY name", &[])?
-        .into_iter().map(|i| {
-            let price = i["current_price"].as_f64().filter(|p| *p > 0.0).or(i["buy_price"].as_f64()).unwrap_or(0.0);
-            Holding {
-                name: s(&i, "name").unwrap_or_default(), kind: s(&i, "type").unwrap_or_default(), institution: s(&i, "symbol"), currency: main.clone(),
-                amount: (i["quantity"].as_f64().unwrap_or(0.0) * price * 100.0).round() / 100.0, notes: s(&i, "notes"),
-            }
+    let investments: Vec<Holding> = crate::investments::list(conn, today)?.into_iter()
+        .filter(|i| !i["closed"].as_bool().unwrap_or(false))
+        .map(|i| Holding {
+            name: s(&i, "name").unwrap_or_default(), kind: s(&i, "kind").unwrap_or_default(),
+            institution: Some([s(&i, "provider"), s(&i, "folio").map(|f| format!("folio {f}")), s(&i, "symbol")].into_iter().flatten().collect::<Vec<_>>().join(", ")).filter(|x| !x.is_empty()),
+            currency: s(&i, "currency").unwrap_or_else(|| main.clone()), amount: i["value"].as_f64().unwrap_or(0.0), notes: s(&i, "notes"),
         }).collect();
     let cards = crate::cards::list(conn)?.into_iter().map(|c| CardLine {
         name: s(&c, "name").unwrap_or_default(), kind: s(&c, "kind").unwrap_or_default(),

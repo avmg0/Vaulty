@@ -468,6 +468,44 @@ fn documents_save_file(s: S, file_id: String, path: String) -> Result<()> {
     Ok(())
 }
 
+// ============================================================ investments
+
+#[tauri::command]
+fn investments_list(s: S) -> Result<Vec<Value>> { s.data(|c| vaulty_core::investments::list(c, today())) }
+#[tauri::command]
+fn investments_summary(s: S) -> Result<Vec<Value>> { s.data(|c| vaulty_core::investments::summary(c, today())) }
+#[tauri::command]
+fn investments_transactions(s: S, id: String) -> Result<Vec<Value>> { s.data(|c| vaulty_core::investments::transactions(c, &id)) }
+#[tauri::command]
+fn investments_create(s: S, holding: Value) -> Result<Value> { limits::check(&holding)?; s.act("investment.create", |c| vaulty_core::investments::create(c, &holding, today())) }
+#[tauri::command]
+fn investments_update(s: S, id: String, holding: Value) -> Result<Value> { limits::check(&holding)?; s.act("investment.update", |c| vaulty_core::investments::update(c, &id, &holding, today())) }
+#[tauri::command]
+fn investments_set_price(s: S, id: String, price: Value) -> Result<Value> { s.act("investment.price", |c| vaulty_core::investments::set_price(c, &id, &price, today(), today())) }
+#[tauri::command]
+fn investments_delete(s: S, id: String) -> Result<()> { s.act("investment.delete", |c| vaulty_core::investments::delete(c, &id)) }
+
+fn read_cas(s: &S, path: &str, password: Option<String>) -> Result<vaulty_core::cas::Cas> {
+    s.chosen(path)?;
+    let bytes = read_limited(path, vaulty_core::pdf_text::MAX_BYTES as u64)?;
+    let password = password.map(zeroize::Zeroizing::new);
+    vaulty_core::cas::read(&bytes, password.as_deref().map(String::as_str))
+}
+
+/// What reading a fund statement (CAMS or KFintech) would add, before anything is saved.
+#[tauri::command]
+fn cas_preview(s: S, path: String, password: Option<String>) -> Result<Value> {
+    let cas = read_cas(&s, &path, password)?;
+    s.data(|c| vaulty_core::investments::preview(c, &cas))
+}
+
+/// Reads the statement in.
+#[tauri::command]
+fn cas_import(s: S, path: String, password: Option<String>) -> Result<Value> {
+    let cas = read_cas(&s, &path, password)?;
+    s.act("investment.statement", |c| vaulty_core::investments::import_cas(c, &cas))
+}
+
 // ------------------------------------------------------------ nominee
 
 /// On the sign-in screen: whether this member has a nominee, and any request in progress.
@@ -772,7 +810,7 @@ fn biometric_disable(s: S) -> Result<()> {
 /// What a file dialog is for. The kind decides the file types offered and whether it opens or saves.
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport, Document, SaveDocument }
+enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport, Document, SaveDocument, FundStatement }
 
 impl AppState {
     /// Refuses a path the person didn't choose in a file dialog this run.
@@ -803,6 +841,7 @@ async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String, n
         Pick::SaveReport => d.add_filter(label, &["xlsx"]).set_file_name(format!("vaulty-report-{stamp}.xlsx")).save_file(move |p| { let _ = tx.send(p); }),
         Pick::Document => d.add_filter(label, &["pdf", "png", "jpg", "jpeg", "webp"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveDocument => d.set_file_name(suggested).save_file(move |p| { let _ = tx.send(p); }),
+        Pick::FundStatement => d.add_filter(label, &["pdf"]).pick_file(move |p| { let _ = tx.send(p); }),
     }
     let Some(chosen) = rx.await.ok().flatten() else { return Ok(None) };
     let path = chosen.into_path().map_err(|_| Error::Invalid("that location can't be used".into()))?.to_string_lossy().into_owned();
@@ -1654,7 +1693,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            app_settings_get, app_settings_set, tray_labels, pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            app_settings_get, app_settings_set, tray_labels, pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, investments_list, investments_summary, investments_transactions, investments_create, investments_update, investments_set_price, investments_delete, cas_preview, cas_import, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

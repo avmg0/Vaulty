@@ -36,6 +36,7 @@ import { Reports } from "@/pages/Reports";
 import { PeoplePage } from "@/pages/People";
 import { TasksPage } from "@/pages/Tasks";
 import { DocumentsPage } from "@/pages/Documents";
+import { InvestmentsPage } from "@/pages/Investments";
 import { LockedReminderListener, ReminderWatcher } from "@/components/Reminders";
 import { HotkeysProvider, useHotkey } from "@/hooks/hotkeys";
 import { applySenior } from "@/lib/senior";
@@ -173,7 +174,7 @@ function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => v
   useHotkey("go_import", () => setPage("import"));
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
-  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => { requestSettingsTab("family"); setPage("settings"); }} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, reports: <Reports />, people: <PeoplePage />, tasks: <TasksPage />, documents: <DocumentsPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, history: <History /> }[page as string];
+  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => { requestSettingsTab("family"); setPage("settings"); }} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, reports: <Reports />, people: <PeoplePage />, tasks: <TasksPage />, documents: <DocumentsPage />, investments: <InvestmentsPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, history: <History /> }[page as string];
 
   return (
     <div className="flex h-screen overflow-hidden">

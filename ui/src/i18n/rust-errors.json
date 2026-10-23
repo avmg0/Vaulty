@@ -36,6 +36,10 @@
   "re": "^that password is one character repeated; choose something harder to guess$"
  },
  {
+  "id": "e014a0f84",
+  "re": "^this doesn't look like a CAMS or KFintech consolidated account statement$"
+ },
+ {
   "id": "e59abd20d",
   "re": "^this recurring payment's account was archived; edit it to choose another$"
  },
@@ -170,6 +174,14 @@
  {
   "id": "e3b6d7295",
   "re": "^a rule needs 2 to 60 characters of text to look for$"
+ },
+ {
+  "id": "eced2c641",
+  "re": "^the number of units must be 0 or more, and not huge$"
+ },
+ {
+  "id": "eeeb809e3",
+  "re": "^the number of units can have up to 4 decimal places$"
  },
  {
   "id": "e3047a98a",
@@ -332,8 +344,16 @@
   "re": "^they aren't one of this profile's helpers$"
  },
  {
+  "id": "e953c5340",
+  "re": "^the price must be 0 or more, and not huge$"
+ },
+ {
   "id": "e97070588",
   "re": "^type the member's name exactly to confirm$"
+ },
+ {
+  "id": "e98fa25ec",
+  "re": "^the price can have up to 4 decimal places$"
  },
  {
   "id": "ec58b24c9",
@@ -354,6 +374,10 @@
  {
   "id": "e4c7bc5f6",
   "re": "^use Change password for your own profile$"
+ },
+ {
+  "id": "e9e875e68",
+  "re": "^you already have this fund in that folio$"
  },
  {
   "id": "eb093d3fb",
@@ -468,6 +492,10 @@
   "re": "^the spreadsheet couldn't be written$"
  },
  {
+  "id": "e9a7d3a6b",
+  "re": "^a page of that PDF couldn't be read$"
+ },
+ {
   "id": "eb8ec1a2a",
   "re": "^invalid or already-used backup code$"
  },
@@ -476,12 +504,20 @@
   "re": "^this profile hasn't been set up yet$"
  },
  {
+  "id": "ef0497d8b",
+  "re": "^that password doesn't open this PDF$"
+ },
+ {
   "id": "e3e764ef5",
   "re": "^a tag can be at most 40 characters$"
  },
  {
   "id": "e41decce7",
   "re": "^budgets are for expense categories$"
+ },
+ {
+  "id": "e45b94d16",
+  "re": "^the number of units isn't a number$"
  },
  {
   "id": "e6f21a677",
@@ -604,6 +640,10 @@
   "re": "^a split needs at least two parts$"
  },
  {
+  "id": "ed2c8c374",
+  "re": "^an ISIN is 12 letters and digits$"
+ },
+ {
   "id": "ed687dc01",
   "re": "^no date column found; choose one$"
  },
@@ -646,6 +686,10 @@
  {
   "id": "e56d8f7c3",
   "re": "^at most 20 tags per transaction$"
+ },
+ {
+  "id": "e5cc09498",
+  "re": "^a page of that PDF is too large$"
  },
  {
   "id": "ea671333c",
@@ -756,6 +800,14 @@
   "re": "^`expiry_year` must be a year$"
  },
  {
+  "id": "e302b8037",
+  "re": "^that PDF has too many pages$"
+ },
+ {
+  "id": "e3b317952",
+  "re": "^this PDF needs its password$"
+ },
+ {
   "id": "e44fe9844",
   "re": "^that location can't be used$"
  },
@@ -792,12 +844,24 @@
   "re": "^settings must be an object$"
  },
  {
+  "id": "e8c84a400",
+  "re": "^unknown kind of investment$"
+ },
+ {
+  "id": "eab141a94",
+  "re": "^the cost must be 0 or more$"
+ },
+ {
   "id": "ecbad12a0",
   "re": "^key is for stock or crypto$"
  },
  {
   "id": "ece94722c",
   "re": "^dates look like 2026-10-19$"
+ },
+ {
+  "id": "ed78500f6",
+  "re": "^give the investment a name$"
  },
  {
   "id": "edccd2708",
@@ -846,6 +910,10 @@
  {
   "id": "ee94d1aaa",
   "re": "^could not open shared key$"
+ },
+ {
+  "id": "e49cd05ed",
+  "re": "^the price isn't a number$"
  },
  {
   "id": "e586ed0a1",
@@ -1004,6 +1072,10 @@
   "re": "^image is too large$"
  },
  {
+  "id": "e5f00bed9",
+  "re": "^no such investment$"
+ },
+ {
   "id": "e71af485f",
   "re": "^incorrect password$"
  },
@@ -1034,6 +1106,10 @@
  {
   "id": "e80c4da6d",
   "re": "^flow is out or in$"
+ },
+ {
+  "id": "e17fd8ef4",
+  "re": "^that isn't a PDF$"
  },
  {
   "id": "e23de18ba",

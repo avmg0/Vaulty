@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -31,6 +31,20 @@ export type SignedInUser = User & { recovery_key?: string | null; failed_attempt
 export const DOC_KINDS = ["id", "passport", "licence", "insurance", "property", "vehicle", "will", "certificate", "warranty", "medical", "tax", "other"] as const;
 export type DocKind = (typeof DOC_KINDS)[number];
 export type DocFile = { id: string; name: string; mime: string; size: number; created_at?: string };
+export const HOLDING_KINDS = ["mutual_fund", "stock", "etf", "bond", "deposit", "gold", "other"] as const;
+export type HoldingKind = (typeof HOLDING_KINDS)[number];
+export type HoldingInput = { kind: HoldingKind; name: string; isin?: string; symbol?: string; folio?: string; provider?: string; currency?: string; units?: string; price?: string; price_date?: string; cost?: string; notes?: string };
+export type Holding = {
+  id: string; kind: HoldingKind; name: string; isin: string | null; symbol: string | null; folio: string | null; provider: string | null; registrar: string | null;
+  currency: string; units: number; price: number; price_date: string | null; cost: number; value: number; gain: number; gain_percent: number | null;
+  dividends: number; xirr: number | null; transactions: number; closed: boolean; source: "manual" | "cas"; statement_to: string | null; notes: string | null;
+};
+export type HoldingTxn = { id: string; date: string; kind: string; description: string; amount: number | null; units: number | null; price: number | null; balance: number | null };
+export type InvestmentTotal = { currency: string; holdings: number; value: number; cost: number; gain: number; gain_percent: number | null; xirr: number | null };
+export type CasPreview = {
+  from: string | null; to: string | null; investor: string | null; new_transactions: number; value: number;
+  schemes: { name: string; amc: string; folio: string; isin: string | null; registrar: string | null; status: "new" | "update" | "older"; units: number | null; nav: number | null; nav_date: string | null; cost: number | null; value: number | null; transactions: number; new_transactions: number; balanced: boolean }[];
+};
 export type DocInput = { title: string; kind: DocKind; holder?: string; number?: string; issuer?: string; issued_on?: string; expires_on?: string; remind_days: number; kept_at?: string; notes?: string };
 /** A document's details and attached files. `days_left` until it expires (negative once expired). */
 export type Doc = DocInput & { id: string; created_at: string; updated_at: string; files: DocFile[]; days_left: number | null; status: "expired" | "expiring" | "valid" | "no_expiry" };
@@ -392,7 +406,7 @@ export const api = {
     exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
-  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
+  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document" | "fund_statement", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
   /** This computer: the tray icon, the quick-add shortcut, keeping Vaulty running when closed. */
   device: {
     get: () => invoke<DeviceSettings>("app_settings_get"),
@@ -409,6 +423,17 @@ export const api = {
     deleteBenefit: (id: string) => invoke<void>("card_benefits_delete", { id }),
     usePerk: (id: string, by: 1 | -1) => invoke<number>("card_benefits_use", { id, by }),
     best: (amount?: string, categoryId?: string, place?: string) => invoke<BestPick[]>("cards_best", { amount: amount || null, categoryId: categoryId || null, place: place || null }),
+  },
+  investments: {
+    list: () => invoke<Holding[]>("investments_list"),
+    summary: () => invoke<InvestmentTotal[]>("investments_summary"),
+    transactions: (id: string) => invoke<HoldingTxn[]>("investments_transactions", { id }),
+    create: (holding: HoldingInput) => invoke<Holding>("investments_create", { holding }),
+    update: (id: string, holding: HoldingInput) => invoke<Holding>("investments_update", { id, holding }),
+    setPrice: (id: string, price: string) => invoke<Holding>("investments_set_price", { id, price }),
+    delete: (id: string) => invoke<void>("investments_delete", { id }),
+    previewStatement: (path: string, password: string) => invoke<CasPreview>("cas_preview", { path, password: password || null }),
+    importStatement: (path: string, password: string) => invoke<{ added: number; updated: number; transactions: number }>("cas_import", { path, password: password || null }),
   },
   documents: {
     list: () => invoke<Doc[]>("documents_list"),
