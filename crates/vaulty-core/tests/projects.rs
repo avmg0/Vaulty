@@ -159,3 +159,21 @@ fn workbook_has_every_row_and_totals() {
     let pays = wb.worksheet_range("Payments").unwrap();
     assert_eq!(pays.get((1, 4)).unwrap().to_string(), "Bank transfer");
 }
+
+#[test]
+fn standard_columns_can_be_renamed() {
+    use calamine::{Reader, Xlsx};
+    let c = setup();
+    let p = pr::create(&c, &json!({ "name": "Line-following robot", "labels": { "item": "Part", "vendor": "Supplier", "qty": " " } })).unwrap();
+    assert_eq!(p["labels"], json!({ "item": "Part", "vendor": "Supplier" }), "blank names fall back to the app's words");
+    let id = p["id"].as_str().unwrap();
+    assert!(pr::update(&c, id, &json!({ "name": "x", "labels": { "budget": "Money" } })).is_err(), "not a column");
+    assert!(pr::update(&c, id, &json!({ "name": "x", "labels": { "item": "x".repeat(41) } })).is_err());
+    pr::add_item(&c, id, &json!({ "date": "2026-10-20", "item": "Servo motor SG90", "qty": 4, "rate": "180", "vendor": "Robu" })).unwrap();
+    let bytes = vaulty_core::project_export::to_xlsx(&c, id, &json!({})).unwrap();
+    let mut wb: Xlsx<_> = Xlsx::new(std::io::Cursor::new(bytes)).unwrap();
+    let head: Vec<String> = wb.worksheet_range("Bill items").unwrap().rows().next().unwrap().iter().map(|c| c.to_string()).collect();
+    assert!(head.contains(&"Part".into()) && head.contains(&"Supplier".into()) && head.contains(&"Qty".into()), "{head:?}");
+    let p = pr::update(&c, id, &json!({ "name": "Line-following robot", "labels": {} })).unwrap();
+    assert_eq!(p["labels"], json!({}));
+}

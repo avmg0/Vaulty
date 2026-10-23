@@ -37,6 +37,9 @@ export const ITEM_KINDS = ["material", "labour", "fee", "transport", "tax", "oth
 export const PAY_MODES = ["upi", "cash", "bank", "card", "cheque", "other"] as const;
 export const COLUMN_TYPES = ["text", "number", "date", "choice", "yes_no"] as const;
 export const HIDEABLE_COLUMNS = ["section", "kind", "qty", "rate", "tax", "vendor", "bill_no", "notes"] as const;
+/** Standard item columns, in table order; each can be given the project's own name. */
+export const NAMEABLE_COLUMNS = ["date", "item", "section", "kind", "qty", "unit", "rate", "amount", "tax", "total", "vendor", "bill_no", "notes"] as const;
+export type NameableColumn = (typeof NAMEABLE_COLUMNS)[number];
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
 export type ItemKind = (typeof ITEM_KINDS)[number];
@@ -44,12 +47,12 @@ export type PayMode = (typeof PAY_MODES)[number];
 export type ColumnType = (typeof COLUMN_TYPES)[number];
 export type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];
 export type ProjectColumn = { id?: string; name: string; type: ColumnType; options: string[] };
-export type ProjectInput = { name: string; kind: ProjectKind; status: ProjectStatus; currency?: string; budget?: string; start_date?: string; end_date?: string; notes?: string; columns: ProjectColumn[]; hidden: HideableColumn[]; sections?: string[] };
+export type ProjectInput = { name: string; kind: ProjectKind; status: ProjectStatus; currency?: string; budget?: string; start_date?: string; end_date?: string; notes?: string; columns: ProjectColumn[]; hidden: HideableColumn[]; labels: Partial<Record<NameableColumn, string>>; sections?: string[] };
 export type ProjectSection = { id: string; name: string; position: number; budget: number | null; billed: number; items: number; paid: number };
 export type ProjectPerson = { name: string; billed: number; paid: number; balance: number; items: number; payments: number };
 export type Project = {
   id: string; name: string; kind: ProjectKind; status: ProjectStatus; currency: string; budget: number | null; start_date: string | null; end_date: string | null; notes: string | null;
-  columns: (ProjectColumn & { id: string })[]; hidden: HideableColumn[]; amount: number; tax: number; billed: number; paid: number; owed: number; spent: number; budget_left: number | null;
+  columns: (ProjectColumn & { id: string })[]; hidden: HideableColumn[]; labels: Partial<Record<NameableColumn, string>>; amount: number; tax: number; billed: number; paid: number; owed: number; spent: number; budget_left: number | null;
   items: number; payments: number; last_date: string | null; created_at: string;
 };
 export type ProjectDetail = Project & {

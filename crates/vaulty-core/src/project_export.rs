@@ -53,6 +53,8 @@ pub fn to_xlsx(conn: &rusqlite::Connection, project_id: &str, labels: &Value) ->
     let qty = Format::new().set_num_format("#,##0.####");
     let hidden: Vec<&str> = p["hidden"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
     let shows = |c: &str| !hidden.contains(&c);
+    // The project's own name for a standard column, else the interface's.
+    let own = |key: &str| p["labels"][key].as_str().map(str::to_string).unwrap_or_else(|| l.get(key));
     let mut wb = Workbook::new();
 
     // Summary.
@@ -110,18 +112,18 @@ pub fn to_xlsx(conn: &rusqlite::Connection, project_id: &str, labels: &Value) ->
         let ws = wb.add_worksheet().set_name(l.sheet("items"))?;
         let custom = p["columns"].as_array().cloned().unwrap_or_default();
         // (heading, width, kind) — kind says how to write the cell and whether to total it.
-        let mut cols: Vec<(String, f64, &str)> = vec![(l.get("no"), 6.0, "no"), (l.get("date"), 12.0, "date")];
-        if shows("section") { cols.push((l.get("section"), 18.0, "section")); }
-        cols.push((l.get("item"), 32.0, "item"));
-        if shows("kind") { cols.push((l.get("kind"), 12.0, "kind")); }
-        if shows("qty") { cols.push((l.get("qty"), 9.0, "qty")); cols.push((l.get("unit"), 8.0, "unit")); }
-        if shows("rate") { cols.push((format!("{} ({cur})", l.get("rate")), 13.0, "rate")); }
-        cols.push((format!("{} ({cur})", l.get("amount")), 14.0, "amount"));
-        if shows("tax") { cols.push((format!("{} ({cur})", l.get("tax")), 12.0, "tax")); cols.push((format!("{} ({cur})", l.get("total")), 14.0, "total")); }
-        if shows("vendor") { cols.push((l.get("vendor"), 24.0, "vendor")); }
-        if shows("bill_no") { cols.push((l.get("bill_no"), 12.0, "bill_no")); }
+        let mut cols: Vec<(String, f64, &str)> = vec![(l.get("no"), 6.0, "no"), (own("date"), 12.0, "date")];
+        if shows("section") { cols.push((own("section"), 18.0, "section")); }
+        cols.push((own("item"), 32.0, "item"));
+        if shows("kind") { cols.push((own("kind"), 12.0, "kind")); }
+        if shows("qty") { cols.push((own("qty"), 9.0, "qty")); cols.push((own("unit"), 8.0, "unit")); }
+        if shows("rate") { cols.push((format!("{} ({cur})", own("rate")), 13.0, "rate")); }
+        cols.push((format!("{} ({cur})", own("amount")), 14.0, "amount"));
+        if shows("tax") { cols.push((format!("{} ({cur})", own("tax")), 12.0, "tax")); cols.push((format!("{} ({cur})", own("total")), 14.0, "total")); }
+        if shows("vendor") { cols.push((own("vendor"), 24.0, "vendor")); }
+        if shows("bill_no") { cols.push((own("bill_no"), 12.0, "bill_no")); }
         for c in &custom { cols.push((st(&c["name"]).to_string(), 14.0, "custom")); }
-        if shows("notes") { cols.push((l.get("notes"), 30.0, "notes")); }
+        if shows("notes") { cols.push((own("notes"), 30.0, "notes")); }
         for (i, (h, w, _)) in cols.iter().enumerate() {
             ws.set_column_width(i as u16, *w)?;
             ws.write_string_with_format(0, i as u16, h, &head)?;

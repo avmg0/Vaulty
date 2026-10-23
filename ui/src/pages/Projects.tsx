@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, FileSpreadsheet, FolderKanban, Link2, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, DATA_RESTORED, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_STATUSES, type CustomValue, type LinkSuggestion, type Project, type ProjectDetail, type ProjectItem, type ProjectPayment } from "@/api";
-import { ItemDialog, LinkDialog, PaymentDialog, ProjectDialog, SectionsEditor } from "@/components/projects/ProjectDialogs";
+import { api, DATA_RESTORED, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_STATUSES, type CustomValue, type LinkSuggestion, type NameableColumn, type Project, type ProjectDetail, type ProjectItem, type ProjectPayment } from "@/api";
+import { columnName, ItemDialog, LinkDialog, PaymentDialog, ProjectDialog, SectionsEditor } from "@/components/projects/ProjectDialogs";
 import { Segmented } from "@/components/Segmented";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,6 +121,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
   if (!p) return error ? <p className="text-destructive text-sm">{error}</p> : null;
   const money = (x: number) => formatMoney(x, p.currency, hideBalances);
   const shows = (c: (typeof HIDEABLE_COLUMNS)[number]) => !p.hidden.includes(c);
+  const col = (k: NameableColumn) => columnName(p, k, t);
   const shownItems = section ? items.filter((i) => (i.section_id ?? "none") === section) : items;
   const shownPays = section ? payments.filter((y) => (y.section_id ?? "none") === section) : payments;
   const sum = (f: (i: ProjectItem) => number) => shownItems.reduce((a, i) => a + f(i), 0);
@@ -200,7 +201,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
           { value: "sections", label: t("projects.tabs.sections") },
         ]} /></div>
         {(tab === "items" || tab === "payments") && (p.sections.length > 0) && (
-          <NativeSelect aria-label={t("projects.col.section")} className="w-auto" value={section} onChange={(e) => setSection(e.target.value)}>
+          <NativeSelect aria-label={col("section")} className="w-auto" value={section} onChange={(e) => setSection(e.target.value)}>
             <option value="">{t("projects.allSections")}</option>
             {p.sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             <option value="none">{t("projects.noSection")}</option>
@@ -220,15 +221,15 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
               <thead className="text-muted-foreground border-b text-xs">
                 <tr>
                   <th scope="col" className={cn(cell, "w-10 text-end font-medium")}>{t("projects.col.no")}</th>
-                  <th scope="col" className={cn(cell, "text-start font-medium")}>{t("projects.col.date")}</th>
-                  <th scope="col" className={cn(cell, "text-start font-medium")}>{t("projects.col.item")}</th>
-                  {shows("qty") && <th scope="col" className={cn(cell, "text-end font-medium")}>{t("projects.col.qty")}</th>}
-                  {shows("rate") && <th scope="col" className={cn(cell, "text-end font-medium")}>{t("projects.col.rate")}</th>}
-                  <th scope="col" className={cn(cell, "text-end font-medium")}>{t("projects.col.amount")}</th>
-                  {shows("tax") && <th scope="col" className={cn(cell, "text-end font-medium")}>{t("projects.col.tax")}</th>}
-                  {shows("tax") && <th scope="col" className={cn(cell, "text-end font-medium")}>{t("projects.col.total")}</th>}
-                  {shows("vendor") && <th scope="col" className={cn(cell, "text-start font-medium")}>{t("projects.col.vendor")}</th>}
-                  {shows("bill_no") && <th scope="col" className={cn(cell, "text-start font-medium")}>{t("projects.col.bill_no")}</th>}
+                  <th scope="col" className={cn(cell, "text-start font-medium")}>{col("date")}</th>
+                  <th scope="col" className={cn(cell, "text-start font-medium")}>{col("item")}</th>
+                  {shows("qty") && <th scope="col" className={cn(cell, "text-end font-medium")}>{col("qty")}</th>}
+                  {shows("rate") && <th scope="col" className={cn(cell, "text-end font-medium")}>{col("rate")}</th>}
+                  <th scope="col" className={cn(cell, "text-end font-medium")}>{col("amount")}</th>
+                  {shows("tax") && <th scope="col" className={cn(cell, "text-end font-medium")}>{col("tax")}</th>}
+                  {shows("tax") && <th scope="col" className={cn(cell, "text-end font-medium")}>{col("total")}</th>}
+                  {shows("vendor") && <th scope="col" className={cn(cell, "text-start font-medium")}>{col("vendor")}</th>}
+                  {shows("bill_no") && <th scope="col" className={cn(cell, "text-start font-medium")}>{col("bill_no")}</th>}
                   {p.columns.map((c) => <th key={c.id} scope="col" className={cn(cell, c.type === "number" ? "text-end" : "text-start", "font-medium")}>{c.name}</th>)}
                 </tr>
               </thead>
@@ -257,7 +258,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
                 <tfoot className="border-t-2 font-semibold">
                   <tr>
                     <td className={cell} /><td className={cell} />
-                    <th scope="row" className={cn(cell, "text-start")}>{t("projects.col.total")}</th>
+                    <th scope="row" className={cn(cell, "text-start")}>{col("total")}</th>
                     {shows("qty") && <td className={cell} />}
                     {shows("rate") && <td className={cell} />}
                     <td className={cn(cell, "text-end tabular-nums")}>{money(sum((i) => i.amount))}</td>

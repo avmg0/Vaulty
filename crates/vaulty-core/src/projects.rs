@@ -19,6 +19,8 @@ pub const MODES: &[&str] = &["cash", "upi", "card", "bank", "cheque", "other"];
 pub const COLUMN_TYPES: &[&str] = &["text", "number", "date", "choice", "yes_no"];
 /// Standard item columns that can be hidden (date, item and amount always show).
 pub const HIDEABLE: &[&str] = &["section", "kind", "qty", "rate", "tax", "vendor", "bill_no", "notes"];
+/// Standard columns a project can give its own name.
+pub const NAMEABLE: &[&str] = &["date", "item", "section", "kind", "qty", "unit", "rate", "amount", "tax", "total", "vendor", "bill_no", "notes"];
 const MAX_COLUMNS: usize = 12;
 const MAX_SECTIONS: usize = 60;
 const MAX_QTY_E4: i64 = 1_000_000_000_000_000;
@@ -87,6 +89,20 @@ fn columns_of(v: &Value) -> Result<Vec<Value>> {
         out.push(json!({ "id": id, "name": name, "type": kind, "options": options }));
     }
     Ok(out)
+}
+
+/// The project's own names for standard columns; empty names are left out (the app's word is used).
+fn labels_of(v: &Value) -> Result<String> {
+    let mut out = Map::new();
+    if let Some(m) = v.as_object() {
+        for (k, name) in m {
+            if !NAMEABLE.contains(&k.as_str()) { return Err(bad("that column can't be renamed")); }
+            let name = name.as_str().map(str::trim).unwrap_or_default();
+            if name.chars().count() > 40 { return Err(bad("a column name can be at most 40 characters")); }
+            if !name.is_empty() { out.insert(k.clone(), json!(name)); }
+        }
+    }
+    Ok(Value::Object(out).to_string())
 }
 
 fn hidden_of(v: &Value) -> Result<Vec<String>> {
@@ -190,8 +206,9 @@ fn summary(conn: &Connection, mut p: Value) -> Result<Value> {
     let budget = p["budget_minor"].as_i64();
     let owed: i64 = vendor_rows(conn, &id, &cur)?.iter().map(|v| v.0).filter(|b| *b > 0).sum();
     if let Some(o) = p.as_object_mut() {
-        for k in ["columns", "hidden"] {
-            let parsed = o.get(k).and_then(Value::as_str).and_then(|s| serde_json::from_str::<Value>(s).ok()).unwrap_or(json!([]));
+        for k in ["columns", "hidden", "labels"] {
+            let empty = if k == "labels" { json!({}) } else { json!([]) };
+            let parsed = o.get(k).and_then(Value::as_str).and_then(|s| serde_json::from_str::<Value>(s).ok()).unwrap_or(empty);
             o.insert(k.into(), parsed);
         }
         o.insert("budget".into(), budget.map_or(Value::Null, |b| dec(b, &cur)));
@@ -209,7 +226,7 @@ fn summary(conn: &Connection, mut p: Value) -> Result<Value> {
     Ok(p)
 }
 
-const COLS: &str = "id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden, created_at, updated_at";
+const COLS: &str = "id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden, labels, created_at, updated_at";
 
 /// Every project: ongoing and planned first, then on hold, then done; newest activity first.
 pub fn list(conn: &Connection) -> Result<Vec<Value>> {
@@ -283,10 +300,12 @@ fn project_fields(conn: &Connection, v: &Value, currency_now: Option<&str>) -> R
 /// A new project; `sections` (names) gives it its sections, e.g. from a template.
 pub fn create(conn: &Connection, v: &Value) -> Result<Value> {
     let (name, kind, status, currency, budget, start, end, notes, columns, hidden) = project_fields(conn, v, None)?;
+    let labels = labels_of(&v["labels"])?;
     let id = new_id();
     atomic(conn, |tx| {
         tx.execute("INSERT INTO projects (id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![id, name, kind, status, currency, budget, start, end, notes, columns, hidden])?;
+        tx.execute("UPDATE projects SET labels = ? WHERE id = ?", params![labels, id])?;
         let names: Vec<&str> = v["sections"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
         if names.len() > MAX_SECTIONS { return Err(bad("a project can have at most 60 sections")); }
         for n in names { add_section(tx, &id, &json!({ "name": n })).or_else(|e| if e.to_string().contains("already") { Ok(Value::Null) } else { Err(e) })?; }
@@ -299,8 +318,9 @@ pub fn create(conn: &Connection, v: &Value) -> Result<Value> {
 pub fn update(conn: &Connection, id: &str, v: &Value) -> Result<Value> {
     let cur = currency_of(conn, id)?;
     let (name, kind, status, _, budget, start, end, notes, columns, hidden) = project_fields(conn, v, Some(&cur))?;
-    conn.execute("UPDATE projects SET name = ?, kind = ?, status = ?, budget_minor = ?, start_date = ?, end_date = ?, notes = ?, columns = ?, hidden = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        params![name, kind, status, budget, start, end, notes, columns, hidden, id])?;
+    let labels = labels_of(&v["labels"])?;
+    conn.execute("UPDATE projects SET name = ?, kind = ?, status = ?, budget_minor = ?, start_date = ?, end_date = ?, notes = ?, columns = ?, hidden = ?, labels = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        params![name, kind, status, budget, start, end, notes, columns, hidden, labels, id])?;
     get(conn, id)
 }
 

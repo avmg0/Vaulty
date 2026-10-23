@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { ArrowDown, ArrowUp, Link2, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
-  api, COLUMN_TYPES, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_KINDS, PROJECT_STATUSES,
-  type Account, type Category, type ColumnType, type CustomValue, type HideableColumn, type ItemInput, type ItemKind, type LinkSuggestion, type PaymentInput,
+  api, COLUMN_TYPES, errorText, HIDEABLE_COLUMNS, NAMEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_KINDS, PROJECT_STATUSES,
+  type Account, type Category, type ColumnType, type CustomValue, type HideableColumn, type ItemInput, type ItemKind, type LinkSuggestion, type NameableColumn, type PaymentInput,
   type PayMode, type ProjectColumn, type ProjectDetail, type ProjectInput, type ProjectItem, type ProjectKind, type ProjectPayment, type ProjectStatus,
 } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,11 @@ export const today = () => { const d = new Date(); return `${d.getFullYear()}-${
 const str = (n: number | null | undefined) => n == null ? "" : String(n);
 const textarea = "border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]";
 
+/** A standard column's heading: the project's own name for it, or the app's word. */
+export function columnName(p: { labels?: Partial<Record<NameableColumn, string>> }, key: NameableColumn, t: (k: string) => string) {
+  return p.labels?.[key]?.trim() || t(`projects.col.${key}`);
+}
+
 function Field({ id, label, children, className }: { id: string; label: string; children: ReactNode; className?: string }) {
   return <div className={`grid gap-1.5 ${className ?? ""}`}><Label htmlFor={id}>{label}</Label>{children}</div>;
 }
@@ -33,8 +38,8 @@ export function ProjectDialog({ project, onClose, onSaved }: { project: ProjectD
   const sectionsOf = (k: Template) => k === "blank" ? [] : t(`projects.templates.${k}.sections`).split("|").map((s) => s.trim()).filter(Boolean);
   const [v, setV] = useState<ProjectInput>(() => project ? {
     name: project.name, kind: project.kind, status: project.status, budget: str(project.budget), start_date: project.start_date ?? "", end_date: project.end_date ?? "",
-    notes: project.notes ?? "", columns: project.columns, hidden: project.hidden,
-  } : { name: "", kind: "personal", status: "ongoing", budget: "", start_date: today(), end_date: "", notes: "", columns: [], hidden: ["bill_no"], sections: sectionsOf("renovation") });
+    notes: project.notes ?? "", columns: project.columns, hidden: project.hidden, labels: project.labels ?? {},
+  } : { name: "", kind: "personal", status: "ongoing", budget: "", start_date: today(), end_date: "", notes: "", columns: [], hidden: ["bill_no"], labels: {}, sections: sectionsOf("renovation") });
   const [newSection, setNewSection] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -123,15 +128,24 @@ export function ProjectDialog({ project, onClose, onSaved }: { project: ProjectD
           )}
 
           <section className="grid gap-2">
-            <h3 className="text-sm font-medium">{t("projects.showColumns")}</h3>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              {HIDEABLE_COLUMNS.map((c) => (
-                <label key={c} className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" className="accent-primary size-4" checked={!v.hidden.includes(c)}
-                    onChange={(e) => set({ hidden: e.target.checked ? v.hidden.filter((h) => h !== c) : [...v.hidden, c as HideableColumn] })} />
-                  {t(`projects.col.${c}`)}
-                </label>
-              ))}
+            <h3 className="text-sm font-medium">{t("projects.standardColumns")}</h3>
+            <p className="text-muted-foreground text-xs">{t("projects.standardColumnsHelp")}</p>
+            <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+              {NAMEABLE_COLUMNS.map((c) => {
+                const hideable = (HIDEABLE_COLUMNS as readonly string[]).includes(c);
+                const shown = !hideable || !v.hidden.includes(c as HideableColumn);
+                const word = t(`projects.col.${c}`);
+                return (
+                  <div key={c} className="flex items-center gap-2">
+                    {hideable
+                      ? <input type="checkbox" className="accent-primary size-4 shrink-0" aria-label={t("projects.showColumn", { name: v.labels[c] || word })} checked={shown}
+                          onChange={(e) => set({ hidden: e.target.checked ? v.hidden.filter((h) => h !== c) : [...v.hidden, c as HideableColumn] })} />
+                      : <span className="size-4 shrink-0" aria-hidden />}
+                    <Input className="h-8" aria-label={t("projects.columnNameFor", { name: word })} placeholder={word} maxLength={40} disabled={!shown}
+                      value={v.labels[c] ?? ""} onChange={(e) => set({ labels: { ...v.labels, [c]: e.target.value } })} />
+                  </div>
+                );
+              })}
             </div>
           </section>
 
@@ -191,7 +205,7 @@ export function SectionsEditor({ project, onChanged }: { project: ProjectDetail;
           <caption className="sr-only">{t("projects.sections")}</caption>
           <thead className="bg-muted/50 text-muted-foreground text-xs">
             <tr>
-              <th scope="col" className="px-3 py-2 text-start font-medium">{t("projects.col.section")}</th>
+              <th scope="col" className="px-3 py-2 text-start font-medium">{columnName(project, "section", t)}</th>
               <th scope="col" className="px-3 py-2 text-end font-medium">{t("projects.budget")}</th>
               <th scope="col" className="px-3 py-2 text-end font-medium">{t("projects.billed")}</th>
               <th scope="col" className="px-3 py-2 text-end font-medium">{t("projects.paid")}</th>
@@ -312,12 +326,12 @@ export function ItemDialog({ project, item, names, onClose, onSaved }: { project
           <datalist id="pi-vendors">{names.vendors.map((n) => <option key={n} value={n} />)}</datalist>
           <datalist id="pi-units">{names.units.map((n) => <option key={n} value={n} />)}</datalist>
           <div className="grid gap-3 sm:grid-cols-[9.5rem_minmax(0,1fr)]">
-            <Field id="pi-date" label={t("projects.col.date")}><Input id="pi-date" type="date" required value={v.date} onChange={(e) => set({ date: e.target.value })} /></Field>
-            <Field id="pi-item" label={t("projects.col.item")}><Input id="pi-item" required maxLength={200} autoFocus={!item} value={v.item} onChange={(e) => set({ item: e.target.value })} placeholder={t("projects.itemPlaceholder")} /></Field>
+            <Field id="pi-date" label={columnName(project, "date", t)}><Input id="pi-date" type="date" required value={v.date} onChange={(e) => set({ date: e.target.value })} /></Field>
+            <Field id="pi-item" label={columnName(project, "item", t)}><Input id="pi-item" required maxLength={200} autoFocus={!item} value={v.item} onChange={(e) => set({ item: e.target.value })} placeholder={t("projects.itemPlaceholder")} /></Field>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {!hides("section") && (
-              <Field id="pi-section" label={t("projects.col.section")}>
+              <Field id="pi-section" label={columnName(project, "section", t)}>
                 <NativeSelect id="pi-section" value={v.section_id ?? ""} onChange={(e) => set({ section_id: e.target.value })}>
                   <option value="">{t("projects.noSection")}</option>
                   {project.sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -325,7 +339,7 @@ export function ItemDialog({ project, item, names, onClose, onSaved }: { project
               </Field>
             )}
             {!hides("kind") && (
-              <Field id="pi-kind" label={t("projects.col.kind")}>
+              <Field id="pi-kind" label={columnName(project, "kind", t)}>
                 <NativeSelect id="pi-kind" value={v.kind} onChange={(e) => set({ kind: e.target.value as ItemKind })}>
                   {ITEM_KINDS.map((k) => <option key={k} value={k}>{t(`projects.itemKinds.${k}`)}</option>)}
                 </NativeSelect>
@@ -334,11 +348,11 @@ export function ItemDialog({ project, item, names, onClose, onSaved }: { project
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {!hides("qty") && <>
-              <Field id="pi-qty" label={t("projects.col.qty")}><Input id="pi-qty" inputMode="decimal" autoComplete="off" value={v.qty ?? ""} onChange={(e) => set({ qty: e.target.value })} /></Field>
-              <Field id="pi-unit" label={t("projects.col.unit")}><Input id="pi-unit" list="pi-units" maxLength={20} value={v.unit ?? ""} onChange={(e) => set({ unit: e.target.value })} placeholder={t("projects.unitPlaceholder")} /></Field>
+              <Field id="pi-qty" label={columnName(project, "qty", t)}><Input id="pi-qty" inputMode="decimal" autoComplete="off" value={v.qty ?? ""} onChange={(e) => set({ qty: e.target.value })} /></Field>
+              <Field id="pi-unit" label={columnName(project, "unit", t)}><Input id="pi-unit" list="pi-units" maxLength={20} value={v.unit ?? ""} onChange={(e) => set({ unit: e.target.value })} placeholder={t("projects.unitPlaceholder")} /></Field>
             </>}
-            {!hides("rate") && <Field id="pi-rate" label={t("projects.col.rate")}><Input id="pi-rate" inputMode="decimal" autoComplete="off" value={v.rate ?? ""} onChange={(e) => set({ rate: e.target.value })} /></Field>}
-            <Field id="pi-amount" label={t("projects.col.amount")}>
+            {!hides("rate") && <Field id="pi-rate" label={columnName(project, "rate", t)}><Input id="pi-rate" inputMode="decimal" autoComplete="off" value={v.rate ?? ""} onChange={(e) => set({ rate: e.target.value })} /></Field>}
+            <Field id="pi-amount" label={columnName(project, "amount", t)}>
               <Input id="pi-amount" inputMode="decimal" autoComplete="off" value={v.amount ?? ""} placeholder={computed} onChange={(e) => set({ amount: e.target.value })} aria-describedby={computed && !v.amount ? "pi-amount-hint" : undefined} />
             </Field>
           </div>
@@ -352,21 +366,21 @@ export function ItemDialog({ project, item, names, onClose, onSaved }: { project
                   <option value="custom">{t("projects.taxAmount")}</option>
                 </NativeSelect>
               </Field>
-              {v.tax ? <Field id="pi-tax" label={t("projects.col.tax")}><Input id="pi-tax" inputMode="decimal" value={v.tax} onChange={(e) => set({ tax: e.target.value })} /></Field>
+              {v.tax ? <Field id="pi-tax" label={columnName(project, "tax", t)}><Input id="pi-tax" inputMode="decimal" value={v.tax} onChange={(e) => set({ tax: e.target.value })} /></Field>
                 : <div className="text-muted-foreground self-end pb-2 text-sm tabular-nums" aria-live="polite">{taxNow ? t("projects.taxIs", { amount: money(taxNow) }) : ""}</div>}
               <div className="col-span-2 self-end pb-2 text-end text-sm" aria-live="polite">{t("projects.totalIs")} <strong className="tabular-nums">{money(base + taxNow)}</strong></div>
             </div>
           )}
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
-            {!hides("vendor") && <Field id="pi-vendor" label={t("projects.col.vendor")}><Input id="pi-vendor" list="pi-vendors" maxLength={100} value={v.vendor ?? ""} onChange={(e) => set({ vendor: e.target.value })} /></Field>}
-            {!hides("bill_no") && <Field id="pi-bill" label={t("projects.col.bill_no")}><Input id="pi-bill" maxLength={60} value={v.bill_no ?? ""} onChange={(e) => set({ bill_no: e.target.value })} /></Field>}
+            {!hides("vendor") && <Field id="pi-vendor" label={columnName(project, "vendor", t)}><Input id="pi-vendor" list="pi-vendors" maxLength={100} value={v.vendor ?? ""} onChange={(e) => set({ vendor: e.target.value })} /></Field>}
+            {!hides("bill_no") && <Field id="pi-bill" label={columnName(project, "bill_no", t)}><Input id="pi-bill" maxLength={60} value={v.bill_no ?? ""} onChange={(e) => set({ bill_no: e.target.value })} /></Field>}
           </div>
           {project.columns.length > 0 && (
             <div className="grid gap-3 sm:grid-cols-2">
               {project.columns.map((c) => <CustomInput key={c.id} column={c} value={v.custom[c.id]} onChange={(x) => set({ custom: { ...v.custom, [c.id]: x } })} />)}
             </div>
           )}
-          {!hides("notes") && <Field id="pi-notes" label={t("projects.col.notes")}><textarea id="pi-notes" rows={2} maxLength={1000} className={textarea} value={v.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} /></Field>}
+          {!hides("notes") && <Field id="pi-notes" label={columnName(project, "notes", t)}><textarea id="pi-notes" rows={2} maxLength={1000} className={textarea} value={v.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} /></Field>}
           {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
           <DialogFooter className="gap-2">
             {item && <Button type="button" variant="ghost" className="text-destructive me-auto" onClick={remove}><Trash2 />{t("common.delete")}</Button>}
@@ -439,7 +453,7 @@ export function PaymentDialog({ project, payment, names, onClose, onSaved }: { p
               </NativeSelect>
             </Field>
             <Field id="pp-ref" label={t("projects.reference")}><Input id="pp-ref" maxLength={60} value={v.reference ?? ""} onChange={(e) => set({ reference: e.target.value })} /></Field>
-            <Field id="pp-section" label={t("projects.col.section")}>
+            <Field id="pp-section" label={columnName(project, "section", t)}>
               <NativeSelect id="pp-section" value={v.section_id ?? ""} onChange={(e) => set({ section_id: e.target.value })}>
                 <option value="">{t("projects.noSection")}</option>
                 {project.sections.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}

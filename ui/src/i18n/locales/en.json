@@ -1427,6 +1427,7 @@
     "e2002b090": "expected auto or a month name such as april",
     "e7184ceb6": "a shortcut needs Ctrl (Cmd on a Mac) or Alt",
     "e08b45d14": "choose a preset, colour, gradient or image",
+    "e14ad8f82": "a column name can be at most 40 characters",
     "e7cd47248": "give the amount to spend for the milestone",
     "ed3195400": "select at most 5000 transactions at a time",
     "e245b50f5": "the low-balance level can't be below zero",
@@ -1557,6 +1558,7 @@
     "e7e6a5983": "internal state lock poisoned",
     "e87945a11": "coin ids look like `bitcoin`",
     "e941682ca": "`expiry_year` must be a year",
+    "ee3edea23": "that column can't be renamed",
     "e302b8037": "that PDF has too many pages",
     "e3b317952": "this PDF needs its password",
     "e44fe9844": "that location can't be used",
@@ -2577,7 +2579,7 @@
     "owed": "Still to pay",
     "owedShort": "{{amount}} to pay",
     "ownColumns": "Your own columns",
-    "ownColumnsHelp": "Add anything else you want to note per item, such as room, brand or warranty. Number columns are totalled.",
+    "ownColumnsHelp": "Add anything else to note per item, named as you like: a part number, colour, warranty, who approved it. Number columns are totalled.",
     "paid": "Paid",
     "paidTo": "Paid to",
     "paymentCount_one": "{{count}} payment",
@@ -2595,7 +2597,6 @@
     "sections": "Sections",
     "sectionsHelp": "Parts of the project, to see totals and budgets for each. You can change them later.",
     "settled": "Settled",
-    "showColumns": "Columns to show",
     "someone": "Someone",
     "spentSoFar": "spent so far",
     "start": "Starts",
@@ -2691,6 +2692,10 @@
         "sections": ""
       }
     },
-    "editSection": "Rename {{name}} or change its budget"
+    "editSection": "Rename {{name}} or change its budget",
+    "standardColumns": "Columns",
+    "standardColumnsHelp": "Untick the ones you don't need, and rename any to suit the project, such as Part instead of Item or Supplier instead of Bought from.",
+    "showColumn": "Show {{name}}",
+    "columnNameFor": "Name for {{name}}"
   }
 }

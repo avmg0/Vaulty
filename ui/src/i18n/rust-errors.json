@@ -344,6 +344,10 @@
   "re": "^choose a preset, colour, gradient or image$"
  },
  {
+  "id": "e14ad8f82",
+  "re": "^a column name can be at most 40 characters$"
+ },
+ {
   "id": "e7cd47248",
   "re": "^give the amount to spend for the milestone$"
  },
@@ -862,6 +866,10 @@
  {
   "id": "e941682ca",
   "re": "^`expiry_year` must be a year$"
+ },
+ {
+  "id": "ee3edea23",
+  "re": "^that column can't be renamed$"
  },
  {
   "id": "e302b8037",
