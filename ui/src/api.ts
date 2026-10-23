@@ -27,13 +27,26 @@ export type Invite = { user: User; setup_code: string };
 export type FailedAttempts = { count: number; last_at: number };
 /** Someone this member helped back into their profile, since they last signed in (`at` is Unix seconds). */
 export type HelpedNotice = { owner_name: string; at: number };
-export type SignedInUser = User & { recovery_key?: string | null; failed_attempts?: FailedAttempts | null; helped?: HelpedNotice[] };
+export type SignedInUser = User & { recovery_key?: string | null; failed_attempts?: FailedAttempts | null; helped?: HelpedNotice[]; nominee_request?: NomineeRequest | null };
+/** A nominee's request for access (times are Unix seconds). */
+export type NomineeRequest = { started_at: number; ready_at: number; allowed: boolean; ready: boolean };
+export type NomineeStatus = { set_up: boolean; name: string | null; wait_days: number; has_letter: boolean; request: NomineeRequest | null };
+export type EstateHolding = { name: string; kind: string; institution: string | null; currency: string; amount: number; notes: string | null };
+/** "In case of emergency": what a nominee sees. */
+export type Estate = {
+  as_of: string; accounts: EstateHolding[]; debts: EstateHolding[]; investments: EstateHolding[];
+  cards: { name: string; kind: string; issuer: string | null; network: string | null; last4: string | null }[];
+  people: { name: string; phone: string | null; currency: string; amount: number }[];
+  regular: { name: string; kind: string; amount: number; currency: string; frequency: string; every: number; next_date: string | null; account: string | null }[];
+  totals: { currency: string; owned: number; owed: number; net: number }[];
+};
+export type NomineeOpened = { owner_name: string; letter: string | null; estate: Estate };
 /** Shared recovery: any 2 of 3 helpers. */
 export type HelperSlot = { slot: number; kind: "member" | "card"; helper_id: string | null; name: string; usable: boolean };
 export type Helpers = { set_up: boolean; created_at: string | null; slots: HelperSlot[]; usable: number };
 export type HelperChoice = { kind: "member"; id: string } | { kind: "card"; label: string };
 /** A card to print, shown only right after the helpers were chosen. */
-export type HelperCard = { slot: number; label: string; owner: string; code: string };
+export type HelperCard = { slot: number; label: string; owner: string; code: string; nominee: boolean };
 export type SignIn = { status: "signed_in"; user: SignedInUser } | { status: "needs_second_factor" };
 export type TotpEnrollment = { secret_base32: string; otpauth_url: string; qr_png_base64: string };
 export type TaxDeduction = { id: string; label: string; hint?: string; cap?: number; cap_senior?: number; cap_alt?: number; alt_label?: string };
@@ -300,6 +313,16 @@ export const api = {
     mine: () => invoke<{ helpers: Helpers; candidates: User[] }>("helpers_mine"),
     set: (password: string, choices: HelperChoice[]) => invoke<HelperCard[]>("helpers_set", { password, choices }),
     remove: (password: string) => invoke<void>("helpers_remove", { password }),
+  },
+  nominee: {
+    forUser: (userId: string) => invoke<NomineeStatus>("nominee_for", { userId }),
+    start: (userId: string, code: string) => invoke<NomineeStatus>("nominee_start", { userId, code }),
+    open: (userId: string, code: string) => invoke<NomineeOpened>("sign_in_nominee", { userId, code }),
+    mine: () => invoke<{ nominee: NomineeStatus; letter: string | null }>("nominee_mine"),
+    set: (password: string, name: string, waitDays: number, letter: string) => invoke<HelperCard>("nominee_set", { password, name, waitDays, letter: letter.trim() || null }),
+    remove: (password: string) => invoke<void>("nominee_remove", { password }),
+    answer: (allow: boolean) => invoke<void>("nominee_answer", { allow }),
+    preview: () => invoke<Estate>("estate_preview"),
   },
   security: {
     status: () => invoke<SecurityStatus>("security_status"),

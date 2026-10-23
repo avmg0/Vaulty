@@ -11,6 +11,7 @@ pub use crypto::Key;
 pub mod db;
 pub mod demo;
 pub mod error;
+pub mod estate;
 pub mod export;
 pub mod history;
 pub mod hotkeys;

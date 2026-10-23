@@ -16,6 +16,10 @@
   "re": "^that's a common password with a few characters added; choose something less obvious$"
  },
  {
+  "id": "e17b75e38",
+  "re": "^choose your family helpers first: the nominee card works together with one of them$"
+ },
+ {
   "id": "e558bf386",
   "re": "^can't switch between a card/loan and a bank/cash account once it has transactions$"
  },
@@ -46,6 +50,10 @@
  {
   "id": "e6a5f6636",
   "re": "^that's one of the most common passwords; choose something less obvious$"
+ },
+ {
+  "id": "ea7741394",
+  "re": "^a nominee card code has 37 letters and numbers; check it and try again$"
  },
  {
   "id": "e4db8238a",
@@ -88,6 +96,10 @@
   "re": "^that spreadsheet couldn't be opened \\(is it password protected\\?\\)$"
  },
  {
+  "id": "e724be533",
+  "re": "^choose your helpers again first, so a nominee card can be made$"
+ },
+ {
   "id": "ee8ed2244",
   "re": "^a helper must be an adult family member with their own profile$"
  },
@@ -98,6 +110,10 @@
  {
   "id": "ee9d57d74",
   "re": "^transfers between different currencies aren't supported yet$"
+ },
+ {
+  "id": "e577faf5b",
+  "re": "^the card and the helper's approval don't open this profile$"
  },
  {
   "id": "eb988c1cd",
@@ -152,6 +168,10 @@
   "re": "^every split part needs an amount greater than zero$"
  },
  {
+  "id": "e41694f53",
+  "re": "^this isn't a current nominee card for this profile$"
+ },
+ {
   "id": "e6f7fb8ff",
   "re": "^sub-categories can't have their own sub-categories$"
  },
@@ -200,8 +220,16 @@
   "re": "^setup code expired; ask an admin for a new one$"
  },
  {
+  "id": "e689d772c",
+  "re": "^give your nominee's name \\(up to 60 characters\\)$"
+ },
+ {
   "id": "ea5bff745",
   "re": "^expected a language tag such as en-US or hi-IN$"
+ },
+ {
+  "id": "ef9baab73",
+  "re": "^start the request with your nominee card first$"
  },
  {
   "id": "e499f549c",
@@ -276,8 +304,20 @@
   "re": "^at most 30 coins and 30 watchlist symbols$"
  },
  {
+  "id": "eca0fcb42",
+  "re": "^ask one of their helpers to approve first$"
+ },
+ {
+  "id": "ef77ffbff",
+  "re": "^the waiting period is 3, 7, 14 or 30 days$"
+ },
+ {
   "id": "e4c7bc5f6",
   "re": "^use Change password for your own profile$"
+ },
+ {
+  "id": "eb093d3fb",
+  "re": "^the letter can be up to 5,000 characters$"
  },
  {
   "id": "ec60de13d",
@@ -334,6 +374,10 @@
  {
   "id": "e7588a917",
   "re": "^that isn't an encrypted Vaulty backup$"
+ },
+ {
+  "id": "e8f35f70a",
+  "re": "^no nominee is set up for this profile$"
  },
  {
   "id": "e97c1354f",
@@ -402,6 +446,10 @@
  {
   "id": "e018f4417",
   "re": "^symbols look like AAPL or TCS:NSE$"
+ },
+ {
+  "id": "e20fa1168",
+  "re": "^the waiting period isn't over yet$"
  },
  {
   "id": "e27d8432f",
@@ -782,6 +830,10 @@
  {
   "id": "e1e5af9e7",
   "re": "^expected auto, 0 or 2$"
+ },
+ {
+  "id": "eba1e6df3",
+  "re": "^the letter is damaged$"
  },
  {
   "id": "ec18157fa",

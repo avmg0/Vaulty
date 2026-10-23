@@ -13,6 +13,8 @@ use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
 const SECRET_LEN: usize = 16;
+/// The nominee's card is the fourth point on the helpers' line.
+pub(super) const NOMINEE_SLOT: u8 = 4;
 const SHARES: u8 = 3;
 const NEEDED: u8 = 2;
 /// Crockford base32: no I, L, O or U; I and L read as 1, O as 0.
@@ -51,17 +53,20 @@ pub struct Helpers {
 #[derive(Debug, Serialize)]
 pub struct HelperCard {
     pub slot: u8,
+    /// Who keeps it (for a nominee card, the nominee's name).
     pub label: String,
     pub owner: String,
     pub code: String,
+    /// A nominee card rather than a helper card.
+    pub nominee: bool,
 }
 
 /// One helper's share, collected during recovery. Kept in memory only.
 #[derive(Clone)]
 pub struct HelperShare {
-    slot: u8,
-    helper_id: Option<String>,
-    share: shamir::Share,
+    pub(super) slot: u8,
+    pub(super) helper_id: Option<String>,
+    pub(super) share: shamir::Share,
 }
 impl HelperShare {
     pub fn slot(&self) -> u8 { self.slot }
@@ -70,14 +75,14 @@ impl HelperShare {
 #[derive(Debug, Serialize)]
 pub struct HelperNotice { pub owner_name: String, pub at: i64 }
 
-fn helper_key(secret: &[u8]) -> Key {
+pub(super) fn helper_key(secret: &[u8]) -> Key {
     let mut h = Sha256::new();
     h.update(b"vaulty-helpers-v1");
     h.update(secret);
     Zeroizing::new(h.finalize().into())
 }
 
-fn checksum(body: &[u8]) -> [u8; 2] {
+pub(super) fn checksum(body: &[u8]) -> [u8; 2] {
     let d = Sha256::digest(body);
     [d[0], d[1]]
 }
@@ -96,7 +101,7 @@ fn b32_encode(bytes: &[u8]) -> String {
     out
 }
 
-fn b32_decode(s: &str) -> Option<Vec<u8>> {
+pub(super) fn b32_decode(s: &str) -> Option<Vec<u8>> {
     let (mut out, mut acc, mut bits) = (vec![], 0u32, 0u32);
     for c in s.chars().filter(|c| c.is_ascii_alphanumeric()) {
         let c = match c.to_ascii_uppercase() { 'O' => '0', 'I' | 'L' => '1', c => c };
@@ -113,7 +118,7 @@ fn b32_decode(s: &str) -> Option<Vec<u8>> {
 }
 
 /// set id (4) · slot (1) · share (16) · checksum (2) = 23 bytes = 37 characters.
-fn card_code(set_id: &[u8], share: &shamir::Share) -> String {
+pub(super) fn card_code(set_id: &[u8], share: &shamir::Share) -> String {
     let mut body = set_id.to_vec();
     body.push(share.x);
     body.extend_from_slice(&share.bytes);
@@ -163,13 +168,16 @@ impl Registry {
                 }
             }
         }
+        // A line through the secret: each share is a point on it, and any two points give the line.
         let secret = Zeroizing::new(crypto::random_bytes::<SECRET_LEN>());
-        let shares = shamir::split(secret.as_ref(), NEEDED, SHARES)?;
+        let slope = Zeroizing::new(crypto::random_bytes::<SECRET_LEN>());
+        let shares = (1..=SHARES).map(|x| shamir::share_at(secret.as_ref(), slope.as_ref(), x)).collect::<Result<Vec<_>>>()?;
         let set_id = crypto::random_bytes::<4>();
+        let line = Zeroizing::new([secret.as_ref(), slope.as_ref()].concat());
         let tx = self.conn.unchecked_transaction()?;
         tx.execute("DELETE FROM helper_shares WHERE user_id = ?", [user_id])?;
-        tx.execute("INSERT OR REPLACE INTO helper_sets (user_id, set_id, wrapped) VALUES (?, ?, ?)",
-            params![user_id, crypto::to_hex(&set_id), crypto::wrap(&helper_key(secret.as_ref()), &dk)?])?;
+        tx.execute("INSERT OR REPLACE INTO helper_sets (user_id, set_id, wrapped, line_sealed) VALUES (?, ?, ?, ?)",
+            params![user_id, crypto::to_hex(&set_id), crypto::wrap(&helper_key(secret.as_ref()), &dk)?, crypto::seal(&dk, &line)?])?;
         let mut cards = vec![];
         for (c, share) in choices.iter().zip(&shares) {
             match c {
@@ -182,16 +190,25 @@ impl Registry {
                 HelperChoice::Card { label } => {
                     let label = label.trim().to_string();
                     tx.execute("INSERT INTO helper_shares (user_id, slot, kind, label) VALUES (?, ?, 'card', ?)", params![user_id, share.x, label])?;
-                    cards.push(HelperCard { slot: share.x, code: card_code(&set_id, share), label, owner: owner.name.clone() });
+                    cards.push(HelperCard { slot: share.x, code: card_code(&set_id, share), label, owner: owner.name.clone(), nominee: false });
                 }
             }
+        }
+        // A nominee's card is a point on the same line, so it's issued again with the new set.
+        let nominee: Option<String> = tx.query_row("SELECT name FROM nominees WHERE user_id = ?", [user_id], |r| r.get(0)).optional()?;
+        if let Some(name) = nominee {
+            let share = shamir::share_at(secret.as_ref(), slope.as_ref(), NOMINEE_SLOT)?;
+            cards.push(HelperCard { slot: NOMINEE_SLOT, code: card_code(&set_id, &share), label: name, owner: owner.name.clone(), nominee: true });
         }
         tx.commit()?;
         Ok(cards)
     }
 
+    /// Also removes the nominee, whose card is part of the same set.
     pub fn remove_helpers(&self, user_id: &str, password: &str) -> Result<()> {
         self.verify_password(user_id, password)?;
+        self.conn.execute("DELETE FROM nominee_requests WHERE user_id = ?", [user_id])?;
+        self.conn.execute("DELETE FROM nominees WHERE user_id = ?", [user_id])?;
         self.conn.execute("DELETE FROM helper_shares WHERE user_id = ?", [user_id])?;
         self.conn.execute("DELETE FROM helper_sets WHERE user_id = ?", [user_id])?;
         Ok(())

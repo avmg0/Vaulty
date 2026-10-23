@@ -1,0 +1,122 @@
+//! "In case of emergency": everything a family would need to find and claim a member's money,
+//! on one page. Shown to the member's nominee (read-only), and to the member as a preview.
+//!
+//! Lists what exists and where (bank, card network and last 4 digits, institution), with balances.
+//! Card numbers aren't stored by Vaulty, so they never appear.
+use crate::error::Result;
+use chrono::NaiveDate;
+use rusqlite::Connection;
+use serde::Serialize;
+use serde_json::Value;
+use std::collections::BTreeMap;
+
+#[derive(Debug, Serialize)]
+pub struct Holding {
+    pub name: String,
+    /// The account or investment type (checking, cash, credit, loan, stock, mutual_fund…).
+    pub kind: String,
+    pub institution: Option<String>,
+    pub currency: String,
+    pub amount: f64,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct CardLine {
+    pub name: String,
+    pub kind: String,
+    pub issuer: Option<String>,
+    pub network: Option<String>,
+    pub last4: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PersonLine {
+    pub name: String,
+    pub phone: Option<String>,
+    pub currency: String,
+    /// Positive: they owe the member. Negative: the member owes them.
+    pub amount: f64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Regular {
+    pub name: String,
+    /// expense, income or transfer
+    pub kind: String,
+    pub amount: f64,
+    pub currency: String,
+    pub frequency: String,
+    pub every: i64,
+    pub next_date: Option<String>,
+    pub account: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Total { pub currency: String, pub owned: f64, pub owed: f64, pub net: f64 }
+
+#[derive(Debug, Serialize)]
+pub struct Estate {
+    pub as_of: String,
+    /// Bank, cash and other accounts the member owns.
+    pub accounts: Vec<Holding>,
+    /// Credit cards and loans: what's owed on them.
+    pub debts: Vec<Holding>,
+    pub investments: Vec<Holding>,
+    pub cards: Vec<CardLine>,
+    pub people: Vec<PersonLine>,
+    /// Bills and income that come round regularly (to claim, keep paying, or stop).
+    pub regular: Vec<Regular>,
+    /// Per currency: owned (accounts and investments), owed (debts and money owed to people).
+    pub totals: Vec<Total>,
+}
+
+fn s(v: &Value, k: &str) -> Option<String> { v[k].as_str().map(str::trim).filter(|x| !x.is_empty()).map(str::to_string) }
+
+pub fn summary(conn: &Connection, today: NaiveDate) -> Result<Estate> {
+    let main: String = conn.query_row("SELECT currency FROM user_settings WHERE id = 'default'", [], |r| r.get::<_, Option<String>>(0))?.unwrap_or_else(|| "INR".into());
+    let (mut accounts, mut debts) = (vec![], vec![]);
+    for a in crate::accounts::get_all(conn)? {
+        let h = Holding {
+            name: s(&a, "name").unwrap_or_default(), kind: s(&a, "type").unwrap_or_default(), institution: s(&a, "institution"),
+            currency: s(&a, "currency").unwrap_or_else(|| main.clone()),
+            amount: if a["ledger_kind"] == "liability" { -a["current_balance"].as_f64().unwrap_or(0.0) } else { a["current_balance"].as_f64().unwrap_or(0.0) },
+            notes: s(&a, "notes"),
+        };
+        if a["ledger_kind"] == "liability" { if h.amount.abs() > 0.004 { debts.push(h) } } else { accounts.push(h) }
+    }
+    let investments: Vec<Holding> = crate::rows::query(conn, "SELECT name, symbol, type, quantity, current_price, buy_price, notes FROM investments ORDER BY name", &[])?
+        .into_iter().map(|i| {
+            let price = i["current_price"].as_f64().filter(|p| *p > 0.0).or(i["buy_price"].as_f64()).unwrap_or(0.0);
+            Holding {
+                name: s(&i, "name").unwrap_or_default(), kind: s(&i, "type").unwrap_or_default(), institution: s(&i, "symbol"), currency: main.clone(),
+                amount: (i["quantity"].as_f64().unwrap_or(0.0) * price * 100.0).round() / 100.0, notes: s(&i, "notes"),
+            }
+        }).collect();
+    let cards = crate::cards::list(conn)?.into_iter().map(|c| CardLine {
+        name: s(&c, "name").unwrap_or_default(), kind: s(&c, "kind").unwrap_or_default(),
+        issuer: s(&c, "issuer_name").or(s(&c, "institution")), network: s(&c, "network"), last4: s(&c, "last4"),
+    }).collect();
+    let mut people = vec![];
+    for p in crate::people::list(conn)? {
+        for b in p["balances"].as_array().into_iter().flatten() {
+            people.push(PersonLine { name: s(&p, "name").unwrap_or_default(), phone: s(&p, "phone"), currency: s(b, "currency").unwrap_or_default(), amount: b["amount"].as_f64().unwrap_or(0.0) });
+        }
+    }
+    let regular = crate::recurring::list(conn, today)?.into_iter().filter(|r| r["is_active"] == 1).map(|r| Regular {
+        name: s(&r, "name").unwrap_or_default(), kind: s(&r, "type").unwrap_or_default(), amount: r["amount"].as_f64().unwrap_or(0.0),
+        currency: s(&r, "currency").unwrap_or_else(|| main.clone()), frequency: s(&r, "frequency").unwrap_or_default(),
+        every: r["every"].as_i64().unwrap_or(1), next_date: s(&r, "next_due_date"), account: s(&r, "account_name"),
+    }).collect();
+
+    let mut by: BTreeMap<String, (f64, f64)> = BTreeMap::new();
+    for h in accounts.iter().chain(&investments) { by.entry(h.currency.clone()).or_default().0 += h.amount; }
+    for h in &debts { by.entry(h.currency.clone()).or_default().1 += h.amount; }
+    for p in &people {
+        let e = by.entry(p.currency.clone()).or_default();
+        if p.amount > 0.0 { e.0 += p.amount } else { e.1 -= p.amount }
+    }
+    let round = |x: f64| (x * 100.0).round() / 100.0;
+    let totals = by.into_iter().map(|(currency, (owned, owed))| Total { net: round(owned - owed), owned: round(owned), owed: round(owed), currency }).collect();
+    Ok(Estate { as_of: today.to_string(), accounts, debts, investments, cards, people, regular, totals })
+}

@@ -97,6 +97,8 @@ struct SignedIn {
     failed_attempts: Option<vaulty_core::profiles::FailureNotice>,
     /// Members this person helped back into their profile since they last signed in.
     helped: Vec<vaulty_core::profiles::HelperNotice>,
+    /// Their nominee asked for access and it hasn't been allowed: shown so they can cancel it.
+    nominee_request: Option<vaulty_core::profiles::NomineeRequest>,
 }
 
 fn poisoned<T>(_: T) -> Error {
@@ -220,10 +222,11 @@ impl AppState {
         let recovery_key = keys.new_recovery_key.take();
         let failed_attempts = self.registry(|r| r.take_failure_notice(&user_id))?;
         let helped = self.registry(|r| r.take_helper_notices(&user_id))?;
+        let nominee_request = self.registry(|r| r.nominee(&user_id))?.request.filter(|q| !q.allowed);
         *self.pending.lock().map_err(poisoned)? = None;
         *self.helping.lock().map_err(poisoned)? = None;
         *self.session.lock().map_err(poisoned)? = Some(Session::new(user.clone(), conn, keys, household, household_ready));
-        Ok(SignedIn { user, recovery_key, failed_attempts, helped })
+        Ok(SignedIn { user, recovery_key, failed_attempts, helped, nominee_request })
     }
 
     fn delete_user_files(&self, user_id: &str) {
@@ -377,6 +380,79 @@ fn sign_in_helpers(s: S, user_id: String, new_password: String, code: Option<Str
     };
     let keys = s.registry(|r| r.recover_with_helpers(&user_id, &shares, &new_password, code.as_deref()))?;
     s.start_session(keys)
+}
+
+// ------------------------------------------------------------ nominee
+
+/// On the sign-in screen: whether this member has a nominee, and any request in progress.
+#[tauri::command]
+fn nominee_for(s: S, user_id: String) -> Result<vaulty_core::profiles::NomineeStatus> {
+    s.registry(|r| r.nominee(&user_id))
+}
+
+/// The nominee starts the waiting period with their card.
+#[tauri::command]
+fn nominee_start(s: S, user_id: String, code: String) -> Result<vaulty_core::profiles::NomineeStatus> {
+    limits::text("code", &code, 100)?;
+    s.registry(|r| r.nominee_start(&user_id, &code))
+}
+
+/// What the nominee sees. Read once and returned; nothing stays open.
+#[derive(Serialize)]
+struct NomineeOpened { owner_name: String, letter: Option<String>, estate: vaulty_core::estate::Estate }
+
+/// After the wait: the nominee card plus one helper's approval (collected as when recovering).
+#[tauri::command]
+fn sign_in_nominee(s: S, user_id: String, code: String) -> Result<NomineeOpened> {
+    limits::text("code", &code, 100)?;
+    let helper = {
+        let h = s.helping.lock().map_err(poisoned)?;
+        match h.as_ref() {
+            Some(x) if x.owner == user_id && x.started.elapsed() <= HELPING_TTL && !x.shares.is_empty() => x.shares[0].clone(),
+            _ => return Err(Error::Auth("ask one of their helpers to approve first".into())),
+        }
+    };
+    let view = s.registry(|r| r.open_as_nominee(&user_id, &code, &helper))?;
+    let conn = db::open(&s.user_db_path(&user_id), &view.data_key)?;
+    conn.execute_batch("PRAGMA query_only = 1;")?;
+    let estate = vaulty_core::estate::summary(&conn, today())?;
+    *s.helping.lock().map_err(poisoned)? = None;
+    Ok(NomineeOpened { owner_name: view.owner_name, letter: view.letter, estate })
+}
+
+/// The signed-in member's nominee, with their letter.
+#[tauri::command]
+fn nominee_mine(s: S) -> Result<Value> {
+    let me = s.current_user()?;
+    let status = s.registry(|r| r.nominee(&me.id))?;
+    let letter = s.keys(|k| s.registry(|r| r.nominee_letter(k)))?;
+    Ok(json!({ "nominee": status, "letter": letter }))
+}
+
+#[tauri::command]
+fn nominee_set(s: S, password: String, name: String, wait_days: i64, letter: Option<String>) -> Result<vaulty_core::profiles::HelperCard> {
+    limits::text("name", &name, 100)?;
+    if let Some(l) = &letter { limits::text("letter", l, 10_000)?; }
+    let me = s.current_user()?;
+    s.registry(|r| r.set_nominee(&me.id, &password, &name, wait_days, letter.as_deref()))
+}
+
+#[tauri::command]
+fn nominee_remove(s: S, password: String) -> Result<()> {
+    let me = s.current_user()?;
+    s.registry(|r| r.remove_nominee(&me.id, &password))
+}
+
+/// The member answers a nominee's request: cancel it (`allow` false) or let it go ahead now.
+#[tauri::command]
+fn nominee_answer(s: S, allow: bool) -> Result<()> {
+    s.keys(|k| s.registry(|r| r.nominee_answer(k, allow)))
+}
+
+/// The member's own "In case of emergency" summary, as their nominee would see it.
+#[tauri::command]
+fn estate_preview(s: S) -> Result<vaulty_core::estate::Estate> {
+    s.data(|c| vaulty_core::estate::summary(c, today()))
 }
 
 /// The signed-in member's own helpers.
@@ -1405,7 +1481,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

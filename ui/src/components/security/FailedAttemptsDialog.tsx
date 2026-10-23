@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { HeartHandshake, ShieldAlert } from "lucide-react";
+import { HeartHandshake, ScrollText, ShieldAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { FailedAttempts, HelpedNotice } from "@/api";
+import { api, errorText, type FailedAttempts, type HelpedNotice, type NomineeRequest } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChangePasswordDialog } from "@/pages/Settings";
@@ -50,6 +50,32 @@ export function HelpedDialog({ helped, onDone }: { helped: HelpedNotice[]; onDon
         </ul>
         <p className="text-muted-foreground text-sm">{t("helpers.notice.advice")}</p>
         <DialogFooter><Button onClick={onDone}>{t("helpers.notice.ok")}</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** The member is alive and signed in, but their nominee has asked for access: cancel it, or let it go ahead. */
+export function NomineeRequestDialog({ request, onDone }: { request: NomineeRequest | null; onDone: () => void }) {
+  const { t } = useTranslation();
+  const [error, setError] = useState("");
+  if (!request) return null;
+  const when = (secs: number) => formatDate(new Date(secs * 1000), { day: "numeric", month: "long" });
+  const answer = (allow: boolean) => api.nominee.answer(allow).then(onDone).catch((e) => setError(errorText(e)));
+  return (
+    <Dialog open onOpenChange={() => { /* an answer is needed */ }}>
+      <DialogContent className="sm:max-w-md" showCloseButton={false} onEscapeKeyDown={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()}
+        onOpenAutoFocus={(e) => { e.preventDefault(); document.getElementById("nominee-cancel")?.focus(); }}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><ScrollText className="size-5 text-amber-600 dark:text-amber-400" />{t("nominee.request.title")}</DialogTitle>
+          <DialogDescription>{t("nominee.request.desc", { started: when(request.started_at), ready: when(request.ready_at) })}</DialogDescription>
+        </DialogHeader>
+        <p className="text-muted-foreground text-sm">{t("nominee.request.advice")}</p>
+        {error && <p className="text-destructive text-sm">{error}</p>}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => answer(true)}>{t("nominee.request.allow")}</Button>
+          <Button id="nominee-cancel" onClick={() => answer(false)}>{t("nominee.request.cancel")}</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

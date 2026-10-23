@@ -1,13 +1,16 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { AlertTriangle, FileText, Loader2, Printer, UserRound, UsersRound } from "lucide-react";
+import { AlertTriangle, Eye, FileText, Loader2, Printer, ScrollText, UserRound, UsersRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, errorText, type HelperCard, type HelperChoice, type Helpers, type User } from "@/api";
+import { api, errorText, type Estate, type HelperCard, type HelperChoice, type Helpers, type NomineeStatus, type User } from "@/api";
+import { EstateView } from "@/components/EstateView";
+import { useSession } from "@/hooks/session";
 import { PasswordDialog } from "@/components/security/PasswordDialog";
 import { printHelperCards } from "@/components/security/HelperCards";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input, NativeSelect } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
 import { formatDate } from "@/lib/utils";
 
@@ -54,6 +57,8 @@ export function HelpersCard() {
               <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setRemoving(true)}>{t("helpers.turnOff")}</Button>
               <Button variant="outline" size="sm" onClick={() => setChoosing(true)}>{t("helpers.change")}</Button>
             </div>
+            <Separator />
+            <NomineeSection onCard={(c) => setCards([c])} />
           </>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -68,6 +73,87 @@ export function HelpersCard() {
         confirmLabel={t("helpers.turnOff")} action={async (pw) => { await api.helpers.remove(pw); load(); }} />
       <CardsDialog cards={cards} onDone={() => setCards(null)} />
     </Card>
+  );
+}
+
+/** The nominee: who may see a read-only summary if something happens to this member. */
+function NomineeSection({ onCard }: { onCard: (c: HelperCard) => void }) {
+  const { t } = useTranslation();
+  const { user } = useSession();
+  const [data, setData] = useState<{ nominee: NomineeStatus; letter: string | null } | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [preview, setPreview] = useState<Estate | null>(null);
+  const load = () => api.nominee.mine().then(setData).catch(() => {});
+  useEffect(() => { load(); }, []);
+  if (!data) return null;
+  const n = data.nominee;
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start gap-3">
+        <ScrollText className="text-muted-foreground mt-0.5 size-4 shrink-0" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium">{t("nominee.title")}</div>
+          <p className="text-muted-foreground text-xs">{n.set_up ? t("nominee.set", { name: n.name, count: n.wait_days }) : t("nominee.desc")}</p>
+          {n.set_up && <p className="text-muted-foreground text-xs">{n.has_letter ? t("nominee.withLetter") : t("nominee.noLetter")}</p>}
+        </div>
+      </div>
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="ghost" size="sm" onClick={() => api.nominee.preview().then(setPreview).catch(() => {})}><Eye />{t("nominee.preview")}</Button>
+        {n.set_up && <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setRemoving(true)}>{t("nominee.remove")}</Button>}
+        <Button variant="outline" size="sm" onClick={() => setEditing(true)}>{n.set_up ? t("nominee.edit") : t("nominee.add")}</Button>
+      </div>
+      {editing && <NomineeDialog current={n} letter={data.letter} onClose={() => setEditing(false)} onSaved={(c) => { setEditing(false); load(); onCard(c); }} />}
+      <PasswordDialog open={removing} onOpenChange={setRemoving} destructive title={t("nominee.removeTitle")} description={t("nominee.removeDesc")}
+        confirmLabel={t("nominee.remove")} action={async (pw) => { await api.nominee.remove(pw); load(); }} />
+      {preview && <EstateView estate={preview} owner={user.name} letter={data.letter} preview onClose={() => setPreview(null)} />}
+    </div>
+  );
+}
+
+function NomineeDialog({ current, letter: currentLetter, onClose, onSaved }: { current: NomineeStatus; letter: string | null; onClose: () => void; onSaved: (c: HelperCard) => void }) {
+  const { t } = useTranslation();
+  const [name, setName] = useState(current.name ?? "");
+  const [wait, setWait] = useState(current.wait_days || 7);
+  const [letter, setLetter] = useState(currentLetter ?? "");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const save = async (e: FormEvent) => {
+    e.preventDefault(); setBusy(true); setError("");
+    try { onSaved(await api.nominee.set(password, name, wait, letter)); } catch (err) { setError(errorText(err)); } finally { setBusy(false); }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader><DialogTitle>{t("nominee.dialogTitle")}</DialogTitle><DialogDescription>{t("nominee.dialogDesc")}</DialogDescription></DialogHeader>
+        <form onSubmit={save} className="grid gap-4">
+          <div className="grid grid-cols-[1fr_9rem] gap-3">
+            <div className="grid gap-1.5"><Label htmlFor="nom-name">{t("nominee.name")}</Label><Input id="nom-name" autoFocus maxLength={60} value={name} onChange={(e) => setName(e.target.value)} required /></div>
+            <div className="grid gap-1.5"><Label htmlFor="nom-wait">{t("nominee.wait")}</Label>
+              <NativeSelect id="nom-wait" value={wait} onChange={(e) => setWait(Number(e.target.value))}>
+                {[3, 7, 14, 30].map((d) => <option key={d} value={d}>{t("nominee.days", { count: d })}</option>)}
+              </NativeSelect></div>
+          </div>
+          <p className="text-muted-foreground -mt-2 text-xs">{t("nominee.waitHint")}</p>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nom-letter">{t("nominee.letter")}</Label>
+            <textarea id="nom-letter" rows={5} maxLength={5000} value={letter} onChange={(e) => setLetter(e.target.value)} placeholder={t("nominee.letterPlaceholder")}
+              className="border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]" />
+            <p className="text-muted-foreground text-xs">{t("nominee.letterHint")}</p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nom-pw">{t("security.currentPassword")}</Label>
+            <Input id="nom-pw" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          </div>
+          {error && <p className="text-destructive text-sm">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>{t("common.cancel")}</Button>
+            <Button disabled={busy}>{busy && <Loader2 className="animate-spin" />}{t("nominee.save")}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -142,11 +228,11 @@ function CardsDialog({ cards, onDone }: { cards: HelperCard[] | null; onDone: ()
   return (
     <Dialog open onOpenChange={(o) => { if (!o && printed) onDone(); }}>
       <DialogContent className="sm:max-w-lg">
-        <DialogHeader><DialogTitle>{t("helpers.cardsTitle", { count: cards.length })}</DialogTitle><DialogDescription>{t("helpers.cardsDesc")}</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>{cards.every((c) => c.nominee) ? t("nominee.cardTitle") : t("helpers.cardsTitle", { count: cards.length })}</DialogTitle><DialogDescription>{t("helpers.cardsDesc")}</DialogDescription></DialogHeader>
         <ul className="grid gap-2">
           {cards.map((c) => (
             <li key={c.slot} className="rounded-lg border p-3">
-              <div className="text-sm font-medium">{t("helpers.cardFor", { holder: c.label })}</div>
+              <div className="text-sm font-medium">{c.nominee ? t("helpers.nomineeCardFor", { holder: c.label }) : t("helpers.cardFor", { holder: c.label })}</div>
               <code className="mt-1 block font-mono text-sm tracking-wider break-all">{c.code}</code>
             </li>
           ))}

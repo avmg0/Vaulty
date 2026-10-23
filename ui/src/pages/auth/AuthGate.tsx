@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { applySenior } from "@/lib/senior";
-import { ArrowLeft, Check, FileText, Fingerprint, KeyRound, Languages, Loader2, Plus, ShieldCheck, UserRound, UsersRound } from "lucide-react";
+import { ArrowLeft, Check, FileText, Fingerprint, KeyRound, Languages, Loader2, Plus, ScrollText, ShieldCheck, UserRound, UsersRound } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import { motion } from "motion/react";
 import { useMotion } from "@/lib/motion";
@@ -8,7 +8,8 @@ import { Shake } from "@/components/Shake";
 import { LANGUAGES } from "@/i18n";
 import { useLocale } from "@/hooks/locale";
 import { Logo } from "@/components/Logo";
-import { api, biometricLabel, errorText, type Helpers, type HelperSlot, type SignedInUser, type User } from "@/api";
+import { api, biometricLabel, errorText, type Helpers, type HelperSlot, type NomineeOpened, type NomineeStatus, type SignedInUser, type User } from "@/api";
+import { EstateView } from "@/components/EstateView";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CodeInput } from "@/components/CodeInput";
 import { ColorPicker, PROFILE_COLORS, UserAvatar } from "@/components/UserAvatar";
-import { cn } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { useAppInfo } from "@/hooks/appInfo";
 
 type Step =
@@ -25,7 +26,8 @@ type Step =
   | { kind: "claim"; user: User }
   | { kind: "totp"; user: User; backup: boolean }
   | { kind: "recover"; user: User }
-  | { kind: "helpers"; user: User };
+  | { kind: "helpers"; user: User }
+  | { kind: "nominee"; user: User };
 
 /** `fresh` is true when the profile was created just now, so it can inherit the device language. */
 export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: SignedInUser, fresh?: boolean) => void; lastUserId?: string }) {
@@ -57,7 +59,8 @@ export function AuthGate({ onSignedIn, lastUserId }: { onSignedIn: (u: SignedInU
           onForgot={() => setStep({ kind: "recover", user: step.user })} />
       )}
       {step.kind === "recover" && <RecoverStep user={step.user} onBack={() => setStep({ kind: "password", user: step.user })} onDone={onSignedIn}
-        onHelpers={() => setStep({ kind: "helpers", user: step.user })} />}
+        onHelpers={() => setStep({ kind: "helpers", user: step.user })} onNominee={() => setStep({ kind: "nominee", user: step.user })} />}
+      {step.kind === "nominee" && <NomineeStep user={step.user} onBack={() => setStep({ kind: "recover", user: step.user })} />}
       {step.kind === "helpers" && <HelpersStep user={step.user} onBack={() => { api.helpers.cancel().catch(() => {}); setStep({ kind: "recover", user: step.user }); }} onDone={onSignedIn} />}
       {step.kind === "claim" && <ClaimStep user={step.user} onBack={() => setStep({ kind: "pick" })} onDone={(u) => onSignedIn(u, true)} />}
       {step.kind === "totp" && (
@@ -338,10 +341,14 @@ function ClaimStep({ user, onBack, onDone }: { user: User; onBack: () => void; o
 }
 
 /** Forgot password: the recovery key unlocks the data and a new password is set. */
-function RecoverStep({ user, onBack, onDone, onHelpers }: { user: User; onBack: () => void; onDone: (u: SignedInUser) => void; onHelpers: () => void }) {
+function RecoverStep({ user, onBack, onDone, onHelpers, onNominee }: { user: User; onBack: () => void; onDone: (u: SignedInUser) => void; onHelpers: () => void; onNominee: () => void }) {
   const { t } = useTranslation();
   const [helpers, setHelpers] = useState<Helpers | null>(null);
-  useEffect(() => { api.helpers.forUser(user.id).then(setHelpers).catch(() => {}); }, [user.id]);
+  const [nominee, setNominee] = useState<NomineeStatus | null>(null);
+  useEffect(() => {
+    api.helpers.forUser(user.id).then(setHelpers).catch(() => {});
+    api.nominee.forUser(user.id).then(setNominee).catch(() => {});
+  }, [user.id]);
   const [key, setKey] = useState("");
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -374,10 +381,63 @@ function RecoverStep({ user, onBack, onDone, onHelpers }: { user: User; onBack: 
             {helpers?.set_up && helpers.usable >= 2 && (
               <Button type="button" variant="outline" className="w-full" onClick={onHelpers}><UsersRound />{t("helpers.signIn.cta")}</Button>
             )}
+            {nominee?.set_up && (
+              <button type="button" onClick={onNominee} className="text-muted-foreground hover:text-foreground w-full text-center text-sm underline-offset-4 hover:underline">
+                {t("nominee.signIn.cta", { name: user.name.split(" ")[0] })}
+              </button>
+            )}
           </form>
         </CardContent>
       </Card>
     </>
+  );
+}
+
+/** The member's helpers, each approving in turn (a family member's password, or a card's code). */
+function HelperApprovals({ user, helpers, approved, onApproved, done }: { user: User; helpers: Helpers | null; approved: number[]; onApproved: (slots: number[]) => void; done: boolean }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState<number | null>(null);
+  const [secret, setSecret] = useState("");
+  const approve = useSubmit();
+  const submit = (s: HelperSlot) => (e: FormEvent) => {
+    e.preventDefault();
+    approve.run(async () => {
+      onApproved(s.kind === "member" && s.helper_id ? await api.helpers.approveMember(user.id, s.helper_id, secret) : await api.helpers.approveCard(user.id, secret));
+      setOpen(null); setSecret("");
+    });
+  };
+  return (
+    <ul className="space-y-2">
+      {helpers?.slots.filter((s) => s.usable).map((s) => {
+        const ok = approved.includes(s.slot);
+        return (
+          <li key={s.slot} className="rounded-lg border">
+            <div className="flex items-center gap-3 p-3">
+              {s.kind === "card" ? <FileText className="text-muted-foreground size-4 shrink-0" aria-hidden /> : <UserRound className="text-muted-foreground size-4 shrink-0" aria-hidden />}
+              <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{s.name}</div>
+                <div className="text-muted-foreground text-xs">{s.kind === "card" ? t("helpers.kindCard") : t("helpers.kindMember")}</div></div>
+              {ok ? <span className="text-success flex items-center gap-1 text-sm font-medium"><Check className="size-4" aria-hidden />{t("helpers.signIn.approved")}</span>
+                : !done && open !== s.slot && <Button size="sm" variant="outline" onClick={() => { setOpen(s.slot); setSecret(""); approve.setError(""); }}>{t("helpers.signIn.approve")}</Button>}
+            </div>
+            {open === s.slot && !ok && (
+              <form onSubmit={submit(s)} className="space-y-2 border-t p-3">
+                <Label htmlFor={`help-${s.slot}`} className="text-xs">{s.kind === "card" ? t("helpers.signIn.cardCode", { holder: s.name }) : t("helpers.signIn.memberPassword", { name: s.name.split(" ")[0] })}</Label>
+                <Shake trigger={approve.fails}>
+                  {s.kind === "card"
+                    ? <Input id={`help-${s.slot}`} autoFocus autoComplete="off" spellCheck={false} placeholder="XXXXX-XXXXX-…" className="font-mono tracking-wider uppercase" value={secret} onChange={(e) => setSecret(e.target.value)} required />
+                    : <Input id={`help-${s.slot}`} autoFocus type="password" value={secret} onChange={(e) => setSecret(e.target.value)} required />}
+                </Shake>
+                {approve.error && <p className="text-destructive text-sm">{approve.error}</p>}
+                <div className="flex justify-end gap-2">
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(null)}>{t("common.cancel")}</Button>
+                  <Button size="sm" disabled={approve.busy}>{approve.busy && <Loader2 className="animate-spin" />}{t("helpers.signIn.approve")}</Button>
+                </div>
+              </form>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -386,23 +446,12 @@ function HelpersStep({ user, onBack, onDone }: { user: User; onBack: () => void;
   const { t } = useTranslation();
   const [helpers, setHelpers] = useState<Helpers | null>(null);
   const [approved, setApproved] = useState<number[]>([]);
-  const [open, setOpen] = useState<number | null>(null);
-  const [secret, setSecret] = useState("");
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
   const [code, setCode] = useState("");
-  const approve = useSubmit();
   const finish = useSubmit();
-  useEffect(() => { api.helpers.forUser(user.id).then(setHelpers).catch((e) => approve.setError(errorText(e))); }, [user.id]);
+  useEffect(() => { api.helpers.forUser(user.id).then(setHelpers).catch((e) => finish.setError(errorText(e))); }, [user.id]);
   const ready = approved.length >= 2;
-
-  const submitApproval = (s: HelperSlot) => (e: FormEvent) => {
-    e.preventDefault();
-    approve.run(async () => {
-      const slots = s.kind === "member" && s.helper_id ? await api.helpers.approveMember(user.id, s.helper_id, secret) : await api.helpers.approveCard(user.id, secret);
-      setApproved(slots); setOpen(null); setSecret("");
-    });
-  };
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (pw !== confirm) return finish.setError(t("auth.mismatch"));
@@ -419,38 +468,7 @@ function HelpersStep({ user, onBack, onDone }: { user: User; onBack: () => void;
           <CardDescription>{ready ? t("helpers.signIn.ready", { name: user.name.split(" ")[0] }) : t("helpers.signIn.desc", { count: approved.length })}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <ul className="space-y-2">
-            {helpers?.slots.filter((s) => s.usable).map((s) => {
-              const done = approved.includes(s.slot);
-              return (
-                <li key={s.slot} className="rounded-lg border">
-                  <div className="flex items-center gap-3 p-3">
-                    {s.kind === "card" ? <FileText className="text-muted-foreground size-4 shrink-0" aria-hidden /> : <UserRound className="text-muted-foreground size-4 shrink-0" aria-hidden />}
-                    <div className="min-w-0 flex-1"><div className="truncate text-sm font-medium">{s.name}</div>
-                      <div className="text-muted-foreground text-xs">{s.kind === "card" ? t("helpers.kindCard") : t("helpers.kindMember")}</div></div>
-                    {done ? <span className="text-success flex items-center gap-1 text-sm font-medium"><Check className="size-4" aria-hidden />{t("helpers.signIn.approved")}</span>
-                      : !ready && open !== s.slot && <Button size="sm" variant="outline" onClick={() => { setOpen(s.slot); setSecret(""); approve.setError(""); }}>{t("helpers.signIn.approve")}</Button>}
-                  </div>
-                  {open === s.slot && !done && (
-                    <form onSubmit={submitApproval(s)} className="space-y-2 border-t p-3">
-                      <Label htmlFor={`help-${s.slot}`} className="text-xs">{s.kind === "card" ? t("helpers.signIn.cardCode", { holder: s.name }) : t("helpers.signIn.memberPassword", { name: s.name.split(" ")[0] })}</Label>
-                      <Shake trigger={approve.fails}>
-                        {s.kind === "card"
-                          ? <Input id={`help-${s.slot}`} autoFocus autoComplete="off" spellCheck={false} placeholder="XXXXX-XXXXX-…" className="font-mono tracking-wider uppercase" value={secret} onChange={(e) => setSecret(e.target.value)} required />
-                          : <Input id={`help-${s.slot}`} autoFocus type="password" value={secret} onChange={(e) => setSecret(e.target.value)} required />}
-                      </Shake>
-                      {approve.error && <p className="text-destructive text-sm">{approve.error}</p>}
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" size="sm" variant="ghost" onClick={() => setOpen(null)}>{t("common.cancel")}</Button>
-                        <Button size="sm" disabled={approve.busy}>{approve.busy && <Loader2 className="animate-spin" />}{t("helpers.signIn.approve")}</Button>
-                      </div>
-                    </form>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {!ready && approve.error && open === null && <p className="text-destructive text-sm">{approve.error}</p>}
+          <HelperApprovals user={user} helpers={helpers} approved={approved} onApproved={setApproved} done={ready} />
           {ready && (
             <form onSubmit={submit} className="space-y-4 border-t pt-4">
               <NewPasswordFields pw={pw} setPw={setPw} confirm={confirm} setConfirm={setConfirm} />
@@ -465,6 +483,75 @@ function HelpersStep({ user, onBack, onDone }: { user: User; onBack: () => void;
               <Button className="w-full" disabled={finish.busy}>{finish.busy && <Loader2 className="animate-spin" />}{t("recovery.recover")}</Button>
             </form>
           )}
+          {!ready && finish.error && <p className="text-destructive text-sm">{finish.error}</p>}
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
+/** If something has happened to the member: their nominee's card, a wait, then one helper. */
+function NomineeStep({ user, onBack }: { user: User; onBack: () => void }) {
+  const { t } = useTranslation();
+  const [status, setStatus] = useState<NomineeStatus | null>(null);
+  const [helpers, setHelpers] = useState<Helpers | null>(null);
+  const [approved, setApproved] = useState<number[]>([]);
+  const [code, setCode] = useState("");
+  const [opened, setOpened] = useState<NomineeOpened | null>(null);
+  const go = useSubmit();
+  useEffect(() => {
+    api.nominee.forUser(user.id).then(setStatus).catch((e) => go.setError(errorText(e)));
+    api.helpers.forUser(user.id).then(setHelpers).catch(() => {});
+  }, [user.id]);
+  const first = user.name.split(" ")[0];
+  const req = status?.request;
+  const when = (secs: number) => formatDate(new Date(secs * 1000), { weekday: "long", day: "numeric", month: "long" });
+
+  if (opened) return <EstateView estate={opened.estate} owner={opened.owner_name} letter={opened.letter} onClose={() => { setOpened(null); onBack(); }} />;
+  const codeField = (
+    <div className="space-y-2">
+      <Label htmlFor="nom-code">{t("nominee.signIn.code")}</Label>
+      <Shake trigger={go.fails}>
+        <Input id="nom-code" autoFocus autoComplete="off" spellCheck={false} placeholder="XXXXX-XXXXX-…" className="font-mono tracking-wider uppercase" value={code} onChange={(e) => setCode(e.target.value)} required />
+      </Shake>
+    </div>
+  );
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="text-muted-foreground mb-2 -ml-2" onClick={() => { api.helpers.cancel().catch(() => {}); onBack(); }}><ArrowLeft />{t("common.back")}</Button>
+      <Card>
+        <CardHeader className="items-center text-center">
+          <div className="bg-secondary mb-2 grid size-11 place-items-center rounded-xl"><ScrollText className="size-5" /></div>
+          <CardTitle className="text-xl"><h1>{t("nominee.signIn.title", { name: first })}</h1></CardTitle>
+          <CardDescription>
+            {!req ? t("nominee.signIn.start", { name: first, count: status?.wait_days ?? 7 })
+              : !req.ready ? t("nominee.signIn.waiting", { name: first, date: when(req.ready_at) })
+              : t("nominee.signIn.ready", { name: first })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!req && (
+            <form onSubmit={(e) => { e.preventDefault(); go.run(async () => { setStatus(await api.nominee.start(user.id, code)); }); }} className="space-y-4">
+              {codeField}
+              {go.error && <p className="text-destructive text-sm">{go.error}</p>}
+              <Button className="w-full" disabled={go.busy}>{go.busy && <Loader2 className="animate-spin" />}{t("nominee.signIn.startButton")}</Button>
+            </form>
+          )}
+          {req && !req.ready && <p className="text-muted-foreground text-sm">{t("nominee.signIn.comeBack", { name: first })}</p>}
+          {req?.ready && (
+            <>
+              <p className="text-sm">{approved.length ? t("nominee.signIn.helperDone") : t("nominee.signIn.askHelper", { name: first })}</p>
+              <HelperApprovals user={user} helpers={helpers} approved={approved} onApproved={setApproved} done={approved.length > 0} />
+              {approved.length > 0 && (
+                <form onSubmit={(e) => { e.preventDefault(); go.run(async () => { setOpened(await api.nominee.open(user.id, code)); }); }} className="space-y-4 border-t pt-4">
+                  {codeField}
+                  {go.error && <p className="text-destructive text-sm">{go.error}</p>}
+                  <Button className="w-full" disabled={go.busy}>{go.busy && <Loader2 className="animate-spin" />}{t("nominee.signIn.open", { name: first })}</Button>
+                </form>
+              )}
+            </>
+          )}
+          <p className="text-muted-foreground text-center text-xs">{t("nominee.signIn.readOnly")}</p>
         </CardContent>
       </Card>
     </>

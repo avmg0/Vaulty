@@ -55,6 +55,13 @@ pub fn split(secret: &[u8], k: u8, n: u8) -> Result<Vec<Share>> {
     Ok(shares)
 }
 
+/// The share at `x` of the line through `secret` with the given slope (2-of-n sharing). The same
+/// secret and slope always give the same share, so a share can be issued again later.
+pub fn share_at(secret: &[u8], slope: &[u8], x: u8) -> Result<Share> {
+    if x == 0 || secret.len() != slope.len() { return Err(Error::Invalid("those shares don't fit together".into())); }
+    Ok(Share { x, bytes: Zeroizing::new(secret.iter().zip(slope).map(|(&c0, &c1)| c0 ^ mul(c1, x)).collect()) })
+}
+
 /// Rebuilds the secret from at least `k` distinct shares (extra ones are fine if they agree;
 /// the caller checks the result, e.g. by unwrapping a key with it).
 pub fn combine(shares: &[Share]) -> Result<Zeroizing<Vec<u8>>> {
@@ -100,6 +107,14 @@ mod tests {
         let mut wrong = s[1].clone();
         wrong.bytes[0] ^= 1;
         assert_ne!(&combine(&[s[0].clone(), wrong]).unwrap()[..], secret);
+    }
+
+    #[test]
+    fn shares_on_a_known_line() {
+        let (secret, slope) = (b"0123456789abcdef", b"fedcba9876543210");
+        let shares: Vec<Share> = (1..=4).map(|x| share_at(secret, slope, x).unwrap()).collect();
+        assert_eq!(&combine(&[shares[3].clone(), shares[1].clone()]).unwrap()[..], secret, "a fourth share fits the same line");
+        assert_eq!(share_at(secret, slope, 4).unwrap().bytes, shares[3].bytes, "issued again, the same");
     }
 
     #[test]

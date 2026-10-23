@@ -21,7 +21,9 @@ use std::path::Path;
 use totp_rs::{Builder, Secret, Totp};
 
 mod helpers;
+mod nominee;
 pub use helpers::{HelperCard, HelperChoice, HelperNotice, HelperShare, HelperSlot, Helpers};
+pub use nominee::{NomineeRequest, NomineeStatus, NomineeView};
 
 pub const MIN_PASSWORD_LEN: usize = 8;
 const MAX_FREE_ATTEMPTS: i64 = 5;
@@ -366,6 +368,8 @@ impl Registry {
         // their old key pair, so those can't be used any more (the owner is told to update them).
         self.conn.execute("DELETE FROM helper_shares WHERE user_id = ?", [user_id])?;
         self.conn.execute("DELETE FROM helper_sets WHERE user_id = ?", [user_id])?;
+        self.conn.execute("DELETE FROM nominee_requests WHERE user_id = ?", [user_id])?;
+        self.conn.execute("DELETE FROM nominees WHERE user_id = ?", [user_id])?;
         self.conn.execute("UPDATE helper_shares SET sealed = NULL WHERE helper_id = ?", [user_id])?;
         self.issue_fresh_keys(user_id, &code, role, admin)?;
         self.clear_sign_in(user_id, &code)?;

@@ -51,6 +51,20 @@ That is the point of the feature, so members should choose people they'd trust w
 steals two printed cards and the device has the same power, which is why the cards say to keep them
 private and to give the code only to the member in person.
 
+**Nominee (optional, needs helpers).** A member can name a nominee, who gets a printed card: a
+fourth point on the helpers' line, so the card plus any one helper rebuild the key. The card first
+starts a waiting period (3–30 days); if the member signs in meanwhile they're told and can cancel.
+After the wait, the card and one helper open a read-only summary (accounts, cards by last four
+digits, investments, loans, money with people, regular payments) and the member's letter. The
+summary is read once and returned; no session stays open and nothing can be changed. The member's
+2FA isn't asked for, as their phone may no longer be available.
+
+*Not covered:* the waiting period uses the computer's clock and only helps if the member opens
+Vaulty during it; someone who controls the clock can shorten it. The real safeguard is that the
+card needs a helper too. To issue the nominee card later, the helpers' secret and its line are kept
+sealed under the member's own data key, so only someone who can already open the member's data can
+read them.
+
 *Not covered:* the registry is readable, so an attacker learns names, roles and that profiles exist,
 and can attack an Argon2 hash offline (as with any password system). Weak passwords remain the
 weakest point; the minimum is 8 characters.

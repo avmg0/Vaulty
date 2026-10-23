@@ -297,7 +297,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Subscription detector (weekly, monthly, quarterly, yearly charges not yet tracked; track or dismiss) and price-rise alerts (detected subscriptions and recurring payments, 3%+; shown on the item and as a reminder)
 - [x] To-do linked to bills, transactions, people and events (ticks itself off when the bill is paid; due dates on the calendar and as reminders)
 - [x] Family helpers: any 2 of 3 helpers (adult members on the device, who approve with their own password, or printed helper cards) restore full access; 2FA stays on; helpers are told afterwards; Shamir 2-of-3 over a 128-bit secret
-- [ ] Nominee access: a printed nominee card plus one helper, after a 7-day wait the member can cancel by signing in; read-only, with the "In case of emergency" estate summary and an optional letter
+- [x] Nominee access: a printed nominee card plus one helper, after a waiting period (3–30 days) the member can cancel by signing in; read-only "In case of emergency" summary (accounts, cards, investments, loans, people, regular payments) and an optional letter; printable; the member can preview it
 - [x] Report exports: Excel workbook (summary, by month, 90-day forecast; labels in the member's language) and print or save as PDF through the system print dialog
 - **Done when:** no bill or card payment is missed.
 
@@ -343,7 +343,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick add and CAS import are the suggested next builds (small, visible, useful every day).
 
 ### Top picks
-- ⭐ **Family "In case of emergency" file** (Phase 3)
+- ⭐ **Family "In case of emergency" file** (Phase 3) — first version done with nominee access; documents and contacts to follow
   - Every bank account, policy, nominee and loan in one place, plus where the documents are kept and who to call.
   - A spouse or adult child opens it with their own login; it can also be printed as a PDF.
 - ⭐ **Private on-device assistant** (Phase 4)
