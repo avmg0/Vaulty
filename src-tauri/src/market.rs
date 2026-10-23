@@ -59,3 +59,14 @@ pub async fn fetch(job: Job) -> Result<(Vec<market::Quote>, Vec<Value>)> {
     }
     Ok((quotes, problems))
 }
+
+/// AMFI's list of every mutual fund's latest NAV, as text (only when fund prices are turned on).
+pub async fn fetch_amfi() -> Result<String> {
+    let resp = client()?.get(vaulty_core::investments::AMFI_URL).send().await
+        .map_err(|e| if e.is_timeout() || e.is_connect() { Error::Invalid("the fund price list couldn't be reached; check the internet connection".into()) } else { Error::Invalid("the fund price list couldn't be fetched".into()) })?;
+    if !resp.status().is_success() { return Err(Error::Invalid("the fund price list couldn't be fetched".into())); }
+    if resp.content_length().is_some_and(|n| n as usize > vaulty_core::investments::AMFI_MAX) { return Err(Error::Invalid("the fund price list couldn't be read".into())); }
+    let bytes = resp.bytes().await.map_err(|_| Error::Invalid("the fund price list couldn't be fetched".into()))?;
+    if bytes.len() > vaulty_core::investments::AMFI_MAX { return Err(Error::Invalid("the fund price list couldn't be read".into())); }
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
+}

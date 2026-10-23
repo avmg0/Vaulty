@@ -68,6 +68,10 @@
   "re": "^those helpers' shares don't open this profile; the set may have changed$"
  },
  {
+  "id": "e55f4f3c4",
+  "re": "^the fund price list couldn't be reached; check the internet connection$"
+ },
+ {
   "id": "e6a5f6636",
   "re": "^that's one of the most common passwords; choose something less obvious$"
  },
@@ -508,6 +512,10 @@
   "re": "^multiple SQL statements are not allowed$"
  },
  {
+  "id": "efff66e30",
+  "re": "^the fund price list couldn't be fetched$"
+ },
+ {
   "id": "e0e041110",
   "re": "^the project can't end before it starts$"
  },
@@ -570,6 +578,10 @@
  {
   "id": "e74a5c73f",
   "re": "^an entry needs at least two postings$"
+ },
+ {
+  "id": "ea33f9460",
+  "re": "^the fund price list couldn't be read$"
  },
  {
   "id": "eebc4b887",
@@ -1070,6 +1082,10 @@
  {
   "id": "e6580b75c",
   "re": "^amounts can't be negative$"
+ },
+ {
+  "id": "e728be2ac",
+  "re": "^fund prices are on or off$"
  },
  {
   "id": "e7770ca2a",

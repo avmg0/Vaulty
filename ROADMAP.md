@@ -301,7 +301,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Report exports: Excel workbook (summary, by month, 90-day forecast; labels in the member's language) and print or save as PDF through the system print dialog
 - **Done when:** no bill or card payment is missed.
 
-### Phase 4: Mobile and sync (v0.8)
+### Phase 4: Mobile and sync (v0.8) (moved later, by choice: after Phases 5 and 6)
 - [ ] iOS and Android builds; mobile layout with a bottom tab bar
 - [ ] Pairing and same-Wi-Fi sync, in the build order of decision 4
 - [ ] Quick-add widget; biometric unlock on the phone
@@ -310,7 +310,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 
 ### Phase 5: Wealth and tax (v1.0)
 - [x] Investments: holdings, transactions, XIRR, allocation; CAMS/KFintech CAS import
-- [ ] Daily fund prices (AMFI NAVs), opt-in
+- [x] Daily fund prices (AMFI NAVs), opt-in
 - [ ] Goals and calculators; insurance; net-worth timeline
 - [ ] Nominee tracking on each account, policy and investment; journal (documents vault and the emergency summary are done, Phase 3)
 - [ ] Tax planner filled from transactions; TDS and advance tax; HRA rent receipts; Form 16 import
@@ -428,7 +428,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - [x] Warranties from items become documents with expiry reminders; home improvement costs noted for capital gains
 
 ### Investments and prices
-- [ ] Mutual fund NAVs from AMFI's free daily file: daily values for Indian funds with no account or API key (Phase 3, top pick).
+- [x] Mutual fund NAVs from AMFI's free daily file: daily values for Indian funds with no account or API key (Phase 3, top pick).
 - [ ] Live value of holdings from ticker prices, returns by XIRR, and price alerts checked only while the ticker is on (Phase 3).
 - [ ] Exchange rates from free reference rates (e.g. the European Central Bank) to show total net worth in one currency (Phase 3).
 

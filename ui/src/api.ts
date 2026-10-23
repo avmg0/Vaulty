@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -150,8 +150,9 @@ export type TaxComparison = {
 export type MarketItem = { symbol: string; label: string };
 export type MarketPrefs = {
   enabled: boolean; show: { regional: boolean; crypto: boolean; watchlist: boolean }; region: string; crypto: string[];
-  crypto_currency: string; watchlist: MarketItem[]; stock_provider: "none" | "twelvedata"; refresh_minutes: number; speed: "slow" | "normal" | "fast";
+  crypto_currency: string; watchlist: MarketItem[]; stock_provider: "none" | "twelvedata"; refresh_minutes: number; speed: "slow" | "normal" | "fast"; fund_prices: boolean;
 };
+export type FundPriceStatus = { on: boolean; last: { fetched_on: string; as_of: string | null; updated: number } | null };
 export type MarketView = {
   prefs: MarketPrefs; has_stock_key: boolean; has_crypto_key: boolean; regional: MarketItem[]; regional_countries: string[]; known_crypto: MarketItem[];
 };
@@ -531,6 +532,8 @@ export const api = {
     update: (id: string, holding: HoldingInput) => invoke<Holding>("investments_update", { id, holding }),
     setPrice: (id: string, price: string) => invoke<Holding>("investments_set_price", { id, price }),
     delete: (id: string) => invoke<void>("investments_delete", { id }),
+    fundPricesStatus: () => invoke<FundPriceStatus>("fund_prices_status"),
+    fundPricesUpdate: (now: boolean) => invoke<{ skipped?: boolean; updated?: number; found?: number; as_of?: string | null }>("fund_prices_update", { now }),
     previewStatement: (path: string, password: string) => invoke<CasPreview>("cas_preview", { path, password: password || null }),
     importStatement: (path: string, password: string) => invoke<{ added: number; updated: number; transactions: number }>("cas_import", { path, password: password || null }),
   },

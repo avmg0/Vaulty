@@ -391,7 +391,8 @@
         "update": "Changed an investment",
         "price": "Updated a price",
         "delete": "Deleted an investment",
-        "statement": "Read a fund statement"
+        "statement": "Read a fund statement",
+        "prices": "Updated fund prices"
       },
       "project": {
         "create": "Created a project",
@@ -1366,6 +1367,7 @@
     "e77a63b22": "a low-balance reminder is for bank and cash accounts, not cards or loans",
     "eda25be6f": "no bill lines were found in this PDF (a scanned PDF has no text to read)",
     "eb3da7915": "those helpers' shares don't open this profile; the set may have changed",
+    "e55f4f3c4": "the fund price list couldn't be reached; check the internet connection",
     "e6a5f6636": "that's one of the most common passwords; choose something less obvious",
     "ea7741394": "a nominee card code has 37 letters and numbers; check it and try again",
     "e4db8238a": "a helper card code has 37 letters and numbers; check it and try again",
@@ -1476,6 +1478,7 @@
     "eca34fa26": "children are helped back in by a parent",
     "ee8270e4f": "show has regional, crypto and watchlist",
     "efe023450": "multiple SQL statements are not allowed",
+    "efff66e30": "the fund price list couldn't be fetched",
     "e0e041110": "the project can't end before it starts",
     "e541ff9dc": "logo must be a PNG, JPEG or WebP image",
     "e599a2669": "only expenses can be split with people",
@@ -1492,6 +1495,7 @@
     "edf7ff440": "no regional list for that country yet",
     "e0b03ee53": "two columns can't have the same name",
     "e74a5c73f": "an entry needs at least two postings",
+    "ea33f9460": "the fund price list couldn't be read",
     "eebc4b887": "the amount must be greater than zero",
     "ef050fca1": "it can't expire before it was issued",
     "efdd36dff": "that key can't be used in a shortcut",
@@ -1617,6 +1621,7 @@
     "e53f2dd48": "snapshot is not encrypted",
     "e5486d303": "a file can be up to 25 MB",
     "e6580b75c": "amounts can't be negative",
+    "e728be2ac": "fund prices are on or off",
     "e7770ca2a": "no such recurring payment",
     "e98d071e2": "keep it to one short line",
     "e9ac956ed": "needs at least one source",
@@ -2504,7 +2509,18 @@
       "stt": "STT",
       "tds": "TDS",
       "other": "Other"
-    }
+    },
+    "prices": "Fund prices",
+    "fundPricesTitle": "Mutual fund prices",
+    "fundPricesDesc": "Keeps the value of your funds current between statements.",
+    "fundPrices": "Update fund prices daily from AMFI",
+    "fundPricesHelp": "Once a day, Vaulty downloads AMFI's public list of every fund's latest NAV and updates the funds you hold. Nothing about you or your funds is sent; no account or key is needed.",
+    "pricesAsOf": "Prices of {{date}}, fetched {{fetched}}",
+    "pricesNotYet": "Not fetched yet.",
+    "updateNow": "Update now",
+    "noFundsToPrice": "There are no funds with an ISIN to price yet.",
+    "pricesUpdated_one": "{{count}} fund updated to the prices of {{date}}.",
+    "pricesUpdated_other": "{{count}} funds updated to the prices of {{date}}."
   },
   "projects": {
     "accountName": "Name on account",

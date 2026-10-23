@@ -88,3 +88,33 @@ fn xirr_matches_a_known_answer() {
     assert!(inv::xirr(&[(d("2025-01-01"), -100.0)]).is_none());
     assert!(inv::xirr(&[(d("2025-01-01"), -100.0), (d("2025-01-05"), 101.0)]).is_none(), "too short to say");
 }
+
+#[test]
+fn daily_fund_prices_from_amfi() {
+    let c = db::open_in_memory().unwrap();
+    vaulty_core::settings::update(&c, &json!({ "currency": "INR" })).unwrap();
+    let today = d("2026-10-23");
+    inv::import_cas(&c, &statement()).unwrap();
+    let amfi = "Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date\r\n\
+        \r\n\
+        Open Ended Schemes(Equity Scheme - Flexi Cap Fund)\r\n\
+        \r\n\
+        HDFC Mutual Fund\r\n\
+        118955;INF179K01UT0;-;HDFC Flexi Cap Fund - Growth Option - Direct Plan;2101.2345;22-Oct-2026\r\n\
+        119000;INF846K01EW2;-;Axis ELSS Tax Saver Fund - Direct Growth;98.1000;20-Oct-2026\r\n\
+        120000;INF000000000;-;Something else;N.A.;22-Oct-2026\r\n";
+    assert_eq!(inv::parse_amfi(amfi).len(), 2);
+    assert!(!inv::fund_prices_due(&c, today).unwrap(), "off until turned on");
+    vaulty_core::market::update_prefs(&c, &json!({ "fund_prices": true })).unwrap();
+    assert!(inv::fund_prices_due(&c, today).unwrap());
+    assert!(inv::has_funds(&c).unwrap());
+    let r = inv::apply_fund_prices(&c, amfi, today).unwrap();
+    // The Axis price is older than the statement's 21 Oct NAV, so it's left alone.
+    assert_eq!((r["updated"].as_u64(), r["found"].as_u64(), r["as_of"].as_str()), (Some(1), Some(2), Some("2026-10-22")));
+    let flexi = inv::list(&c, today).unwrap().into_iter().find(|h| h["isin"] == "INF179K01UT0").unwrap();
+    assert_eq!((flexi["price"].as_f64(), flexi["price_date"].as_str()), (Some(2101.2345), Some("2026-10-22")));
+    assert!(!inv::fund_prices_due(&c, today).unwrap(), "once a day");
+    assert!(inv::fund_prices_due(&c, d("2026-10-24")).unwrap());
+    assert!(inv::apply_fund_prices(&c, "<html>blocked</html>", today).is_err());
+    assert_eq!(inv::fund_prices_status(&c).unwrap()["last"]["updated"], 1);
+}

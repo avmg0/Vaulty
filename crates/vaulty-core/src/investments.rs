@@ -344,3 +344,66 @@ pub fn import_cas(conn: &Connection, cas: &Cas) -> Result<Value> {
     }
     Ok(json!({ "added": added, "updated": updated, "transactions": txns }))
 }
+
+// ---- Daily fund prices (AMFI) ----
+
+/// Where AMFI publishes every mutual fund's latest NAV, once each business day.
+pub const AMFI_URL: &str = "https://www.amfiindia.com/spages/NAVAll.txt";
+/// The list is a few megabytes; anything much larger isn't it.
+pub const AMFI_MAX: usize = 20 * 1024 * 1024;
+
+/// NAV (×10,000) and its date per ISIN, from AMFI's list: lines of
+/// `Scheme Code;ISIN growth/payout;ISIN reinvestment;Scheme Name;Net Asset Value;Date`.
+pub fn parse_amfi(text: &str) -> HashMap<String, (i64, NaiveDate)> {
+    let mut out = HashMap::new();
+    for line in text.lines() {
+        let f: Vec<&str> = line.split(';').map(str::trim).collect();
+        if f.len() < 6 { continue; }
+        let (Some(nav), Ok(date)) = (crate::cas::scaled(f[4], 4).filter(|n| *n > 0), NaiveDate::parse_from_str(f[5], "%d-%b-%Y")) else { continue };
+        for isin in [f[1], f[2]] {
+            if isin.len() == 12 && isin.chars().all(|c| c.is_ascii_alphanumeric()) { out.insert(isin.to_string(), (nav, date)); }
+        }
+    }
+    out
+}
+
+/// Whether today's fetch is still to do (fund prices on, and not fetched yet today).
+pub fn fund_prices_due(conn: &Connection, today: NaiveDate) -> Result<bool> {
+    if !crate::market::prefs(conn)?.fund_prices { return Ok(false); }
+    let last: Option<String> = conn.query_row("SELECT fetched_on FROM fund_price_fetch WHERE id = 'default'", [], |r| r.get(0)).optional()?;
+    Ok(last.as_deref() != Some(today.to_string().as_str()))
+}
+
+/// Whether there are funds to price at all (no point fetching otherwise).
+pub fn has_funds(conn: &Connection) -> Result<bool> {
+    Ok(conn.query_row("SELECT EXISTS(SELECT 1 FROM holdings WHERE isin IS NOT NULL AND units_e4 > 0)", [], |r| r.get(0))?)
+}
+
+/// Sets the latest NAV on every holding whose ISIN is in AMFI's list (only when it's newer than
+/// the price already there), and notes the fetch.
+pub fn apply_fund_prices(conn: &Connection, text: &str, today: NaiveDate) -> Result<Value> {
+    let prices = parse_amfi(text);
+    if prices.is_empty() { return Err(Error::Invalid("the fund price list couldn't be read".into())); }
+    let rows: Vec<(String, String, Option<String>)> = conn.prepare("SELECT id, isin, price_date FROM holdings WHERE isin IS NOT NULL")?
+        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?.collect::<rusqlite::Result<_>>()?;
+    let (mut updated, mut found) = (0, 0);
+    for (id, isin, had) in rows {
+        let Some((nav, date)) = prices.get(&isin) else { continue };
+        found += 1;
+        if had.as_deref().is_some_and(|h| h > date.to_string().as_str()) { continue; }
+        updated += conn.execute("UPDATE holdings SET price_e4 = ?, price_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND (price_e4 <> ? OR price_date IS NOT ?)",
+            params![nav, date.to_string(), id, nav, date.to_string()])?;
+    }
+    let as_of = prices.values().map(|p| p.1).max().map(|d| d.to_string());
+    conn.execute("INSERT INTO fund_price_fetch (id, fetched_on, as_of, updated) VALUES ('default', ?, ?, ?)
+                  ON CONFLICT(id) DO UPDATE SET fetched_on = excluded.fetched_on, as_of = excluded.as_of, updated = excluded.updated",
+        params![today.to_string(), as_of, updated as i64])?;
+    Ok(json!({ "updated": updated, "found": found, "as_of": as_of }))
+}
+
+/// The last fetch, for Settings and the Investments page.
+pub fn fund_prices_status(conn: &Connection) -> Result<Value> {
+    let on = crate::market::prefs(conn)?.fund_prices;
+    let last = query_one(conn, "SELECT fetched_on, as_of, updated FROM fund_price_fetch WHERE id = 'default'", &[])?;
+    Ok(json!({ "on": on, "last": last }))
+}

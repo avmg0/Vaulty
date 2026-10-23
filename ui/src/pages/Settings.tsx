@@ -8,6 +8,7 @@ import { currencyFor, useDisplayNames, useLocale, type DisplayPrefs } from "@/ho
 import { MONTH_IDS, resolveFiscalStart, resolveWeekStart } from "@/lib/formats";
 import { CurrencyPicker } from "@/components/CurrencyPicker";
 import { MarketCard } from "@/components/MarketCard";
+import { FundPricesCard } from "@/components/FundPricesCard";
 import { SnapshotsCard } from "@/components/SnapshotsCard";
 import { BackupsCard } from "@/components/BackupsCard";
 import { UpdatesCard } from "@/components/Updates";
@@ -62,7 +63,7 @@ const PANELS: Record<SettingsTab, () => ReactNode> = {
   family: () => <FamilySharingCard />,
   shortcuts: () => <HotkeysCard />,
   computer: () => <><DeviceCard /><UpdatesCard /></>,
-  market: () => <MarketCard />,
+  market: () => <><FundPricesCard /><MarketCard /></>,
 };
 
 /** Settings in sections: a list of tabs down the side (across the top on narrow windows). */

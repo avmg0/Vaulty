@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { AlertTriangle, FileUp, Loader2, Plus, TrendingUp, Trash2 } from "lucide-react";
+import { AlertTriangle, FileUp, Loader2, Plus, RefreshCw, TrendingUp, Trash2 } from "lucide-react";
+import { FundPricesCard } from "@/components/FundPricesCard";
 import { useTranslation } from "react-i18next";
 import { api, DATA_RESTORED, errorText, HOLDING_KINDS, type CasPreview, type Holding, type HoldingInput, type HoldingKind, type HoldingTxn, type InvestmentTotal } from "@/api";
 import { Segmented } from "@/components/Segmented";
@@ -48,6 +49,9 @@ export function InvestmentsPage() {
     api.investments.list().then(setHoldings).catch((e) => setError(errorText(e)));
     api.investments.summary().then(setTotals).catch(() => {});
   }, [version]);
+  // Today's fund prices, once a day, when turned on (quietly: a failure just leaves the old ones).
+  useEffect(() => { api.investments.fundPricesUpdate(false).then((r) => { if (r.updated) reload(); }).catch(() => {}); }, []);
+  const [pricesOpen, setPricesOpen] = useState(false);
 
   const held = (holdings ?? []).filter((h) => !h.closed);
   const sold = (holdings ?? []).filter((h) => h.closed);
@@ -108,10 +112,13 @@ export function InvestmentsPage() {
             <Segmented label={t("investments.showLabel")} value={show} onChange={setShow}
               options={[{ value: "held", label: t("investments.held", { count: held.length }) }, { value: "sold", label: t("investments.sold", { count: sold.length }) }]} />
             <div className="ms-auto flex flex-wrap gap-2">
+              <Button variant="outline" onClick={() => setPricesOpen((o) => !o)} aria-expanded={pricesOpen}><RefreshCw />{t("investments.prices")}</Button>
               <Button variant="outline" onClick={() => setImporting(true)}><FileUp />{t("investments.readStatement")}</Button>
               <Button onClick={() => setEditing("new")}><Plus />{t("investments.add")}</Button>
             </div>
           </div>
+
+          {pricesOpen && <Card><CardContent className="py-1"><FundPricesCard compact onUpdated={reload} /></CardContent></Card>}
 
           <Card className="py-0">
             <div className="overflow-x-auto">

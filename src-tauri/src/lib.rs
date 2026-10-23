@@ -1559,6 +1559,18 @@ async fn market_refresh(s: S<'_>) -> Result<Value> {
     Ok(json!({ "quotes": ticker, "problems": problems }))
 }
 
+/// Fund prices from AMFI: fetched once a day when turned on (or now, with `now`), and set on
+/// every fund held. Returns what changed, or `skipped` when there was nothing to do.
+#[tauri::command]
+async fn fund_prices_update(s: S<'_>, now: bool) -> Result<Value> {
+    let go = s.data(|c| Ok(vaulty_core::investments::has_funds(c)? && (now || vaulty_core::investments::fund_prices_due(c, today())?)))?;
+    if !go { return Ok(json!({ "skipped": true })); }
+    let text = market::fetch_amfi().await?;
+    s.act("investment.prices", |c| vaulty_core::investments::apply_fund_prices(c, &text, today()))
+}
+#[tauri::command]
+fn fund_prices_status(s: S) -> Result<Value> { s.data(vaulty_core::investments::fund_prices_status) }
+
 // ============================================================ history, undo and trash
 
 #[tauri::command] fn history_recent(s: S, limit: Option<i64>) -> Result<Vec<Value>> { s.data(|c| vaulty_core::history::recent(c, limit.unwrap_or(100))) }
@@ -1868,7 +1880,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, transactions_bulk, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
         ])
         .build(tauri::generate_context!())
         .expect("error while running Vaulty")

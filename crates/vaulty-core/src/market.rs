@@ -69,6 +69,9 @@ pub struct Prefs {
     pub stock_provider: String,
     pub refresh_minutes: u32,
     pub speed: String,
+    /// Update mutual fund prices once a day from AMFI's free list (needs no account or key).
+    #[serde(default)]
+    pub fund_prices: bool,
 }
 
 impl Prefs {
@@ -83,6 +86,7 @@ impl Prefs {
             stock_provider: "none".into(),
             refresh_minutes: 15,
             speed: "normal".into(),
+            fund_prices: false,
         }
     }
 }
@@ -106,6 +110,7 @@ pub fn merge(current: &Prefs, patch: &Value) -> Result<Prefs> {
     for (k, v) in obj {
         match k.as_str() {
             "enabled" => p.enabled = v.as_bool().ok_or_else(|| bad("enabled must be true or false"))?,
+            "fund_prices" => p.fund_prices = v.as_bool().ok_or_else(|| bad("fund prices are on or off"))?,
             "show" => {
                 let o = v.as_object().ok_or_else(|| bad("show must be an object"))?;
                 for (sk, sv) in o {
