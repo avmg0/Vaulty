@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$", "^insurance_(create|update|delete|pay|payment_delete|claim_(add|update|delete))$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -153,6 +153,20 @@ export type TaxPlan = {
   used: string; total: number; tds: number; paid: number; balance: number; advance_note: string | null;
   advance: { date: string; percent: number; needed: number; paid: number; short: number; past: boolean }[];
 };
+export const POLICY_KINDS = ["term_life", "life", "health", "motor", "home", "travel", "accident", "other"] as const;
+export type PolicyKind = (typeof POLICY_KINDS)[number];
+export const PREMIUM_FREQUENCIES = ["monthly", "quarterly", "half_yearly", "yearly", "single"] as const;
+export const CLAIM_STATUSES = ["filed", "in_progress", "settled", "partly_settled", "rejected"] as const;
+export type PolicyClaim = { id: string; policy_id: string; date: string; what: string; claimed: number; settled: number | null; status: (typeof CLAIM_STATUSES)[number]; settled_on: string | null; reference: string | null; notes: string | null };
+export type Policy = {
+  id: string; kind: PolicyKind; name: string; insurer: string | null; policy_no: string | null; holder: string | null; covers: string | null; for_parents: boolean;
+  currency: string; cover: number | null; premium: number; premium_yearly: number; frequency: (typeof PREMIUM_FREQUENCIES)[number]; next_due: string | null;
+  start_date: string | null; end_date: string | null; nominee: string | null; contact: string | null; document_id: string | null; document_title: string | null;
+  status: "active" | "lapsed" | "ended"; notes: string | null; days_to_due: number | null; due: "soon" | "late" | "lapsing" | "none"; paid_this_year: number; open_claims: number;
+  payments: { id: string; date: string; amount: number; entry_id: string | null }[]; claims: PolicyClaim[];
+};
+export type PolicyInput = Partial<Omit<Policy, "cover" | "premium" | "payments" | "claims">> & { cover?: string; premium?: string };
+export type InsuranceTotal = { currency: string; life_cover: number; health_cover: number; premiums_yearly: number; income_year: number; life_multiple: number | null };
 export type GoalStatus = "done" | "reached" | "on_track" | "behind" | "overdue" | "no_date";
 export type GoalLink = { account_id: string | null; holding_id: string | null; share: number; name: string; value: number; over: boolean };
 export type Goal = {
@@ -283,7 +297,7 @@ export type UserSettings = { locale: string; currency: string; date_format: stri
 /** A keyboard shortcut: `keys` like "Mod+Shift+K" ("" = off). */
 export type Hotkey = { action: string; keys: string; default: string; custom: boolean };
 
-export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday" | "task" | "expiry" | "tax";
+export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday" | "task" | "expiry" | "tax" | "premium";
 /** One thing on the calendar. `pay_by` is set when banks are closed on the due date. */
 export type CalendarItem = { kind: CalendarKind; date: string; title: string; time?: string; amount?: number; currency?: string; icon?: string; source_id?: string; overdue: boolean; pay_by?: string };
 export type CalendarEventInput = { title: string; date: string; time: string; type: "custom" | "reminder" | "holiday"; repeat: "none" | "monthly" | "yearly"; amount: string; icon: string; notes: string };
@@ -291,7 +305,7 @@ export type CalendarEvent = { id: string; title: string; date: string; time: str
 export type IcsEvent = { uid: string | null; title: string; date: string; time: string | null; repeat: string | null; notes: string | null };
 
 /** A reminder due now (see crates/vaulty-core/src/reminders.rs). `days` < 0 means overdue. */
-export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low" | "expiry" | "tax"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
+export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low" | "expiry" | "tax" | "premium"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
 /** An account below its low-balance level, or a scheduled payment in the next 14 days that would take it there. */
 export type LowBalance = { account_id: string; name: string; currency: string; balance: number; level: number; now: boolean; date: string; because: string | null; lowest: number };
 
@@ -560,6 +574,18 @@ export const api = {
     update: (id: string, goal: GoalInput) => invoke<void>("goals_update", { id, goal }),
     setDone: (id: string, done: boolean) => invoke<void>("goals_set_done", { id, done }),
     delete: (id: string) => invoke<void>("goals_delete", { id }),
+  },
+  insurance: {
+    list: () => invoke<Policy[]>("insurance_list"),
+    summary: () => invoke<InsuranceTotal[]>("insurance_summary"),
+    create: (policy: PolicyInput) => invoke<{ id: string }>("insurance_create", { policy }),
+    update: (id: string, policy: PolicyInput) => invoke<void>("insurance_update", { id, policy }),
+    delete: (id: string) => invoke<void>("insurance_delete", { id }),
+    pay: (id: string, payment: { date: string; amount?: string; record?: { account_id: string; category_id: string | null } }) => invoke<{ id: string }>("insurance_pay", { id, payment }),
+    deletePayment: (id: string) => invoke<void>("insurance_payment_delete", { id }),
+    addClaim: (policyId: string, claim: Record<string, unknown>) => invoke<{ id: string }>("insurance_claim_add", { policyId, claim }),
+    updateClaim: (id: string, claim: Record<string, unknown>) => invoke<void>("insurance_claim_update", { id, claim }),
+    deleteClaim: (id: string) => invoke<void>("insurance_claim_delete", { id }),
   },
   calc: { run: <T = Record<string, unknown>>(kind: string, input: Record<string, unknown>) => invoke<T>("calc_run", { kind, input }) },
   investments: {

@@ -43,6 +43,7 @@ pub fn records(conn: &Connection, country: &str, year_id: &str) -> Result<Value>
            FROM tax_links k JOIN ledger_accounts l ON l.category_id = k.category_id
            JOIN postings po ON po.ledger_account_id = l.id JOIN entries e ON e.id = po.entry_id
           WHERE po.currency = ?1 AND e.date BETWEEN ?2 AND ?3
+            AND e.id NOT IN (SELECT entry_id FROM policy_payments WHERE entry_id IS NOT NULL)
           GROUP BY k.target, l.kind")?;
     let rows = st.query_map(params![cur, y.start, y.end], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get::<_, i64>(2)?)))?;
     let mut sums: std::collections::BTreeMap<String, i64> = Default::default();
@@ -57,7 +58,13 @@ pub fn records(conn: &Connection, country: &str, year_id: &str) -> Result<Value>
           WHERE h.currency = ?1 AND t.kind IN ('purchase', 'sip') AND t.date BETWEEN ?2 AND ?3
             AND (lower(h.name) LIKE '%elss%' OR lower(h.name) LIKE '%tax saver%' OR lower(h.name) LIKE '%tax saving%')",
         params![cur, y.start, y.end], |r| r.get(0))?;
-    if elss > 0 && deduction_ids(&y).iter().any(|d| d == "investments") { *sums.entry("investments".into()).or_default() += elss; }
+    let ids = deduction_ids(&y);
+    if elss > 0 && ids.iter().any(|d| d == "investments") { *sums.entry("investments".into()).or_default() += elss; }
+    // Premiums recorded on policies (their transactions aren't counted again above).
+    let (health, parents, life) = crate::insurance::premiums_paid(conn, &cur, &y.start, &y.end)?;
+    for (id, v) in [("health_self", health), ("health_parents", parents), ("investments", life)] {
+        if v > 0 && ids.iter().any(|d| d == id) { *sums.entry(id.into()).or_default() += v; }
+    }
     for (k, v) in &sums { by.insert(k.clone(), json!(money::to_decimal((*v).max(0), &cur))); }
     Ok(json!({ "by": by, "elss": money::to_decimal(elss, &cur) }))
 }

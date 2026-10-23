@@ -117,6 +117,14 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
             name: d["title"].as_str().unwrap_or_default().into(), date: exp.into(), days, amount: None, currency: None, percent: None, previous: None, detail: None,
         });
     }
+    // Insurance premiums: from 15 days ahead until 30 days late (the usual grace period).
+    for (id, name, date, premium, cur) in crate::insurance::dues(conn, today - chrono::Days::new(crate::insurance::GRACE as u64), today + chrono::Days::new(crate::insurance::DUE_AHEAD as u64))? {
+        let days = (date - today).num_days();
+        out.push(Due {
+            key: format!("premium:{id}:{date}:{}", stage(days)), kind: "premium".into(), name, date: date.to_string(), days,
+            amount: (premium > 0).then(|| money::to_decimal(premium, &cur)), currency: Some(cur), percent: None, previous: None, detail: None,
+        });
+    }
     // Advance tax instalments with something still to pay: a week ahead, on the day, and late.
     for (label, date, short, cur) in crate::tax_plan::advance_due(conn, today)? {
         let days = (date - today).num_days();

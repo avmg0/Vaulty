@@ -33,6 +33,7 @@ const KIND: Record<CalendarKind, { dot: string; icon: string }> = {
   task: { dot: "bg-indigo-500", icon: "☑️" },
   expiry: { dot: "bg-orange-500", icon: "🪪" },
   tax: { dot: "bg-red-600", icon: "🏛️" },
+  premium: { dot: "bg-cyan-600", icon: "🛡️" },
 };
 /** Advance tax items carry the tax year as their title. */
 const itemTitle = (it: { kind: CalendarKind; title: string }) => it.kind === "tax" ? i18n.t("calendar.taxTitle", { year: it.title }) : it.title;

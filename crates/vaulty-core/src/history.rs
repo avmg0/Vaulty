@@ -21,7 +21,7 @@ const TRACKED: &[&str] = &[
     "accounts", "cards", "categories", "entries", "postings", "ledger_accounts", "workspaces",
     "calendar_events", "goals", "investments", "investment_events", "journal_entries",
     "recurring_payments", "tasks", "user_settings", "hotkeys", "budgets", "category_rules", "import_templates", "people",
-    "vault_documents", "vault_document_files", "card_statements", "card_benefits", "holdings", "holding_txns", "projects", "project_sections", "project_items", "project_payments", "project_files", "project_members", "tax_plans", "tax_payments", "tax_links", "goal_links",
+    "vault_documents", "vault_document_files", "card_statements", "card_benefits", "holdings", "holding_txns", "projects", "project_sections", "project_items", "project_payments", "project_files", "project_members", "tax_plans", "tax_payments", "tax_links", "goal_links", "policies", "policy_payments", "policy_claims",
 ];
 
 pub const TRASH_DAYS: i64 = 30;
@@ -407,7 +407,7 @@ fn describe(conn: &Connection, batch: i64) -> Result<Value> {
         "SELECT at, action, undo_of, undone_by FROM change_batches WHERE id = ?", [batch], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?;
     let list = changes(conn, batch)?;
     // The "main" row: the first change on a table people think in terms of.
-    let main = list.iter().find(|c| matches!(c.tbl.as_str(), "entries" | "accounts" | "cards" | "categories" | "budgets" | "goals" | "tasks" | "vault_documents" | "calendar_events" | "investments" | "holdings" | "projects" | "project_items" | "project_payments" | "recurring_payments" | "journal_entries"))
+    let main = list.iter().find(|c| matches!(c.tbl.as_str(), "entries" | "accounts" | "cards" | "categories" | "budgets" | "goals" | "policies" | "tasks" | "vault_documents" | "calendar_events" | "investments" | "holdings" | "projects" | "project_items" | "project_payments" | "recurring_payments" | "journal_entries"))
         .or_else(|| list.first());
     let (kind, title, op) = main.map(|c| {
         let row = c.after.as_ref().or(c.before.as_ref());

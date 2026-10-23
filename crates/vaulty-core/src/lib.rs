@@ -37,6 +37,7 @@ pub mod tax_plan;
 pub mod form16;
 pub mod calc;
 pub mod goals;
+pub mod insurance;
 pub mod people;
 pub mod profiles;
 pub mod quick;

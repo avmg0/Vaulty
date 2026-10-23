@@ -76,6 +76,11 @@ What changed in each version, for people using Vaulty. Newest first.
   it), the monthly saving needed, where your plan gets you by the date, and on track or behind.
 - Calculators: SIP with a yearly step-up, lump sum, loan EMI with extra payments, fixed and
   recurring deposits, PPF, a goal, retirement and inflation.
+- Insurance: life, health, motor, home, travel and accident policies with cover, premium,
+  nominee and the insurer's contact. Premiums are reminded 15 days ahead and through the grace
+  period, shown on the calendar, and recorded with one click (optionally as a transaction),
+  moving the due date on. Premiums paid fill the tax planner (health and parents' health, life).
+  Claims track what was asked for and paid out. Life cover is shown against a year's income.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

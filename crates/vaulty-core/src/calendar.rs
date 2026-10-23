@@ -135,6 +135,15 @@ pub fn range(conn: &Connection, from: &str, to: &str, country: &str, today: Naiv
         it.source_id = d["id"].as_str().map(str::to_string);
         out.push(it);
     }
+    // Insurance premiums.
+    for (id, name, date, premium, cur) in crate::insurance::dues(conn, from, to)? {
+        let mut it = Item::new("premium", date, &name);
+        if premium > 0 { it.amount = Some(crate::money::to_decimal(premium, &cur)); }
+        it.currency = Some(cur);
+        it.source_id = Some(id);
+        it.overdue = date < today;
+        out.push(it);
+    }
     // Advance tax instalments still to pay.
     for (label, date, short, cur) in crate::tax_plan::advance_due(conn, today)? {
         if date < from || date > to { continue; }

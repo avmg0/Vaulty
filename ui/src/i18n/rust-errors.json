@@ -184,6 +184,10 @@
   "re": "^this category has sub-categories, so it can't become one$"
  },
  {
+  "id": "e43ad6e85",
+  "re": "^that account is in a different currency from the policy$"
+ },
+ {
   "id": "ed24307a6",
   "re": "^need at least 2 shares, and no fewer shares than needed$"
  },
@@ -840,6 +844,10 @@
   "re": "^currency must be a 3-letter code$"
  },
  {
+  "id": "e911a47b9",
+  "re": "^the policy ends before it starts$"
+ },
+ {
   "id": "e99dc76a6",
   "re": "^rates must be between 0% and 30%$"
  },
@@ -870,6 +878,10 @@
  {
   "id": "e04bb4364",
   "re": "^Unlock the Hidden section first$"
+ },
+ {
+  "id": "e1981bdfe",
+  "re": "^you can keep up to 300 policies$"
  },
  {
   "id": "e26b56968",
@@ -1136,6 +1148,10 @@
   "re": "^unknown kind of investment$"
  },
  {
+  "id": "ea92b9305",
+  "re": "^give the date of the claim$"
+ },
+ {
   "id": "eab141a94",
   "re": "^the cost must be 0 or more$"
  },
@@ -1192,6 +1208,10 @@
   "re": "^no such recurring payment$"
  },
  {
+  "id": "e868b04f3",
+  "re": "^say what the claim is for$"
+ },
+ {
   "id": "e98d071e2",
   "re": "^keep it to one short line$"
  },
@@ -1242,6 +1262,10 @@
  {
   "id": "efddf69bf",
   "re": "^give the document a name$"
+ },
+ {
+  "id": "e0ae1550d",
+  "re": "^give the amount claimed$"
  },
  {
   "id": "e100478b1",
@@ -1326,6 +1350,10 @@
  {
   "id": "ec7cb3910",
   "re": "^expected true or false$"
+ },
+ {
+  "id": "ed51a8974",
+  "re": "^give the policy a name$"
  },
  {
   "id": "ef8ab9aeb",
@@ -1448,6 +1476,10 @@
   "re": "^`name` is required$"
  },
  {
+  "id": "ea1e84add",
+  "re": "^give the date paid$"
+ },
+ {
   "id": "ea34d898e",
   "re": "^month out of range$"
  },
@@ -1560,6 +1592,14 @@
   "re": "^no such person$"
  },
  {
+  "id": "ef5c4a8db",
+  "re": "^no such policy$"
+ },
+ {
+  "id": "e072cda65",
+  "re": "^no such claim$"
+ },
+ {
   "id": "e2abe41b8",
   "re": "^no such to-do$"
  },
@@ -1598,6 +1638,10 @@
  {
   "id": "e7b3dceaf",
   "re": "^bad labels$"
+ },
+ {
+  "id": "eb3f0f86d",
+  "re": "^bad policy$"
  },
  {
   "id": "e2192308d",
