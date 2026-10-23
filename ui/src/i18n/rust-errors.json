@@ -48,6 +48,10 @@
   "re": "^a low-balance reminder is for bank and cash accounts, not cards or loans$"
  },
  {
+  "id": "eda25be6f",
+  "re": "^no bill lines were found in this PDF \\(a scanned PDF has no text to read\\)$"
+ },
+ {
   "id": "eb3da7915",
   "re": "^those helpers' shares don't open this profile; the set may have changed$"
  },
@@ -166,6 +170,10 @@
  {
   "id": "ece13e26b",
   "re": "^a debit card must be linked to an active bank account$"
+ },
+ {
+  "id": "ef505b6ad",
+  "re": "^only PDF bills can be read for now; photos come later$"
  },
  {
   "id": "e040fdaa6",
@@ -854,6 +862,10 @@
  {
   "id": "e10e1fb6d",
   "re": "^name must be 1–40 characters$"
+ },
+ {
+  "id": "e1381151f",
+  "re": "^add 1 to 200 items at a time$"
  },
  {
   "id": "e4bfef931",

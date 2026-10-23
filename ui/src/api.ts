@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove))$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -72,6 +72,11 @@ export type PaymentInput = { section_id?: string; date: string; amount: string; 
 export type ProjectFile = {
   id: string; item_id: string | null; payment_id: string | null; name: string; mime: string; size: number; created_at: string;
   item: string | null; item_date: string | null; payment_vendor: string | null; payment_date: string | null; payment_amount: number | null;
+};
+export type BillDraft = {
+  vendor: string | null; gstin: string | null; bill_no: string | null; date: string | null; taxable: string | null; tax: string | null; tax_rate: string | null; total: string | null;
+  items_total: string; matches: boolean | null;
+  items: { item: string; qty: string | null; unit: string | null; rate: string | null; amount: string; tax_percent: string | null; hsn: string | null }[];
 };
 export type FileLink = { item_id?: string | null; payment_id?: string | null };
 export type LinkSuggestion = { payment_id: string; candidates: { id: string; date: string; merchant: string | null; description: string | null; account: string | null; named: boolean }[] };
@@ -495,6 +500,8 @@ export const api = {
     removeFile: (id: string) => invoke<void>("projects_file_remove", { id }),
     previewFile: (id: string) => invoke<{ name: string; mime: string; data: string }>("projects_file_preview", { id }),
     saveFile: (id: string, path: string) => invoke<void>("projects_file_save", { id, path }),
+    readBill: (id: string) => invoke<BillDraft>("projects_read_bill", { id }),
+    addItems: (projectId: string, batch: { items: ItemInput[]; file_id?: string }) => invoke<ProjectItem[]>("projects_items_add", { projectId, batch }),
   },
   investments: {
     list: () => invoke<Holding[]>("investments_list"),

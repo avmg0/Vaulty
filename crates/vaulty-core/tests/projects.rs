@@ -219,3 +219,31 @@ fn bills_kept_encrypted_with_the_project() {
     history::undo_last(&c).unwrap();
     assert_eq!(pr::read_file(&c, &key, dir.path(), &fid).unwrap().0, "chimney-invoice.pdf");
 }
+
+#[test]
+fn reading_a_kept_bill_into_items() {
+    use vaulty_core::Key;
+    let key = Key::new([7u8; 32]);
+    let c = setup();
+    let dir = tempfile::tempdir().unwrap();
+    let p = pr::create(&c, &json!({ "name": "Rewiring" })).unwrap();
+    let id = p["id"].as_str().unwrap();
+    let pdf = std::fs::read(format!("{}/tests/fixtures/invoices/gst-cgst.pdf", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    let f = pr::add_file(&c, &key, dir.path(), id, "invoice.pdf", &pdf, &json!({})).unwrap();
+    let fid = f["id"].as_str().unwrap();
+    let draft = pr::read_bill(&c, &key, dir.path(), fid).unwrap();
+    assert_eq!(draft.items.len(), 4);
+    let items: Vec<serde_json::Value> = draft.items.iter().map(|i| json!({ "date": "2026-10-02", "item": i.item, "qty": i.qty, "unit": i.unit, "rate": i.rate,
+        "amount": i.amount, "tax_percent": i.tax_percent, "vendor": draft.vendor, "bill_no": draft.bill_no })).collect();
+    let added = history::record(&c, "project.items_add", |c| pr::add_items(c, id, &json!({ "items": items, "file_id": fid }))).unwrap();
+    assert_eq!(added.len(), 4);
+    let p = pr::get(&c, id).unwrap();
+    assert_eq!((p["billed"].as_f64(), p["tax"].as_f64()), (Some(19564.4), Some(2984.4)), "the bill's own total");
+    assert_eq!(pr::files(&c, id).unwrap()[0]["item_id"], added[0]["id"]);
+    history::undo_last(&c).unwrap();
+    assert!(pr::items(&c, id).unwrap().is_empty(), "one undo takes the whole bill out");
+    // A photo can't be read yet.
+    const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\x08\x06\0\0\0\x1f\x15\xc4\x89";
+    let img = pr::add_file(&c, &key, dir.path(), id, "bill.png", PNG, &json!({})).unwrap();
+    assert!(pr::read_bill(&c, &key, dir.path(), img["id"].as_str().unwrap()).is_err());
+}

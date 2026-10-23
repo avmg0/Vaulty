@@ -723,3 +723,29 @@ pub fn remove_file(conn: &Connection, id: &str) -> Result<()> {
     if conn.execute("DELETE FROM project_files WHERE id = ?", [id])? == 0 { return Err(bad("no such file")); }
     Ok(())
 }
+
+/// Reads a kept bill (a PDF with text in it) into draft items to check before adding.
+pub fn read_bill(conn: &Connection, dk: &crate::crypto::Key, dir: &std::path::Path, file_id: &str) -> Result<crate::invoice::Draft> {
+    let (_, mime, bytes) = read_file(conn, dk, dir, file_id)?;
+    if mime != "application/pdf" { return Err(bad("only PDF bills can be read for now; photos come later")); }
+    let draft = crate::invoice::read_pdf(&bytes, None)?;
+    if draft.items.is_empty() && draft.total.is_none() { return Err(bad("no bill lines were found in this PDF (a scanned PDF has no text to read)")); }
+    Ok(draft)
+}
+
+/// Adds several items at once (the checked lines of a bill), as one change. With `file_id`, the
+/// bill is pointed at the first of them.
+pub fn add_items(conn: &Connection, project_id: &str, v: &Value) -> Result<Vec<Value>> {
+    let list = v["items"].as_array().ok_or_else(|| bad("say what the item is"))?;
+    if list.is_empty() || list.len() > 200 { return Err(bad("add 1 to 200 items at a time")); }
+    atomic(conn, |tx| {
+        let mut out = Vec::with_capacity(list.len());
+        for it in list { out.push(add_item(tx, project_id, it)?); }
+        if let Some(f) = v["file_id"].as_str().filter(|s| !s.is_empty()) {
+            let first = out[0]["id"].as_str().unwrap_or_default();
+            let n = tx.execute("UPDATE project_files SET item_id = ?, payment_id = NULL WHERE id = ? AND project_id = ?", params![first, f, project_id])?;
+            if n == 0 { return Err(bad("no such file")); }
+        }
+        Ok(out)
+    })
+}

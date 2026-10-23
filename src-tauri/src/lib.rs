@@ -552,6 +552,16 @@ fn projects_file_save(s: S, id: String, path: String) -> Result<()> {
     Ok(())
 }
 
+/// Reads a kept PDF bill into draft items, to check before adding.
+#[tauri::command]
+fn projects_read_bill(s: S, id: String) -> Result<vaulty_core::invoice::Draft> {
+    let me = s.current_user()?;
+    let dir = s.documents_dir(&me.id);
+    s.data_with_keys(|c, k| vaulty_core::projects::read_bill(c, &k.data_key, &dir, &id))
+}
+#[tauri::command]
+fn projects_items_add(s: S, project_id: String, batch: Value) -> Result<Vec<Value>> { limits::check(&batch)?; s.act("project.items_add", |c| vaulty_core::projects::add_items(c, &project_id, &batch)) }
+
 /// The project as an Excel workbook, saved where the person chose.
 #[tauri::command]
 fn projects_export_xlsx(s: S, id: String, path: String, labels: Value) -> Result<()> {
@@ -1788,7 +1798,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            app_settings_get, app_settings_set, tray_labels, pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, projects_list, projects_get, projects_items, projects_payments, projects_link_suggestions, projects_names, projects_create, projects_update, projects_delete, projects_section_add, projects_section_update, projects_section_delete, projects_section_order, projects_item_add, projects_item_update, projects_item_delete, projects_payment_add, projects_payment_update, projects_payment_delete, projects_export_xlsx, projects_files, projects_file_link, projects_file_remove, projects_file_add, projects_file_preview, projects_file_save, investments_list, investments_summary, investments_transactions, investments_create, investments_update, investments_set_price, investments_delete, cas_preview, cas_import, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            app_settings_get, app_settings_set, tray_labels, pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, projects_list, projects_get, projects_items, projects_payments, projects_link_suggestions, projects_names, projects_create, projects_update, projects_delete, projects_section_add, projects_section_update, projects_section_delete, projects_section_order, projects_item_add, projects_item_update, projects_item_delete, projects_payment_add, projects_payment_update, projects_payment_delete, projects_export_xlsx, projects_files, projects_file_link, projects_file_remove, projects_file_add, projects_file_preview, projects_file_save, projects_read_bill, projects_items_add, investments_list, investments_summary, investments_transactions, investments_create, investments_update, investments_set_price, investments_delete, cas_preview, cas_import, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

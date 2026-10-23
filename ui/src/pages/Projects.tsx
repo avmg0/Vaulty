@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, FileSpreadsheet, FolderKanban, Link2, Paperclip, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, FileScan, FileSpreadsheet, FolderKanban, Link2, Paperclip, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, DATA_RESTORED, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_STATUSES, type CustomValue, type LinkSuggestion, type NameableColumn, type Project, type ProjectDetail, type ProjectFile, type ProjectItem, type ProjectPayment } from "@/api";
+import { api, DATA_RESTORED, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_STATUSES, type CustomValue, type LinkSuggestion, type NameableColumn, type BillDraft, type Project, type ProjectDetail, type ProjectFile, type ProjectItem, type ProjectPayment } from "@/api";
 import { BillsPanel } from "@/components/projects/Bills";
+import { chooseAndRead, ReadBillDialog } from "@/components/projects/ReadBill";
 import { columnName, ItemDialog, LinkDialog, PaymentDialog, ProjectDialog, SectionsEditor } from "@/components/projects/ProjectDialogs";
 import { Segmented } from "@/components/Segmented";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +108,8 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
   const [item, setItem] = useState<ProjectItem | "new" | null>(null);
   const [payment, setPayment] = useState<ProjectPayment | "new" | null>(null);
   const [linking, setLinking] = useState(false);
+  const [reading, setReading] = useState<{ fileId: string; draft: BillDraft } | null>(null);
+  const [readBusy, setReadBusy] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
   const [n, setN] = useState(0);
@@ -149,6 +152,14 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
       await api.projects.exportXlsx(p.id, path, labels);
       setNote(t("projects.exported"));
     } catch (e) { setError(errorText(e)); }
+  };
+  const readNew = async () => {
+    setError(""); setReadBusy(true);
+    try { const r = await chooseAndRead(p.id, t("projects.pdfBill")); if (r) setReading(r); } catch (e) { setError(errorText(e)); load(); } finally { setReadBusy(false); }
+  };
+  const readKept = async (fileId: string) => {
+    setError("");
+    try { setReading({ fileId, draft: await api.projects.readBill(fileId) }); } catch (e) { setError(errorText(e)); }
   };
   const remove = async () => {
     try { await api.projects.delete(p.id); onBack(); } catch (e) { setError(errorText(e)); }
@@ -212,6 +223,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
           </NativeSelect>
         )}
         <div className="ms-auto flex flex-wrap gap-2">
+          {tab === "items" && <Button variant="outline" onClick={readNew} disabled={readBusy}><FileScan />{t("projects.readBill")}</Button>}
           {tab === "items" && <Button onClick={() => setItem("new")}><Plus />{t("projects.addItem")}</Button>}
           {tab === "payments" && <Button onClick={() => setPayment("new")}><Plus />{t("projects.addPayment")}</Button>}
         </div>
@@ -358,11 +370,12 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
       )}
 
       {tab === "sections" && <SectionsEditor project={p} onChanged={changed} />}
-      {tab === "bills" && <BillsPanel project={p} files={files} items={items} payments={payments} onChanged={changed} />}
+      {tab === "bills" && <BillsPanel project={p} files={files} items={items} payments={payments} onChanged={changed} onRead={readKept} />}
 
       {editing && <ProjectDialog project={p} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); changed(); }} />}
       {item && <ItemDialog project={p} item={item === "new" ? null : item} names={names} files={files} onFiles={load} onClose={() => setItem(null)} onSaved={() => { setItem(null); changed(); }} />}
       {payment && <PaymentDialog project={p} payment={payment === "new" ? null : payment} names={names} files={files} onFiles={load} onClose={() => setPayment(null)} onSaved={() => { setPayment(null); changed(); }} />}
+      {reading && <ReadBillDialog project={p} fileId={reading.fileId} draft={reading.draft} onClose={() => { setReading(null); load(); }} onAdded={() => { setReading(null); setTab("items"); changed(); }} />}
       {linking && <LinkDialog project={p} suggestions={links} payments={payments} onClose={(c) => { setLinking(false); if (c) changed(); }} />}
     </div>
   );

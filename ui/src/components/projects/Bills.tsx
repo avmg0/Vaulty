@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Download, FileText, ImageIcon, Loader2, Paperclip, Trash2 } from "lucide-react";
+import { Download, FileScan, FileText, ImageIcon, Loader2, Paperclip, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, errorText, type FileLink, type ProjectDetail, type ProjectFile, type ProjectItem, type ProjectPayment } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -41,8 +41,8 @@ function Preview({ preview, onClose }: { preview: { name: string; url: string };
 }
 
 /** One file: open, save a copy, remove; and, in the full list, what it's for. */
-function FileRow({ f, project, items, payments, onChanged, compact }: {
-  f: ProjectFile; project: ProjectDetail; items?: ProjectItem[]; payments?: ProjectPayment[]; onChanged: () => void; compact?: boolean;
+function FileRow({ f, project, items, payments, onChanged, onRead, compact }: {
+  f: ProjectFile; project: ProjectDetail; items?: ProjectItem[]; payments?: ProjectPayment[]; onChanged: () => void; onRead?: (id: string) => void; compact?: boolean;
 }) {
   const { t } = useTranslation();
   const [error, setError] = useState("");
@@ -64,6 +64,7 @@ function FileRow({ f, project, items, payments, onChanged, compact }: {
         <span className="min-w-0 flex-1 truncate text-sm" title={f.name}>{f.name}</span>
         <span className="text-muted-foreground text-xs tabular-nums">{size(f.size)}</span>
         {isImage && <Button type="button" size="sm" variant="ghost" onClick={show}>{t("projects.viewBill")}</Button>}
+        {onRead && f.mime === "application/pdf" && <Button type="button" size="sm" variant="ghost" onClick={() => onRead(f.id)}><FileScan />{t("projects.readItems")}</Button>}
         <Button type="button" size="icon" variant="ghost" aria-label={t("projects.saveBill", { name: f.name })} title={t("projects.saveBill", { name: f.name })} onClick={save}><Download /></Button>
         <Button type="button" size="icon" variant="ghost" aria-label={t("projects.removeBill", { name: f.name })} title={t("projects.removeBill", { name: f.name })} onClick={remove}><Trash2 /></Button>
       </div>
@@ -88,7 +89,9 @@ function FileRow({ f, project, items, payments, onChanged, compact }: {
 }
 
 /** Every bill and receipt kept with the project. */
-export function BillsPanel({ project, files, items, payments, onChanged }: { project: ProjectDetail; files: ProjectFile[]; items: ProjectItem[]; payments: ProjectPayment[]; onChanged: () => void }) {
+export function BillsPanel({ project, files, items, payments, onChanged, onRead }: {
+  project: ProjectDetail; files: ProjectFile[]; items: ProjectItem[]; payments: ProjectPayment[]; onChanged: () => void; onRead: (id: string) => void;
+}) {
   const { t } = useTranslation();
   const { attach, busy, error } = useAttach(project.id, onChanged);
   return (
@@ -100,7 +103,7 @@ export function BillsPanel({ project, files, items, payments, onChanged }: { pro
       {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
       {files.length === 0
         ? <p className="text-muted-foreground rounded-lg border px-4 py-6 text-center text-sm">{t("projects.noBills")}</p>
-        : <ul className="divide-y rounded-lg border px-3">{files.map((f) => <FileRow key={f.id} f={f} project={project} items={items} payments={payments} onChanged={onChanged} />)}</ul>}
+        : <ul className="divide-y rounded-lg border px-3">{files.map((f) => <FileRow key={f.id} f={f} project={project} items={items} payments={payments} onChanged={onChanged} onRead={onRead} />)}</ul>}
       <p className="text-muted-foreground text-xs">{t("projects.billsEncrypted")}</p>
     </div>
   );

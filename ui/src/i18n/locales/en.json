@@ -409,7 +409,8 @@
         "payment_delete": "Deleted a payment",
         "file_add": "Attached a bill",
         "file_link": "Moved a bill",
-        "file_remove": "Removed a bill"
+        "file_remove": "Removed a bill",
+        "items_add": "Added items from a bill"
       }
     },
     "check": {
@@ -1356,6 +1357,7 @@
     "e014a0f84": "this doesn't look like a CAMS or KFintech consolidated account statement",
     "e59abd20d": "this recurring payment's account was archived; edit it to choose another",
     "e77a63b22": "a low-balance reminder is for bank and cash accounts, not cards or loans",
+    "eda25be6f": "no bill lines were found in this PDF (a scanned PDF has no text to read)",
     "eb3da7915": "those helpers' shares don't open this profile; the set may have changed",
     "e6a5f6636": "that's one of the most common passwords; choose something less obvious",
     "ea7741394": "a nominee card code has 37 letters and numbers; check it and try again",
@@ -1386,6 +1388,7 @@
     "e46964378": "sign out and in again to finish upgrading this profile",
     "e7aa01197": "one of the details is too long (up to 200 characters)",
     "ece13e26b": "a debit card must be linked to an active bank account",
+    "ef505b6ad": "only PDF bills can be read for now; photos come later",
     "e040fdaa6": "this backup was made by a newer Vaulty; update first",
     "e539cee2d": "Unlock the Hidden section to change this transaction",
     "ef7dfd1e7": "the card year starts on a day like 03-15 (month-day)",
@@ -1558,6 +1561,7 @@
     "ea414ef1b": "speed is slow, normal or fast",
     "eb8c3cc37": "enabled must be true or false",
     "e10e1fb6d": "name must be 1–40 characters",
+    "e1381151f": "add 1 to 200 items at a time",
     "e4bfef931": "month must look like 2026-10",
     "e560d87bc": "forecast 7 to 180 days ahead",
     "e7e6a5983": "internal state lock poisoned",
@@ -2719,6 +2723,23 @@
     "dontAttach": "Don't attach",
     "chooseOther": "Choose another",
     "hasBill_one": "{{count}} bill attached",
-    "hasBill_other": "{{count}} bills attached"
+    "hasBill_other": "{{count}} bills attached",
+    "readBill": "Read a bill",
+    "readItems": "Read items",
+    "pdfBill": "PDF bill",
+    "readTitle": "Lines read from the bill",
+    "readDesc": "Check each line against the bill and correct anything that was read wrongly. Untick lines you don't want. The bill stays with the project.",
+    "gstinOf": "Seller's GSTIN on the bill: {{gstin}}",
+    "readLines": "Bill lines",
+    "keepLine": "Add",
+    "keepThis": "Add {{name}}",
+    "removeLine": "Remove line {{name}}",
+    "gstPercent": "GST %",
+    "addLine": "Add a line",
+    "noBillTotal": "The bill's total wasn't found. These lines come to {{sum}}; check it against the bill.",
+    "totalMatches": "These lines come to the bill's total of {{total}}.",
+    "totalDiffers": "These lines come to {{sum}}, but the bill says {{total}}. Look for a line that was missed or read wrongly.",
+    "addNItems_one": "Add {{count}} item",
+    "addNItems_other": "Add {{count}} items"
   }
 }
