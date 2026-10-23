@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete))$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -31,6 +31,42 @@ export type SignedInUser = User & { recovery_key?: string | null; failed_attempt
 export const DOC_KINDS = ["id", "passport", "licence", "insurance", "property", "vehicle", "will", "certificate", "warranty", "medical", "tax", "other"] as const;
 export type DocKind = (typeof DOC_KINDS)[number];
 export type DocFile = { id: string; name: string; mime: string; size: number; created_at?: string };
+export const PROJECT_KINDS = ["personal", "family", "group", "business"] as const;
+export const PROJECT_STATUSES = ["planning", "ongoing", "on_hold", "done"] as const;
+export const ITEM_KINDS = ["material", "labour", "fee", "transport", "tax", "other"] as const;
+export const PAY_MODES = ["upi", "cash", "bank", "card", "cheque", "other"] as const;
+export const COLUMN_TYPES = ["text", "number", "date", "choice", "yes_no"] as const;
+export const HIDEABLE_COLUMNS = ["section", "kind", "qty", "rate", "tax", "vendor", "bill_no", "notes"] as const;
+export type ProjectKind = (typeof PROJECT_KINDS)[number];
+export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
+export type ItemKind = (typeof ITEM_KINDS)[number];
+export type PayMode = (typeof PAY_MODES)[number];
+export type ColumnType = (typeof COLUMN_TYPES)[number];
+export type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];
+export type ProjectColumn = { id?: string; name: string; type: ColumnType; options: string[] };
+export type ProjectInput = { name: string; kind: ProjectKind; status: ProjectStatus; currency?: string; budget?: string; start_date?: string; end_date?: string; notes?: string; columns: ProjectColumn[]; hidden: HideableColumn[]; sections?: string[] };
+export type ProjectSection = { id: string; name: string; position: number; budget: number | null; billed: number; items: number; paid: number };
+export type ProjectPerson = { name: string; billed: number; paid: number; balance: number; items: number; payments: number };
+export type Project = {
+  id: string; name: string; kind: ProjectKind; status: ProjectStatus; currency: string; budget: number | null; start_date: string | null; end_date: string | null; notes: string | null;
+  columns: (ProjectColumn & { id: string })[]; hidden: HideableColumn[]; amount: number; tax: number; billed: number; paid: number; owed: number; spent: number; budget_left: number | null;
+  items: number; payments: number; last_date: string | null; created_at: string;
+};
+export type ProjectDetail = Project & {
+  sections: ProjectSection[]; unsectioned: { billed: number; items: number }; by_kind: Partial<Record<ItemKind, number>>; by_mode: Partial<Record<PayMode, number>>; vendors: ProjectPerson[];
+};
+export type CustomValue = string | number | boolean;
+export type ProjectItem = {
+  id: string; section_id: string | null; section_name: string | null; date: string; item: string; kind: ItemKind; qty: number | null; unit: string | null; rate: number | null;
+  amount: number; tax: number; total: number; vendor: string | null; bill_no: string | null; notes: string | null; custom: Record<string, CustomValue>;
+};
+export type ItemInput = { section_id?: string; date: string; item: string; kind: ItemKind; qty?: string; unit?: string; rate?: string; amount?: string; tax?: string; tax_percent?: string; vendor?: string; bill_no?: string; notes?: string; custom: Record<string, CustomValue> };
+export type ProjectPayment = {
+  id: string; section_id: string | null; section_name: string | null; date: string; amount: number; vendor: string | null; mode: PayMode; account_name: string | null;
+  reference: string | null; entry_id: string | null; from_account: string | null; notes: string | null;
+};
+export type PaymentInput = { section_id?: string; date: string; amount: string; vendor?: string; mode: PayMode; account_name?: string; reference?: string; notes?: string; entry_id?: string; record?: { account_id: string; category_id?: string } };
+export type LinkSuggestion = { payment_id: string; candidates: { id: string; date: string; merchant: string | null; description: string | null; account: string | null; named: boolean }[] };
 export const HOLDING_KINDS = ["mutual_fund", "stock", "etf", "bond", "deposit", "gold", "other"] as const;
 export type HoldingKind = (typeof HOLDING_KINDS)[number];
 export type HoldingInput = { kind: HoldingKind; name: string; isin?: string; symbol?: string; folio?: string; provider?: string; currency?: string; units?: string; price?: string; price_date?: string; cost?: string; notes?: string };
@@ -406,7 +442,7 @@ export const api = {
     exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
-  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document" | "fund_statement", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
+  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document" | "fund_statement" | "save_project", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
   /** This computer: the tray icon, the quick-add shortcut, keeping Vaulty running when closed. */
   device: {
     get: () => invoke<DeviceSettings>("app_settings_get"),
@@ -423,6 +459,28 @@ export const api = {
     deleteBenefit: (id: string) => invoke<void>("card_benefits_delete", { id }),
     usePerk: (id: string, by: 1 | -1) => invoke<number>("card_benefits_use", { id, by }),
     best: (amount?: string, categoryId?: string, place?: string) => invoke<BestPick[]>("cards_best", { amount: amount || null, categoryId: categoryId || null, place: place || null }),
+  },
+  projects: {
+    list: () => invoke<Project[]>("projects_list"),
+    get: (id: string) => invoke<ProjectDetail>("projects_get", { id }),
+    items: (id: string) => invoke<ProjectItem[]>("projects_items", { id }),
+    payments: (id: string) => invoke<ProjectPayment[]>("projects_payments", { id }),
+    linkSuggestions: (id: string) => invoke<LinkSuggestion[]>("projects_link_suggestions", { id }),
+    names: () => invoke<{ vendors: string[]; account_names: string[]; units: string[] }>("projects_names"),
+    create: (project: ProjectInput) => invoke<ProjectDetail>("projects_create", { project }),
+    update: (id: string, project: ProjectInput) => invoke<ProjectDetail>("projects_update", { id, project }),
+    delete: (id: string) => invoke<void>("projects_delete", { id }),
+    addSection: (projectId: string, section: { name: string; budget?: string }) => invoke<{ id: string }>("projects_section_add", { projectId, section }),
+    updateSection: (id: string, section: { name: string; budget?: string }) => invoke<void>("projects_section_update", { id, section }),
+    deleteSection: (id: string) => invoke<void>("projects_section_delete", { id }),
+    orderSections: (projectId: string, ids: string[]) => invoke<void>("projects_section_order", { projectId, ids }),
+    addItem: (projectId: string, item: ItemInput) => invoke<ProjectItem>("projects_item_add", { projectId, item }),
+    updateItem: (id: string, item: ItemInput) => invoke<ProjectItem>("projects_item_update", { id, item }),
+    deleteItem: (id: string) => invoke<void>("projects_item_delete", { id }),
+    addPayment: (projectId: string, payment: PaymentInput) => invoke<ProjectPayment>("projects_payment_add", { projectId, payment }),
+    updatePayment: (id: string, payment: PaymentInput) => invoke<ProjectPayment>("projects_payment_update", { id, payment }),
+    deletePayment: (id: string) => invoke<void>("projects_payment_delete", { id }),
+    exportXlsx: (id: string, path: string, labels: Record<string, string>) => invoke<void>("projects_export_xlsx", { id, path, labels }),
   },
   investments: {
     list: () => invoke<Holding[]>("investments_list"),

@@ -468,6 +468,60 @@ fn documents_save_file(s: S, file_id: String, path: String) -> Result<()> {
     Ok(())
 }
 
+// ============================================================ projects
+
+#[tauri::command]
+fn projects_list(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::projects::list) }
+#[tauri::command]
+fn projects_get(s: S, id: String) -> Result<Value> { s.data(|c| vaulty_core::projects::get(c, &id)) }
+#[tauri::command]
+fn projects_items(s: S, id: String) -> Result<Vec<Value>> { s.data(|c| vaulty_core::projects::items(c, &id)) }
+#[tauri::command]
+fn projects_payments(s: S, id: String) -> Result<Vec<Value>> { s.data(|c| vaulty_core::projects::payments(c, &id)) }
+#[tauri::command]
+fn projects_link_suggestions(s: S, id: String) -> Result<Vec<Value>> { s.data(|c| vaulty_core::projects::link_suggestions(c, &id)) }
+#[tauri::command]
+fn projects_names(s: S) -> Result<Value> { s.data(vaulty_core::projects::names) }
+#[tauri::command]
+fn projects_create(s: S, project: Value) -> Result<Value> { limits::check(&project)?; s.act("project.create", |c| vaulty_core::projects::create(c, &project)) }
+#[tauri::command]
+fn projects_update(s: S, id: String, project: Value) -> Result<Value> { limits::check(&project)?; s.act("project.update", |c| vaulty_core::projects::update(c, &id, &project)) }
+#[tauri::command]
+fn projects_delete(s: S, id: String) -> Result<()> { s.act("project.delete", |c| vaulty_core::projects::delete(c, &id)) }
+#[tauri::command]
+fn projects_section_add(s: S, project_id: String, section: Value) -> Result<Value> { limits::check(&section)?; s.act("project.section_add", |c| vaulty_core::projects::add_section(c, &project_id, &section)) }
+#[tauri::command]
+fn projects_section_update(s: S, id: String, section: Value) -> Result<()> { limits::check(&section)?; s.act("project.section_update", |c| vaulty_core::projects::update_section(c, &id, &section)) }
+#[tauri::command]
+fn projects_section_delete(s: S, id: String) -> Result<()> { s.act("project.section_delete", |c| vaulty_core::projects::delete_section(c, &id)) }
+#[tauri::command]
+fn projects_section_order(s: S, project_id: String, ids: Vec<String>) -> Result<()> {
+    if ids.len() > 100 { return Err(Error::Invalid("too many sections".into())); }
+    s.act("project.section_order", |c| vaulty_core::projects::order_sections(c, &project_id, &ids))
+}
+#[tauri::command]
+fn projects_item_add(s: S, project_id: String, item: Value) -> Result<Value> { limits::check(&item)?; s.act("project.item_add", |c| vaulty_core::projects::add_item(c, &project_id, &item)) }
+#[tauri::command]
+fn projects_item_update(s: S, id: String, item: Value) -> Result<Value> { limits::check(&item)?; s.act("project.item_update", |c| vaulty_core::projects::update_item(c, &id, &item)) }
+#[tauri::command]
+fn projects_item_delete(s: S, id: String) -> Result<()> { s.act("project.item_delete", |c| vaulty_core::projects::delete_item(c, &id)) }
+#[tauri::command]
+fn projects_payment_add(s: S, project_id: String, payment: Value) -> Result<Value> { limits::check(&payment)?; s.act("project.payment_add", |c| vaulty_core::projects::add_payment(c, &project_id, &payment)) }
+#[tauri::command]
+fn projects_payment_update(s: S, id: String, payment: Value) -> Result<Value> { limits::check(&payment)?; s.act("project.payment_update", |c| vaulty_core::projects::update_payment(c, &id, &payment)) }
+#[tauri::command]
+fn projects_payment_delete(s: S, id: String) -> Result<()> { s.act("project.payment_delete", |c| vaulty_core::projects::delete_payment(c, &id)) }
+
+/// The project as an Excel workbook, saved where the person chose.
+#[tauri::command]
+fn projects_export_xlsx(s: S, id: String, path: String, labels: Value) -> Result<()> {
+    limits::check(&labels)?;
+    s.chosen(&path)?;
+    let bytes = s.data(|c| vaulty_core::project_export::to_xlsx(c, &id, &labels))?;
+    std::fs::write(path, bytes)?;
+    Ok(())
+}
+
 // ============================================================ investments
 
 #[tauri::command]
@@ -810,7 +864,7 @@ fn biometric_disable(s: S) -> Result<()> {
 /// What a file dialog is for. The kind decides the file types offered and whether it opens or saves.
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport, Document, SaveDocument, FundStatement }
+enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport, Document, SaveDocument, FundStatement, SaveProject }
 
 impl AppState {
     /// Refuses a path the person didn't choose in a file dialog this run.
@@ -842,6 +896,7 @@ async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String, n
         Pick::Document => d.add_filter(label, &["pdf", "png", "jpg", "jpeg", "webp"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveDocument => d.set_file_name(suggested).save_file(move |p| { let _ = tx.send(p); }),
         Pick::FundStatement => d.add_filter(label, &["pdf"]).pick_file(move |p| { let _ = tx.send(p); }),
+        Pick::SaveProject => d.add_filter(label, &["xlsx"]).set_file_name(format!("{}-{stamp}.xlsx", suggested.trim_end_matches(".xlsx"))).save_file(move |p| { let _ = tx.send(p); }),
     }
     let Some(chosen) = rx.await.ok().flatten() else { return Ok(None) };
     let path = chosen.into_path().map_err(|_| Error::Invalid("that location can't be used".into()))?.to_string_lossy().into_owned();
@@ -1693,7 +1748,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            app_settings_get, app_settings_set, tray_labels, pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, investments_list, investments_summary, investments_transactions, investments_create, investments_update, investments_set_price, investments_delete, cas_preview, cas_import, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            app_settings_get, app_settings_set, tray_labels, pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, projects_list, projects_get, projects_items, projects_payments, projects_link_suggestions, projects_names, projects_create, projects_update, projects_delete, projects_section_add, projects_section_update, projects_section_delete, projects_section_order, projects_item_add, projects_item_update, projects_item_delete, projects_payment_add, projects_payment_update, projects_payment_delete, projects_export_xlsx, investments_list, investments_summary, investments_transactions, investments_create, investments_update, investments_set_price, investments_delete, cas_preview, cas_import, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

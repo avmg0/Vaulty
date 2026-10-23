@@ -21,7 +21,7 @@ const TRACKED: &[&str] = &[
     "accounts", "cards", "categories", "entries", "postings", "ledger_accounts", "workspaces",
     "calendar_events", "goals", "investments", "investment_events", "journal_entries",
     "recurring_payments", "tasks", "user_settings", "hotkeys", "budgets", "category_rules", "import_templates", "people",
-    "vault_documents", "vault_document_files", "card_statements", "card_benefits", "holdings", "holding_txns",
+    "vault_documents", "vault_document_files", "card_statements", "card_benefits", "holdings", "holding_txns", "projects", "project_sections", "project_items", "project_payments",
 ];
 
 pub const TRASH_DAYS: i64 = 30;
@@ -407,7 +407,7 @@ fn describe(conn: &Connection, batch: i64) -> Result<Value> {
         "SELECT at, action, undo_of, undone_by FROM change_batches WHERE id = ?", [batch], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?;
     let list = changes(conn, batch)?;
     // The "main" row: the first change on a table people think in terms of.
-    let main = list.iter().find(|c| matches!(c.tbl.as_str(), "entries" | "accounts" | "cards" | "categories" | "budgets" | "goals" | "tasks" | "vault_documents" | "calendar_events" | "investments" | "holdings" | "recurring_payments" | "journal_entries"))
+    let main = list.iter().find(|c| matches!(c.tbl.as_str(), "entries" | "accounts" | "cards" | "categories" | "budgets" | "goals" | "tasks" | "vault_documents" | "calendar_events" | "investments" | "holdings" | "projects" | "project_items" | "project_payments" | "recurring_payments" | "journal_entries"))
         .or_else(|| list.first());
     let (kind, title, op) = main.map(|c| {
         let row = c.after.as_ref().or(c.before.as_ref());
@@ -416,6 +416,8 @@ fn describe(conn: &Connection, batch: i64) -> Result<Value> {
             "entries" if entry_hidden(conn, &c.row_id, row) => crate::transactions::MASK.to_string(),
             "entries" => pick(&["merchant", "description"]).unwrap_or_else(|| "Transaction".into()),
             "journal_entries" | "tasks" | "calendar_events" => pick(&["title"]).unwrap_or_default(),
+            "project_items" => pick(&["item"]).unwrap_or_default(),
+            "project_payments" => pick(&["vendor", "reference"]).unwrap_or_default(),
             "user_settings" => String::new(),
             "budgets" => pick(&["category_id"]).and_then(|cat| conn.query_row("SELECT name FROM categories WHERE id = ?", [cat], |r| r.get(0)).ok()).unwrap_or_default(),
             _ => pick(&["name", "symbol"]).unwrap_or_default(),

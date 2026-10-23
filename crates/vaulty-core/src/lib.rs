@@ -28,6 +28,8 @@ pub mod passwords;
 pub mod pdf_text;
 pub mod cas;
 pub mod investments;
+pub mod projects;
+pub mod project_export;
 pub mod people;
 pub mod profiles;
 pub mod quick;

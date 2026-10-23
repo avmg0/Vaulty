@@ -136,6 +136,14 @@
   "re": "^choose the amount column, or the debit and credit columns$"
  },
  {
+  "id": "e249c938a",
+  "re": "^that account is in a different currency from the project$"
+ },
+ {
+  "id": "e576b235d",
+  "re": "^the transaction's amount isn't the same as the payment's$"
+ },
+ {
   "id": "e9c620902",
   "re": "^only photos can be shown here; save a copy to open a PDF$"
  },
@@ -150,6 +158,10 @@
  {
   "id": "e46964378",
   "re": "^sign out and in again to finish upgrading this profile$"
+ },
+ {
+  "id": "e7aa01197",
+  "re": "^one of the details is too long \\(up to 200 characters\\)$"
  },
  {
   "id": "ece13e26b",
@@ -204,12 +216,20 @@
   "re": "^say who will keep each card \\(up to 60 characters\\)$"
  },
  {
+  "id": "e61617b12",
+  "re": "^this project already has a section with that name$"
+ },
+ {
   "id": "e9a8a9438",
   "re": "^only a debit card's linked account can be changed$"
  },
  {
   "id": "ea786a967",
   "re": "^biometric unlock isn't turned on for this profile$"
+ },
+ {
+  "id": "ee7bb8276",
+  "re": "^link a payment to money that went out, not income$"
  },
  {
   "id": "efa8919c9",
@@ -236,12 +256,20 @@
   "re": "^changed again since; undo the later change first$"
  },
  {
+  "id": "edd4ab94a",
+  "re": "^a project can have at most 12 columns of its own$"
+ },
+ {
   "id": "efa47e7b1",
   "re": "^you can't erase your own profile while signed in$"
  },
  {
   "id": "e34074ab1",
   "re": "^that code has a typo; check it against the card$"
+ },
+ {
+  "id": "e4477c240",
+  "re": "^that transaction is already linked to a payment$"
  },
  {
   "id": "e67f096c7",
@@ -298,6 +326,10 @@
  {
   "id": "ea257c422",
   "re": "^an admin already exists; ask them to add you$"
+ },
+ {
+  "id": "ee1debe44",
+  "re": "^the quantity can have up to 4 decimal places$"
  },
  {
   "id": "e2002b090",
@@ -368,6 +400,10 @@
   "re": "^ask one of their helpers to approve first$"
  },
  {
+  "id": "edbe0c3bb",
+  "re": "^give the amount, or the quantity and rate$"
+ },
+ {
   "id": "ef77ffbff",
   "re": "^the waiting period is 3, 7, 14 or 30 days$"
  },
@@ -420,6 +456,10 @@
   "re": "^multiple SQL statements are not allowed$"
  },
  {
+  "id": "e0e041110",
+  "re": "^the project can't end before it starts$"
+ },
+ {
   "id": "e541ff9dc",
   "re": "^logo must be a PNG, JPEG or WebP image$"
  },
@@ -438,6 +478,10 @@
  {
   "id": "ecbe5189c",
   "re": "^that calendar file is larger than 5 MB$"
+ },
+ {
+  "id": "eef62280a",
+  "re": "^a project can have at most 60 sections$"
  },
  {
   "id": "e5d803bee",
@@ -460,8 +504,16 @@
   "re": "^a gradient takes two or three colours$"
  },
  {
+  "id": "e9bfecb1b",
+  "re": "^a choice column needs 1 to 30 choices$"
+ },
+ {
   "id": "edf7ff440",
   "re": "^no regional list for that country yet$"
+ },
+ {
+  "id": "e0b03ee53",
+  "re": "^two columns can't have the same name$"
  },
  {
   "id": "e74a5c73f",
@@ -494,6 +546,10 @@
  {
   "id": "e9a7d3a6b",
   "re": "^a page of that PDF couldn't be read$"
+ },
+ {
+  "id": "eb1012afa",
+  "re": "^choose the account it was paid from$"
  },
  {
   "id": "eb8ec1a2a",
@@ -610,6 +666,10 @@
  {
   "id": "ef27838aa",
   "re": "^dimming must be between 0 and 0\\.8$"
+ },
+ {
+  "id": "e17ee79ad",
+  "re": "^the quantity must be more than 0$"
  },
  {
   "id": "e41369c2d",
@@ -768,6 +828,10 @@
   "re": "^the linked item doesn't exist$"
  },
  {
+  "id": "e554d6a04",
+  "re": "^two columns can't share an id$"
+ },
+ {
   "id": "ea414ef1b",
   "re": "^speed is slow, normal or fast$"
  },
@@ -812,8 +876,20 @@
   "re": "^that location can't be used$"
  },
  {
+  "id": "e568ad47a",
+  "re": "^that column can't be hidden$"
+ },
+ {
   "id": "e75c44dab",
   "re": "^unsupported backup settings$"
+ },
+ {
+  "id": "ea9a4a474",
+  "re": "^the quantity isn't a number$"
+ },
+ {
+  "id": "ebef7b589",
+  "re": "^the tax rate isn't a number$"
  },
  {
   "id": "ebf596403",
@@ -874,6 +950,10 @@
  {
   "id": "eedf98167",
   "re": "^choose a spending category$"
+ },
+ {
+  "id": "e2a26260e",
+  "re": "^the tax rate is 0 to 100%$"
  },
  {
   "id": "e53f2dd48",
@@ -944,8 +1024,16 @@
   "re": "^give the document a name$"
  },
  {
+  "id": "e100478b1",
+  "re": "^give the section a name$"
+ },
+ {
   "id": "e27510ee1",
   "re": "^sealed value is corrupt$"
+ },
+ {
+  "id": "e32c271fb",
+  "re": "^give each column a name$"
  },
  {
   "id": "e352ffe62",
@@ -972,6 +1060,14 @@
   "re": "^give the statement date$"
  },
  {
+  "id": "eadf41092",
+  "re": "^give the project a name$"
+ },
+ {
+  "id": "ee7bf908e",
+  "re": "^unknown kind of project$"
+ },
+ {
   "id": "e1e3d3524",
   "re": "^show must be an object$"
  },
@@ -984,8 +1080,16 @@
   "re": "^wrapped key is corrupt$"
  },
  {
+  "id": "e6c289105",
+  "re": "^unknown project status$"
+ },
+ {
   "id": "e71f60680",
   "re": "^expected off or weekly$"
+ },
+ {
+  "id": "e85b4614a",
+  "re": "^unknown kind of column$"
  },
  {
   "id": "ec7cb3910",
@@ -1008,6 +1112,10 @@
   "re": "^expected auto, 0 or 2$"
  },
  {
+  "id": "e4eab5428",
+  "re": "^unknown way of paying$"
+ },
+ {
   "id": "eba1e6df3",
   "re": "^the letter is damaged$"
  },
@@ -1026,6 +1134,18 @@
  {
   "id": "e1846d3fe",
   "re": "^this file is damaged$"
+ },
+ {
+  "id": "e2e1db6a9",
+  "re": "^say what the item is$"
+ },
+ {
+  "id": "e4e781fde",
+  "re": "^give the amount paid$"
+ },
+ {
+  "id": "e6a09f792",
+  "re": "^unknown kind of item$"
  },
  {
   "id": "e948728d5",
@@ -1108,6 +1228,10 @@
   "re": "^flow is out or in$"
  },
  {
+  "id": "e93f7bd76",
+  "re": "^too many sections$"
+ },
+ {
   "id": "e17fd8ef4",
   "re": "^that isn't a PDF$"
  },
@@ -1118,6 +1242,10 @@
  {
   "id": "e371d6a76",
   "re": "^no such snapshot$"
+ },
+ {
+  "id": "eb1b3496e",
+  "re": "^unknown currency$"
  },
  {
   "id": "ed148f2d8",
@@ -1138,6 +1266,18 @@
  {
   "id": "ea7cb5e24",
   "re": "^no such account$"
+ },
+ {
+  "id": "ee7cd1061",
+  "re": "^no such section$"
+ },
+ {
+  "id": "eef93e86e",
+  "re": "^no such project$"
+ },
+ {
+  "id": "efa1a02a2",
+  "re": "^no such payment$"
  },
  {
   "id": "e0ba0ed77",
@@ -1168,6 +1308,10 @@
   "re": "^no such event$"
  },
  {
+  "id": "eebba3218",
+  "re": "^give the date$"
+ },
+ {
   "id": "e1999cbaa",
   "re": "^no such user$"
  },
@@ -1182,6 +1326,10 @@
  {
   "id": "e5810d133",
   "re": "^no such card$"
+ },
+ {
+  "id": "e6a2be2bb",
+  "re": "^no such item$"
  },
  {
   "id": "e7b3dceaf",
@@ -1254,6 +1402,10 @@
  {
   "id": "e03a824c5",
   "re": "^`([\\s\\S]+?)` is not a 3-letter currency code$"
+ },
+ {
+  "id": "e2177d90b",
+  "re": "^choose one of the choices for “([\\s\\S]+?)”$"
  },
  {
   "id": "e6e8822a1",
@@ -1364,6 +1516,10 @@
   "re": "^TOTP setup failed: ([\\s\\S]+?)$"
  },
  {
+  "id": "e3756cebc",
+  "re": "^“([\\s\\S]+?)” needs a number$"
+ },
+ {
   "id": "e6991fcd3",
   "re": "^card background: ([\\s\\S]+?)$"
  },
@@ -1372,12 +1528,20 @@
   "re": "^bad TOTP secret: ([\\s\\S]+?)$"
  },
  {
+  "id": "e1b557a24",
+  "re": "^“([\\s\\S]+?)” is yes or no$"
+ },
+ {
   "id": "e5ff72bb9",
   "re": "^([\\s\\S]+?) has no regimes$"
  },
  {
   "id": "ea70aca35",
   "re": "^unknown role `([\\s\\S]+?)`$"
+ },
+ {
+  "id": "edb265a98",
+  "re": "^“([\\s\\S]+?)” needs a date$"
  },
  {
   "id": "e8324b6ad",
