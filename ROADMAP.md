@@ -315,13 +315,13 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Insurance: policies, premiums (reminders, calendar, tax planner), claims, cover against income
 - [x] Net-worth timeline (month ends, rebuilt from the ledger and investment statements)
 - [x] Nominee tracking on each account, policy and investment (in the emergency summary too)
-- [ ] Journal (documents vault and the emergency summary are done, Phase 3)
+- [x] Journal: notes with mood, tags and linked transactions; month reviews keep the month's figures
 - [x] Tax planner filled from transactions; TDS and advance tax with reminders; HRA rent receipts
 - [x] Form 16 import (PDF, password-protected too)
 - [ ] AIS / Form 26AS import (needs a real download to match its layout)
 - [ ] Second country's tax pack
 - [x] PDF statement import (password-protected too)
-- [ ] Anomaly detection (unusual amounts, new merchants, double charges)
+- [x] Anomaly detection (unusual amounts, new merchants, double charges)
 - **Done when:** net worth is complete and the tax planner fills itself in.
 
 ### Phase 6: Business (v1.x)

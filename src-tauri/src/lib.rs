@@ -452,6 +452,16 @@ fn cards_best(s: S, amount: Option<Value>, category_id: Option<String>, place: O
     if let Some(n) = &nominee { limits::text("nominee", n, 200)?; }
     s.act("nominee.set", |c| vaulty_core::nominees::set(c, &kind, &id, nominee.as_deref()))
 }
+/// Unusual spending in the last 30 days (double charges, unusual amounts, large first payments).
+#[tauri::command] fn anomalies_list(s: S) -> Result<Vec<vaulty_core::anomalies::Anomaly>> { s.data(|c| vaulty_core::anomalies::find(c, today())) }
+#[tauri::command] fn anomalies_dismiss(s: S, key: String) -> Result<()> { s.data(|c| vaulty_core::anomalies::dismiss(c, &key)) }
+#[tauri::command] fn anomalies_reset(s: S) -> Result<usize> { s.data(vaulty_core::anomalies::reset) }
+/// The money journal.
+#[tauri::command] fn journal_list(s: S, search: Option<String>, tag: Option<String>) -> Result<Value> { s.data(|c| vaulty_core::journal::list(c, search.as_deref(), tag.as_deref(), today())) }
+#[tauri::command] fn journal_month_facts(s: S, month: String) -> Result<Value> { s.data(|c| vaulty_core::journal::month_facts(c, &month)) }
+#[tauri::command] fn journal_create(s: S, entry: Value) -> Result<Value> { limits::check(&entry)?; s.act("journal.create", |c| vaulty_core::journal::create(c, &entry)) }
+#[tauri::command] fn journal_update(s: S, id: String, entry: Value) -> Result<()> { limits::check(&entry)?; s.act("journal.update", |c| vaulty_core::journal::update(c, &id, &entry)) }
+#[tauri::command] fn journal_delete(s: S, id: String) -> Result<()> { s.act("journal.delete", |c| vaulty_core::journal::delete(c, &id)) }
 /// A money calculator (SIP, EMI, FD …); nothing is read or kept.
 #[tauri::command] fn calc_run(kind: String, input: Value) -> Result<Value> { limits::check(&input)?; vaulty_core::calc::run(&kind, &input) }
 #[tauri::command]
@@ -1927,7 +1937,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, transactions_bulk, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, form16_read, form16_apply, goals_list, goals_summary, goals_create, goals_update, goals_set_done, goals_delete, calc_run, networth_timeline, nominees_list, nominees_set, insurance_list, insurance_summary, insurance_create, insurance_update, insurance_delete, insurance_pay, insurance_payment_delete, insurance_claim_add, insurance_claim_update, insurance_claim_delete, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, form16_read, form16_apply, goals_list, goals_summary, goals_create, goals_update, goals_set_done, goals_delete, calc_run, networth_timeline, nominees_list, nominees_set, anomalies_list, anomalies_dismiss, anomalies_reset, journal_list, journal_month_facts, journal_create, journal_update, journal_delete, insurance_list, insurance_summary, insurance_create, insurance_update, insurance_delete, insurance_pay, insurance_payment_delete, insurance_claim_add, insurance_claim_update, insurance_claim_delete, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
         ])
         .build(tauri::generate_context!())
         .expect("error while running Vaulty")

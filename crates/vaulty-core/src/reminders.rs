@@ -117,6 +117,16 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
             name: d["title"].as_str().unwrap_or_default().into(), date: exp.into(), days, amount: None, currency: None, percent: None, previous: None, detail: None,
         });
     }
+    // Unusual spending from the last 3 days: once each.
+    for a in crate::anomalies::find(conn, today)? {
+        let Ok(d) = NaiveDate::parse_from_str(&a.date, "%Y-%m-%d") else { continue };
+        let days = (d - today).num_days();
+        if days < -3 { continue; }
+        out.push(Due {
+            key: format!("unusual:{}", a.key), kind: "unusual".into(), name: a.name, date: a.date, days,
+            amount: Some(a.amount), currency: Some(a.currency), percent: None, previous: a.usual, detail: Some(a.kind),
+        });
+    }
     // Insurance premiums: from 15 days ahead until 30 days late (the usual grace period).
     for (id, name, date, premium, cur) in crate::insurance::dues(conn, today - chrono::Days::new(crate::insurance::GRACE as u64), today + chrono::Days::new(crate::insurance::DUE_AHEAD as u64))? {
         let days = (date - today).num_days();

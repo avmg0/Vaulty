@@ -87,6 +87,11 @@ What changed in each version, for people using Vaulty. Newest first.
   together under Documents → Nominees with missing ones first. They appear in the emergency
   summary, which now also lists insurance policies with the insurer's contact.
 - New accounts can take the date their opening balance was right on.
+- Worth a look (on the Dashboard): possible double charges, amounts far above what a place
+  usually charges, and large first payments to a new place, from the last 30 days, with a
+  reminder for new ones. Mark them fine, or delete a double charge.
+- Money journal: dated notes with a mood, tags and the transactions they're about, searchable.
+  At the end of a month it offers a review, keeping that month's figures with what you write.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

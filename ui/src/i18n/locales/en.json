@@ -543,6 +543,11 @@
       },
       "nominee": {
         "set": "Changed a nominee"
+      },
+      "journal": {
+        "create": "Wrote a journal entry",
+        "update": "Changed a journal entry",
+        "delete": "Deleted a journal entry"
       }
     },
     "check": {
@@ -1565,6 +1570,7 @@
     "e34074ab1": "that code has a typo; check it against the card",
     "e4477c240": "that transaction is already linked to a payment",
     "e67f096c7": "this data can't be opened with the key provided",
+    "e7214e4ff": "the entry is too long (up to 20,000 characters)",
     "ee1a42587": "no bill lines were found; add the items by hand",
     "e1600c7cc": "the nominee is too long (up to 200 characters)",
     "e58c5c5f4": "setup code expired; ask an admin for a new one",
@@ -1582,6 +1588,7 @@
     "e7e707449": "choose the bank account this debit card uses",
     "ea257c422": "an admin already exists; ask them to add you",
     "ee1debe44": "the quantity can have up to 4 decimal places",
+    "ef3e4ec7e": "the title is too long (up to 120 characters)",
     "e2002b090": "expected auto or a month name such as april",
     "e7184ceb6": "a shortcut needs Ctrl (Cmd on a Mac) or Alt",
     "e08b45d14": "choose a preset, colour, gradient or image",
@@ -1716,6 +1723,7 @@
     "e56d8f7c3": "at most 20 tags per transaction",
     "e5cc09498": "a page of that PDF is too large",
     "e7f82b1fa": "that photo is too large to read",
+    "e9b44626d": "that month already has a review",
     "ea671333c": "refresh every 5 to 1440 minutes",
     "eab7eab67": "the market ticker is turned off",
     "eb0c9820a": "this profile's keys are missing",
@@ -1733,6 +1741,7 @@
     "ea56748c5": "this profile is already set up",
     "eb8c997dd": "this helper's share is damaged",
     "edf09116c": "pick a range of at most a year",
+    "ee35268df": "up to 12 tags of 30 characters",
     "ee99ac47f": "plan for life after retirement",
     "e07a93728": "repeat every 1 to 366 periods",
     "e112478b6": "mark which one of them is you",
@@ -1780,8 +1789,10 @@
     "ed8aceb17": "the photo couldn't be read",
     "edccd2708": "that isn't a Vaulty backup",
     "ede5e8fa2": "a budget can't be negative",
+    "ee19de88d": "link up to 20 transactions",
     "eedf98167": "choose a spending category",
     "e2a26260e": "the tax rate is 0 to 100%",
+    "e2f66c7f8": "give the month as YYYY-MM",
     "e53f2dd48": "snapshot is not encrypted",
     "e5486d303": "a file can be up to 25 MB",
     "e6580b75c": "amounts can't be negative",
@@ -1822,6 +1833,7 @@
     "e6c289105": "unknown project status",
     "e71f60680": "expected off or weekly",
     "e85b4614a": "unknown kind of column",
+    "ea84c4660": "give the entry a title",
     "ec7cb3910": "expected true or false",
     "ed51a8974": "give the policy a name",
     "ef8ab9aeb": "transaction without id",
@@ -1888,15 +1900,19 @@
     "e2abe41b8": "no such to-do",
     "e6a286dbd": "no such event",
     "eebba3218": "give the date",
+    "ef8e0ed9b": "no such entry",
     "e1999cbaa": "no such user",
     "e220d081e": "no such file",
     "e47072ca1": "unknown type",
     "e5810d133": "no such card",
     "e6a2be2bb": "no such item",
+    "e8eda195d": "unknown item",
+    "eb1b28267": "unknown mood",
     "ecbe407d7": "no such goal",
     "e7b3dceaf": "bad labels",
     "eb3f0f86d": "bad policy",
     "e2192308d": "bad nonce",
+    "e69dafaab": "bad entry",
     "ed97d349a": "tax year",
     "ef497ea02": "bad goal",
     "e24213819": "bad hex",
@@ -3411,5 +3427,69 @@
     },
     "placeholder": "Name, and share if more than one",
     "saved": "Saved"
+  },
+  "anomalies": {
+    "title": "Worth a look",
+    "desc": "Spending in the last 30 days that stands out. Mark it fine if it's expected.",
+    "kinds": {
+      "double": "{{name}}: charged twice, same amount",
+      "amount": "{{name}}: {{times}}× the usual {{usual}}",
+      "new_place": "{{name}}: a large first payment"
+    },
+    "notify": {
+      "double": "Possible double charge at {{name}}",
+      "amount": "Unusually large amount at {{name}}",
+      "new_place": "Large first payment to {{name}}"
+    },
+    "deleteSecond": "Delete this one",
+    "fine": "It's fine",
+    "more_one": "{{count}} more in the last 30 days.",
+    "more_other": "{{count}} more in the last 30 days."
+  },
+  "journal": {
+    "search": "Search the journal",
+    "new": "New entry",
+    "tags": "Tags",
+    "reviewDue": "{{month}} is over. How did it go?",
+    "writeReview": "Write a review",
+    "noMatch": "Nothing matches",
+    "emptyTitle": "A place to think about money",
+    "emptyBody": "Note why you made a decision, what worried you, what went well. Reading it back a year later is the useful part.",
+    "facts": {
+      "income": "Income",
+      "spending": "Spending",
+      "kept": "Kept",
+      "up": "{{pct}}% more than the month before",
+      "down": "{{pct}}% less than the month before",
+      "rate": "{{pct}}% of income",
+      "most": "Most went on:",
+      "biggest": "Biggest spends:"
+    },
+    "moods": {
+      "great": "Great",
+      "good": "Good",
+      "okay": "Okay",
+      "worried": "Worried",
+      "stressed": "Stressed"
+    },
+    "reviewOf": "Review of {{month}}",
+    "editNamed": "Edit {{title}}",
+    "deleteNamed": "Delete {{title}}",
+    "reviewTitle": "Review of {{month}}",
+    "editTitle": "Edit entry",
+    "newTitle": "New entry",
+    "reviewDesc": "The month's figures are kept with what you write, as they are now.",
+    "dialogDesc": "Only you can read this; it's kept encrypted with the rest of your data.",
+    "refreshFacts": "Update the figures to what they are now",
+    "date": "Date",
+    "titleLabel": "Title",
+    "mood": "How it felt",
+    "content": "Notes",
+    "prompt": "What happened, what you decided and why…",
+    "reviewPrompt": "What went well, what didn't, what to change next month…",
+    "tagsHint": "Comma-separated, e.g. home, car",
+    "linked": "About these transactions",
+    "unlink": "Remove link",
+    "findTxn": "Search transactions to link"
   }
 }

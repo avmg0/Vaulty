@@ -32,6 +32,7 @@ export function wordReminder(r: Reminder, amounts: boolean): { title: string; bo
     return { title, body: t("reminders.cardMin", { amount: money, min: formatMoney(r.previous, r.currency ?? "INR"), date }) };
   }
   if (r.kind === "expiry") return { title: r.days < 0 ? t("reminders.expired", { name: r.name, when }) : r.days === 0 ? t("reminders.expiresToday", { name: r.name }) : t("reminders.expiry", { name: r.name, when }), body: date };
+  if (r.kind === "unusual") return { title: t(`anomalies.notify.${r.detail ?? "amount"}`, { name: r.name }), body: money ? `${money} · ${date}` : date };
   if (r.kind === "budget") return { title: t("reminders.budget.title", { name: r.name, percent: r.percent }), body: money ? t("reminders.budget.spent", { amount: money }) : t("reminders.budget.body") };
   const name = r.kind === "tax" ? t("reminders.taxName", { year: r.name }) : r.name;
   const title = r.days < 0 ? t("reminders.overdue", { name, when }) : t(`reminders.${r.kind}`, { name, when });

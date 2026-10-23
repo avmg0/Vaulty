@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, PiggyBank, Wallet } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { AnomaliesCard } from "@/components/AnomaliesCard";
 import { api, DATA_RESTORED, type Account, type Recurring, type Transaction } from "@/api";
 import { dueText } from "./Recurring";
 import { cn } from "@/lib/utils";
@@ -131,7 +132,8 @@ export function Dashboard() {
           </Card>
         ))}
       </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <AnomaliesCard />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Card>
           <CardHeader><CardTitle>{t("dashboard.flowTitle")}</CardTitle><CardDescription>{t("dashboard.flowDesc")}</CardDescription></CardHeader>
           <CardContent>
@@ -152,7 +154,7 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       <Card>
         <CardHeader><CardTitle>{t("dashboard.recent")}</CardTitle><CardDescription>{t("dashboard.recentHint")}</CardDescription></CardHeader>
         <CardContent className="divide-y">

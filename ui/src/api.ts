@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$", "^nominees_set$", "^insurance_(create|update|delete|pay|payment_delete|claim_(add|update|delete))$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$", "^nominees_set$", "^journal_(create|update|delete)$", "^insurance_(create|update|delete|pay|payment_delete|claim_(add|update|delete))$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -170,6 +170,18 @@ export type PolicyInput = Partial<Omit<Policy, "cover" | "premium" | "payments" 
 export type InsuranceTotal = { currency: string; life_cover: number; health_cover: number; premiums_yearly: number; income_year: number; life_multiple: number | null };
 export type NetWorthPoint = { date: string; cash: number; investments: number; owed_to_you: number; debts: number; you_owe: number; net: number };
 export type NetWorth = { currency: string; points: NetWorthPoint[]; net: number; change_month: number | null; change_period: number; since: string | null };
+export const MOODS = ["great", "good", "okay", "worried", "stressed"] as const;
+export type Mood = (typeof MOODS)[number];
+export type MonthFacts = {
+  month: string; currency: string; income: number; spending: number; kept: number; savings_rate: number | null; previous_spending: number; change: number | null;
+  categories: { name: string; icon: string | null; amount: number }[]; places: { name: string; amount: number }[]; biggest: { id: string; date: string; name: string; amount: number }[];
+};
+export type JournalEntry = {
+  id: string; date: string; title: string; content: string; mood: Mood | null; tags: string[]; review_of: string | null; facts: MonthFacts | null; created_at: string; updated_at: string;
+  linked: { id: string; date: string; type: string; name: string; amount: number | null; currency: string; hidden?: boolean }[];
+};
+export type JournalInput = { date: string; title: string; content: string; mood: Mood | null; tags: string[]; linked: string[]; review_of?: string | null };
+export type Anomaly = { key: string; kind: "double" | "amount" | "new_place"; entry_id: string; other_id: string | null; date: string; name: string; account: string | null; amount: number; currency: string; usual: number | null; times: number | null };
 export type NomineeItem = { kind: "account" | "holding" | "policy"; id: string; name: string; detail: string; provider: string | null; currency: string; nominee: string | null };
 export type GoalStatus = "done" | "reached" | "on_track" | "behind" | "overdue" | "no_date";
 export type GoalLink = { account_id: string | null; holding_id: string | null; share: number; name: string; value: number; over: boolean };
@@ -309,7 +321,7 @@ export type CalendarEvent = { id: string; title: string; date: string; time: str
 export type IcsEvent = { uid: string | null; title: string; date: string; time: string | null; repeat: string | null; notes: string | null };
 
 /** A reminder due now (see crates/vaulty-core/src/reminders.rs). `days` < 0 means overdue. */
-export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low" | "expiry" | "tax" | "premium"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
+export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low" | "expiry" | "tax" | "premium" | "unusual"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
 /** An account below its low-balance level, or a scheduled payment in the next 14 days that would take it there. */
 export type LowBalance = { account_id: string; name: string; currency: string; balance: number; level: number; now: boolean; date: string; because: string | null; lowest: number };
 
@@ -590,6 +602,18 @@ export const api = {
     addClaim: (policyId: string, claim: Record<string, unknown>) => invoke<{ id: string }>("insurance_claim_add", { policyId, claim }),
     updateClaim: (id: string, claim: Record<string, unknown>) => invoke<void>("insurance_claim_update", { id, claim }),
     deleteClaim: (id: string) => invoke<void>("insurance_claim_delete", { id }),
+  },
+  journal: {
+    list: (search?: string, tag?: string) => invoke<{ entries: JournalEntry[]; tags: string[]; review_due: string | null }>("journal_list", { search: search || null, tag: tag || null }),
+    monthFacts: (month: string) => invoke<MonthFacts>("journal_month_facts", { month }),
+    create: (entry: JournalInput) => invoke<{ id: string }>("journal_create", { entry }),
+    update: (id: string, entry: JournalInput & { refresh_facts?: boolean }) => invoke<void>("journal_update", { id, entry }),
+    delete: (id: string) => invoke<void>("journal_delete", { id }),
+  },
+  anomalies: {
+    list: () => invoke<Anomaly[]>("anomalies_list"),
+    dismiss: (key: string) => invoke<void>("anomalies_dismiss", { key }),
+    reset: () => invoke<number>("anomalies_reset"),
   },
   nominees: {
     list: () => invoke<{ items: NomineeItem[]; missing: number }>("nominees_list"),

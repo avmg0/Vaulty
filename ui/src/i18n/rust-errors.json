@@ -324,6 +324,10 @@
   "re": "^this data can't be opened with the key provided$"
  },
  {
+  "id": "e7214e4ff",
+  "re": "^the entry is too long \\(up to 20,000 characters\\)$"
+ },
+ {
   "id": "ee1a42587",
   "re": "^no bill lines were found; add the items by hand$"
  },
@@ -390,6 +394,10 @@
  {
   "id": "ee1debe44",
   "re": "^the quantity can have up to 4 decimal places$"
+ },
+ {
+  "id": "ef3e4ec7e",
+  "re": "^the title is too long \\(up to 120 characters\\)$"
  },
  {
   "id": "e2002b090",
@@ -928,6 +936,10 @@
   "re": "^that photo is too large to read$"
  },
  {
+  "id": "e9b44626d",
+  "re": "^that month already has a review$"
+ },
+ {
   "id": "ea671333c",
   "re": "^refresh every 5 to 1440 minutes$"
  },
@@ -994,6 +1006,10 @@
  {
   "id": "edf09116c",
   "re": "^pick a range of at most a year$"
+ },
+ {
+  "id": "ee35268df",
+  "re": "^up to 12 tags of 30 characters$"
  },
  {
   "id": "ee99ac47f",
@@ -1184,12 +1200,20 @@
   "re": "^a budget can't be negative$"
  },
  {
+  "id": "ee19de88d",
+  "re": "^link up to 20 transactions$"
+ },
+ {
   "id": "eedf98167",
   "re": "^choose a spending category$"
  },
  {
   "id": "e2a26260e",
   "re": "^the tax rate is 0 to 100%$"
+ },
+ {
+  "id": "e2f66c7f8",
+  "re": "^give the month as YYYY-MM$"
  },
  {
   "id": "e53f2dd48",
@@ -1350,6 +1374,10 @@
  {
   "id": "e85b4614a",
   "re": "^unknown kind of column$"
+ },
+ {
+  "id": "ea84c4660",
+  "re": "^give the entry a title$"
  },
  {
   "id": "ec7cb3910",
@@ -1616,6 +1644,10 @@
   "re": "^give the date$"
  },
  {
+  "id": "ef8e0ed9b",
+  "re": "^no such entry$"
+ },
+ {
   "id": "e1999cbaa",
   "re": "^no such user$"
  },
@@ -1636,6 +1668,14 @@
   "re": "^no such item$"
  },
  {
+  "id": "e8eda195d",
+  "re": "^unknown item$"
+ },
+ {
+  "id": "eb1b28267",
+  "re": "^unknown mood$"
+ },
+ {
   "id": "ecbe407d7",
   "re": "^no such goal$"
  },
@@ -1650,6 +1690,10 @@
  {
   "id": "e2192308d",
   "re": "^bad nonce$"
+ },
+ {
+  "id": "e69dafaab",
+  "re": "^bad entry$"
  },
  {
   "id": "ed97d349a",

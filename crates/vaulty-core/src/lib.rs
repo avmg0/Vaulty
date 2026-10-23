@@ -40,6 +40,8 @@ pub mod goals;
 pub mod insurance;
 pub mod networth;
 pub mod nominees;
+pub mod anomalies;
+pub mod journal;
 pub mod people;
 pub mod profiles;
 pub mod quick;

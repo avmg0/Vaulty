@@ -30,6 +30,7 @@ import { CommandPalette } from "@/components/CommandPalette";
 import { TaxPlanner } from "@/pages/TaxPlanner";
 import { GoalsPage } from "@/pages/Goals";
 import { InsurancePage } from "@/pages/Insurance";
+import { JournalPage } from "@/pages/Journal";
 import { TickerBar } from "@/components/TickerBar";
 import { UndoToaster } from "@/components/UndoToaster";
 import { UpdateNotice } from "@/components/Updates";
@@ -177,7 +178,7 @@ function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => v
   useHotkey("go_import", () => setPage("import"));
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
-  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => { requestSettingsTab("family"); setPage("settings"); }} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, reports: <Reports />, people: <PeoplePage />, tasks: <TasksPage />, documents: <DocumentsPage />, investments: <InvestmentsPage />, projects: <ProjectsPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, goals: <GoalsPage />, insurance: <InsurancePage />, history: <History /> }[page as string];
+  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => { requestSettingsTab("family"); setPage("settings"); }} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, reports: <Reports />, people: <PeoplePage />, tasks: <TasksPage />, documents: <DocumentsPage />, investments: <InvestmentsPage />, projects: <ProjectsPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, goals: <GoalsPage />, insurance: <InsurancePage />, journal: <JournalPage />, history: <History /> }[page as string];
 
   return (
     <div className="flex h-screen overflow-hidden">
