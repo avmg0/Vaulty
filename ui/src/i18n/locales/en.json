@@ -1325,6 +1325,7 @@
     "e42f5c1a4": "can't switch a category between income and expense once it's in use",
     "eaf09b6a7": "full card numbers are never stored; send only `last4` and `network`",
     "e74d10347": "encrypted copy failed its integrity check; original left untouched",
+    "ec3a66118": "another app is already using that shortcut; choose a different one",
     "efb0cbd19": "that code didn't match; check the time on your phone and try again",
     "e43eb186c": "that shortcut belongs to the system (copy, paste, quit and so on)",
     "e6c4717b8": "turn on Family sharing in Settings to see what your family shares",
@@ -1420,6 +1421,7 @@
     "ef050fca1": "it can't expire before it was issued",
     "efdd36dff": "that key can't be used in a shortcut",
     "e3d60c603": "the hint can't contain the password",
+    "e483a4390": "choose one of the shortcuts offered",
     "e6f8ca333": "the spreadsheet couldn't be written",
     "eb8ec1a2a": "invalid or already-used backup code",
     "eef1a8ef3": "this profile hasn't been set up yet",
@@ -1519,6 +1521,7 @@
     "e586ed0a1": "watchlist must be a list",
     "e8ae2935f": "a field name is too long",
     "ea044bf7d": "printing isn't available",
+    "ead37307c": "that setting is too long",
     "eea354a80": "card name can't be empty",
     "ef11b1bf6": "unknown kind of document",
     "efddf69bf": "give the document a name",
@@ -1566,6 +1569,7 @@
     "e371d6a76": "no such snapshot",
     "ed148f2d8": "no such document",
     "eff7a2fe9": "no such category",
+    "e0d8df62c": "unknown setting",
     "e71626582": "no such benefit",
     "ea7cb5e24": "no such account",
     "e0ba0ed77": "already undone",
@@ -1579,6 +1583,7 @@
     "e220d081e": "no such file",
     "e47072ca1": "unknown type",
     "e5810d133": "no such card",
+    "e7b3dceaf": "bad labels",
     "e2192308d": "bad nonce",
     "ed97d349a": "tax year",
     "e24213819": "bad hex",
@@ -1591,6 +1596,7 @@
     "e2d1a15b5": "category type must be income or expense, not `{{p0}}`",
     "e25d11d23": "use a backup password of at least {{p0}} characters",
     "e321bf116": "too many attempts; try again in {{p0}} seconds",
+    "e59e02493": "the menu bar icon couldn't be set up ({{p0}})",
     "ec943408d": "a sub-category must be {{p0}} like its parent",
     "e222c329b": "password must be at least {{p0}} characters",
     "eda24e1a1": "that calendar has more than {{p0}} events",
@@ -2253,5 +2259,24 @@
     "removeFile": "Remove {{name}}",
     "encrypted": "Files are encrypted with your profile’s key. PDFs open in your own viewer: save a copy to open one.",
     "done": "Done"
+  },
+  "device": {
+    "title": "This computer",
+    "desc": "Settings for this computer, for everyone who uses Vaulty on it.",
+    "tray": "Icon in the taskbar",
+    "trayMac": "Icon in the menu bar",
+    "trayDesc": "Quick add, open Vaulty or lock it from the icon.",
+    "shortcut": "Quick add from anywhere",
+    "shortcutDesc": "A shortcut that opens quick add while you’re in any app. Locked? You sign in first.",
+    "off": "Off",
+    "keepRunning": "Keep running when the window is closed",
+    "keepRunningDesc": "Reminders and the shortcut keep working. Quit from the icon’s menu.",
+    "keepRunningNeedsTray": "Needs the icon, so Vaulty can be opened and quit again."
+  },
+  "tray": {
+    "quick": "Quick add",
+    "open": "Open Vaulty",
+    "lock": "Lock now",
+    "quit": "Quit Vaulty"
   }
 }

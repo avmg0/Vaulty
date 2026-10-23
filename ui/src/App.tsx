@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import i18n from "@/i18n";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { DEFAULT_DISPLAY, displayFrom, useLocale } from "@/hooks/locale";
@@ -22,7 +24,7 @@ import { ComingSoon } from "@/pages/ComingSoon";
 import { Budgets } from "@/pages/Budgets";
 import { RecurringPage } from "@/pages/Recurring";
 import { ImportPage } from "@/pages/Import";
-import { QuickAdd } from "@/components/QuickAdd";
+import { QUICK_ADD_EVENT, QuickAdd } from "@/components/QuickAdd";
 import { CommandPalette } from "@/components/CommandPalette";
 import { TaxPlanner } from "@/pages/TaxPlanner";
 import { TickerBar } from "@/components/TickerBar";
@@ -91,6 +93,26 @@ export function App() {
   }, [motion]);
   const lockFinished = useCallback(() => { setUser(null); setLocking(false); }, []);
   const unlockFinished = useCallback(() => setUnlocking(false), []);
+
+  // The tray's "Quick add" and the quick-add shortcut: open it now, or straight after signing in.
+  const [quickPending, setQuickPending] = useState(false);
+  useEffect(() => {
+    const off = listen("vaulty://quick-add", () => setQuickPending(true)).catch(() => () => {});
+    return () => { void off.then((f) => f()); };
+  }, []);
+  useEffect(() => {
+    if (!quickPending || !user || unlocking || locking) return;
+    // Let the app's screens mount before asking.
+    const id = setTimeout(() => { window.dispatchEvent(new Event(QUICK_ADD_EVENT)); setQuickPending(false); }, 50);
+    return () => clearTimeout(id);
+  }, [quickPending, user, unlocking, locking]);
+  // The tray menu speaks the window's language.
+  useEffect(() => {
+    const send = () => api.device.trayLabels(["quick", "open", "lock", "quit"].map((k) => i18n.t(`tray.${k}`))).catch(() => {});
+    send();
+    i18n.on("languageChanged", send);
+    return () => { i18n.off("languageChanged", send); };
+  }, []);
 
   if (backendMissing) return (
     <div className="text-muted-foreground grid min-h-screen place-items-center p-6 text-center text-sm">

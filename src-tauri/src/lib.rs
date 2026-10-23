@@ -1,4 +1,6 @@
 mod biometric;
+#[cfg(desktop)]
+mod desktop;
 mod market;
 
 use rusqlite::Connection;
@@ -1548,8 +1550,78 @@ async fn update_install(app: tauri::AppHandle, s: S<'_>) -> Result<()> {
     app.restart()
 }
 
+// ============================================================ tray, shortcut, keep running (this device)
+
+/// Device settings for the Settings page: tray icon, quick-add shortcut, keep running when closed.
+#[tauri::command]
+fn app_settings_get(s: S) -> Result<Value> {
+    let get = |k: &str| s.registry(|r| r.app_setting(k));
+    #[cfg(desktop)]
+    let choices = desktop::SHORTCUTS;
+    #[cfg(not(desktop))]
+    let choices: &[&str] = &[];
+    Ok(json!({
+        "tray": get("tray")?.as_deref() != Some("off"),
+        "shortcut": get("shortcut")?.unwrap_or_default(),
+        "keep_running": get("keep_running")?.as_deref() == Some("on"),
+        "shortcut_choices": choices,
+        "mac": cfg!(target_os = "macos"),
+    }))
+}
+
+/// Changes a device setting and applies it straight away. Needs someone signed in.
+#[tauri::command]
+fn app_settings_set(app: tauri::AppHandle, s: S, key: String, value: Value) -> Result<()> {
+    s.current_user()?;
+    let text = match (&key[..], &value) {
+        ("tray" | "keep_running", Value::Bool(on)) => if *on { "on" } else { "off" }.to_string(),
+        ("shortcut", Value::String(k)) => k.clone(),
+        _ => return Err(Error::Invalid("unknown setting".into())),
+    };
+    #[cfg(desktop)]
+    match &key[..] {
+        "tray" => desktop::set_tray(&app, text == "on")?,
+        "shortcut" => desktop::set_shortcut(&app, &text)?,
+        _ => {}
+    }
+    #[cfg(not(desktop))]
+    let _ = &app;
+    s.registry(|r| r.set_app_setting(&key, &text))
+}
+
+/// The tray menu's words in the window's language.
+#[tauri::command]
+fn tray_labels(app: tauri::AppHandle, labels: Vec<String>) -> Result<()> {
+    if labels.len() != 4 || labels.iter().any(|l| l.trim().is_empty() || l.chars().count() > 40) { return Err(Error::Invalid("bad labels".into())); }
+    #[cfg(desktop)]
+    {
+        if let Ok(mut l) = app.state::<desktop::TrayLabels>().0.lock() {
+            *l = [labels[0].clone(), labels[1].clone(), labels[2].clone(), labels[3].clone()];
+        }
+        let on = app.state::<AppState>().registry(|r| r.app_setting("tray"))?.as_deref() != Some("off");
+        if on { desktop::set_tray(&app, true)?; }
+    }
+    #[cfg(not(desktop))]
+    let _ = (&app, labels);
+    Ok(())
+}
+
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(desktop)]
+    let builder = builder
+        .plugin(desktop::shortcut_plugin())
+        .manage(desktop::TrayLabels::default())
+        // With "keep running" on, closing the window hides it; the tray brings it back.
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if desktop::keep_running(window.app_handle()) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        });
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -1577,10 +1649,12 @@ pub fn run() {
                 shown: Mutex::new(Vec::new()),
             });
             watch_idle(app.handle().clone());
+            #[cfg(desktop)]
+            desktop::apply_saved(app.handle());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            app_settings_get, app_settings_set, tray_labels, pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, card_cycles_get, card_statement_enter, card_statement_forget, card_benefits_list, card_benefits_create, card_benefits_update, card_benefits_delete, card_benefits_use, cards_best, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,
@@ -1597,8 +1671,13 @@ pub fn run() {
             settings_get, settings_update,
             export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, cards_list, cards_create, cards_update, cards_delete,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Vaulty");
+        .build(tauri::generate_context!())
+        .expect("error while running Vaulty")
+        .run(|_app, _event| {
+            // macOS: clicking the Dock icon brings back a hidden window.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event { desktop::show_window(_app); }
+        });
 }
 
 #[cfg(test)]

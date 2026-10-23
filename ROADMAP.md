@@ -270,7 +270,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Quick add (Ctrl/Cmd+J) with plain-language entry ("250 swiggy yesterday", "petrol 2k from card", "कल 300 सब्ज़ी")
 - [x] Password-protected backups (`.vaulty`, open format in docs/BACKUP_FORMAT.md) and a printable recovery sheet
 - [x] Command palette (Ctrl/Cmd+K); period and category filters, bulk actions, lists that grow in pages
-- [ ] Quick add from anywhere: tray / menu-bar icon and an OS-wide shortcut (needs the Tauri tray and global-shortcut plugins, tested on each OS)
+- [x] Quick add from anywhere: tray / menu-bar icon (quick add, open, lock, quit; labels in the member's language) and an opt-in OS-wide shortcut from a short safe list; optional keep running when the window is closed. Built and checked in the browser; to be confirmed on macOS, Windows and Linux
 - [x] Hotkey editor (Settings → Keyboard shortcuts; per profile, clash and system-key checks, undoable)
 - **Done when:** the family uses it for a month instead of a spreadsheet.
 

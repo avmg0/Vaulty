@@ -198,6 +198,22 @@ impl Registry {
         Ok(Self { conn: crate::db::memory_with(crate::db::REGISTRY_MIGRATIONS)? })
     }
 
+    // ---------------------------------------------------------------- device settings
+
+    /// Tray icon, quick-add shortcut, keep running when closed. Known keys only.
+    pub const APP_SETTINGS: &'static [&'static str] = &["tray", "shortcut", "keep_running"];
+
+    pub fn app_setting(&self, key: &str) -> Result<Option<String>> {
+        Ok(self.conn.query_row("SELECT v FROM app_settings WHERE k = ?", [key], |r| r.get(0)).optional()?)
+    }
+
+    pub fn set_app_setting(&self, key: &str, value: &str) -> Result<()> {
+        if !Self::APP_SETTINGS.contains(&key) { return Err(Error::Invalid("unknown setting".into())); }
+        if value.chars().count() > 60 { return Err(Error::Invalid("that setting is too long".into())); }
+        self.conn.execute("INSERT INTO app_settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v = ?2", [key, value])?;
+        Ok(())
+    }
+
     // ---------------------------------------------------------------- profiles
 
     pub fn list(&self) -> Result<Vec<UserSummary>> {

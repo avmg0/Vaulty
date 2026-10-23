@@ -32,6 +32,7 @@ import { TotpSetupDialog } from "@/components/security/TotpSetupDialog";
 import { BackupCodes } from "@/components/security/BackupCodes";
 import { RecoveryKeyDialog } from "@/components/security/RecoveryKeyDialog";
 import { HelpersCard } from "@/components/security/HelpersCard";
+import { DeviceCard } from "@/components/DeviceCard";
 import { AUTO_LOCK_CHANGED, AUTO_LOCK_CHOICES, getAutoLockMinutes, setAutoLockMinutes } from "@/hooks/idle";
 import { FamilySharingCard } from "@/components/FamilySharingCard";
 import { useTheme, type Accent, type Theme } from "@/hooks/theme";
@@ -63,6 +64,7 @@ export function Settings() {
       <FamilySharingCard />
       <AppearanceCard />
       <HotkeysCard />
+      <DeviceCard />
       <MarketCard />
       <UpdatesCard />
     </div>

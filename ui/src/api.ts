@@ -152,6 +152,7 @@ export type CardInput = Partial<{
   statement_day: number | null; due_day: number | null; look: CardLook; notes: string | null;
   min_due_percent: string | number | null; min_due_floor: string | null; annual_fee: string | null; card_year_start: string | null;
 }>;
+export type DeviceSettings = { tray: boolean; shortcut: string; keep_running: boolean; shortcut_choices: string[]; mac: boolean };
 /** One credit card statement, worked out from the card's transactions (or as entered). */
 export type CardCycle = {
   statement_date: string; due_date: string; total: number; min: number; paid: number; left: number; min_left: number;
@@ -392,6 +393,12 @@ export const api = {
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
   files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
+  /** This computer: the tray icon, the quick-add shortcut, keeping Vaulty running when closed. */
+  device: {
+    get: () => invoke<DeviceSettings>("app_settings_get"),
+    set: (key: "tray" | "keep_running" | "shortcut", value: boolean | string) => invoke<void>("app_settings_set", { key, value }),
+    trayLabels: (labels: string[]) => invoke<void>("tray_labels", { labels }),
+  },
   cardExtras: {
     cycles: (cardId: string) => invoke<CardCycles | null>("card_cycles_get", { cardId }),
     enterStatement: (cardId: string, statement: { statement_date: string; total: string; min?: string }) => invoke<void>("card_statement_enter", { cardId, statement }),

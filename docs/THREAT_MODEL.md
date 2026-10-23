@@ -39,6 +39,11 @@ the profile locks for 30 seconds, doubling each time up to 15 minutes. Two-step 
 second factor. Recovery keys (24 characters) are as strong as a random key. Admins *cannot* open
 adults' data; parents hold a sealed recovery copy for children only.
 
+**Tray icon and shortcut.** The quick-add shortcut and the tray menu only bring the window forward
+and ask it to open quick add; with no one signed in, that is the sign-in screen. "Lock now" in the
+tray menu closes the session at once. With "keep running" on, a hidden window keeps its session
+until the usual auto-lock.
+
 **Documents.** Scans and photos are encrypted one file at a time (XChaCha20-Poly1305, under a key
 derived from the member's data key, with the file id as associated data so files can't be swapped)
 and checked against a SHA-256 fingerprint when opened. Only PDFs and images are accepted (checked by

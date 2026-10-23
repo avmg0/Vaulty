@@ -41,6 +41,8 @@ What changed in each version, for people using Vaulty. Newest first.
 - Credit card statements: what each statement asks for, the minimum due, what's paid and what's
   left, with a history; enter the bank's figures when they differ. Reminders use the statement.
 - Card benefits (rewards, spend milestones, perks) and "best card for today" for a purchase.
+- Menu bar (tray) icon with quick add, open, lock and quit; an optional shortcut to quick add from
+  any app; and an option to keep Vaulty running when its window is closed.
 
 ### Fixed
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.

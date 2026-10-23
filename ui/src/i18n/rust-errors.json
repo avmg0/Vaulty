@@ -76,6 +76,10 @@
   "re": "^encrypted copy failed its integrity check; original left untouched$"
  },
  {
+  "id": "ec3a66118",
+  "re": "^another app is already using that shortcut; choose a different one$"
+ },
+ {
   "id": "efb0cbd19",
   "re": "^that code didn't match; check the time on your phone and try again$"
  },
@@ -454,6 +458,10 @@
  {
   "id": "e3d60c603",
   "re": "^the hint can't contain the password$"
+ },
+ {
+  "id": "e483a4390",
+  "re": "^choose one of the shortcuts offered$"
  },
  {
   "id": "e6f8ca333",
@@ -852,6 +860,10 @@
   "re": "^printing isn't available$"
  },
  {
+  "id": "ead37307c",
+  "re": "^that setting is too long$"
+ },
+ {
   "id": "eea354a80",
   "re": "^card name can't be empty$"
  },
@@ -1040,6 +1052,10 @@
   "re": "^no such category$"
  },
  {
+  "id": "e0d8df62c",
+  "re": "^unknown setting$"
+ },
+ {
   "id": "e71626582",
   "re": "^no such benefit$"
  },
@@ -1092,6 +1108,10 @@
   "re": "^no such card$"
  },
  {
+  "id": "e7b3dceaf",
+  "re": "^bad labels$"
+ },
+ {
   "id": "e2192308d",
   "re": "^bad nonce$"
  },
@@ -1138,6 +1158,10 @@
  {
   "id": "e321bf116",
   "re": "^too many attempts; try again in ([\\s\\S]+?) seconds$"
+ },
+ {
+  "id": "e59e02493",
+  "re": "^the menu bar icon couldn't be set up \\(([\\s\\S]+?)\\)$"
  },
  {
   "id": "ec943408d",
