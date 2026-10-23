@@ -415,9 +415,9 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 ## More ideas (added 16 October 2026)
 
 ### Tax planner
-- [ ] Fill the planner from transactions: link categories to deductions (health insurance premium → health insurance limit, ELSS → tax-saving investments) and show progress against each limit through the year (Phase 3).
+- [x] Fill the planner from transactions: link categories to deductions (health insurance premium → health insurance limit, ELSS → tax-saving investments) and show progress against each limit through the year (Phase 3).
 - [ ] Break-even point: how much more you'd need to invest or claim before the old regime beats the new one (Phase 3).
-- [ ] Tax already paid: TDS from salary and interest, advance-tax instalments with calendar reminders, and "tax still due" or "refund expected" (Phase 3).
+- [x] Tax already paid: TDS from salary and interest, advance-tax instalments with calendar reminders, and "tax still due" or "refund expected" (Phase 3).
 - [ ] Import the AIS (Annual Information Statement) to check your entries against what banks and employers reported (Phase 3).
 - [ ] Capital gains harvesting: suggest selling and rebuying before 31 March to use the yearly tax-free long-term gains limit (currently ₹1.25 lakh) (Phase 3).
 
@@ -449,7 +449,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 
 ### Family and safety
 - [x] Emergency kit: a printable, password-protected summary for a spouse or nominee with accounts, policies, nominees and who to contact (Phase 3, top pick).
-- [ ] Nominee tracking on every account, policy and investment, flagging the ones without a nominee (Phase 3).
+- [x] Nominee tracking on every account, policy and investment, flagging the ones without a nominee (Phase 3).
 
 ### For the project
 - [x] Demo mode with John Doe sample data, so screenshots, testing and new contributors never touch real data (Phase 1).
@@ -496,8 +496,8 @@ Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. S
 ## Further ideas (added 16 October 2026, evening)
 
 ### Tax and salary (India first, via region packs)
-- [ ] Rent receipts for HRA: monthly rent receipts as PDFs with the landlord's name and PAN; rent paid fills the tax planner's HRA field (Phase 3, top pick).
-- [ ] Form 16 and payslip import: read salary, TDS and deductions so the tax planner fills itself in (Phase 3).
+- [x] Rent receipts for HRA: monthly rent receipts as PDFs with the landlord's name and PAN; rent paid fills the tax planner's HRA field (Phase 3, top pick).
+- [x] Form 16 import: salary, TDS and deductions fill the tax planner (payslips still to come).
 - [ ] Landlord mode: rent received, tenant details, security deposit, maintenance and property tax, with "rent not received" reminders (Phase 4).
 
 ### Planning
@@ -509,7 +509,7 @@ Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. S
 ### Family life
 - [x] Senior mode: large text, fewer menus, bigger buttons; a family member can help set it up (Phase 2, top pick).
 - [x] Document expiry reminders: passport, driving licence, vehicle insurance, PUC, health policy; on the calendar with advance reminders (done with Documents). FD maturity to follow with deposits.
-- [ ] Medical expenses and insurance claims: bills, claim status, reimbursements, remaining tax-saving health cover (Phase 3).
+- [ ] Medical expenses and insurance claims: bills, claim status, reimbursements, remaining tax-saving health cover (Phase 3). Claims with status and amount paid are done (Insurance); medical bills and reimbursements still to come.
 
 ### Security
 - [ ] Shared recovery key: split a recovery key into parts held by trusted family members (e.g. any 2 of 3 rebuild it, Shamir's secret sharing); no single person can unlock the data, and losing one part isn't fatal (Phase 2, top pick).
