@@ -39,7 +39,7 @@ export function ProjectDialog({ project, onClose, onSaved }: { project: ProjectD
   const sectionsOf = (k: Template) => k === "blank" ? [] : t(`projects.templates.${k}.sections`).split("|").map((s) => s.trim()).filter(Boolean);
   const [v, setV] = useState<ProjectInput>(() => project ? {
     name: project.name, kind: project.kind, status: project.status, budget: str(project.budget), start_date: project.start_date ?? "", end_date: project.end_date ?? "",
-    notes: project.notes ?? "", columns: project.columns, hidden: project.hidden, labels: project.labels ?? {},
+    notes: project.notes ?? "", columns: project.columns, hidden: project.hidden, labels: project.labels ?? {}, improvement: project.improvement === 1,
   } : { name: "", kind: "personal", status: "ongoing", budget: "", start_date: today(), end_date: "", notes: "", columns: [], hidden: ["bill_no"], labels: {}, sections: sectionsOf("renovation") });
   const [newSection, setNewSection] = useState("");
   const [busy, setBusy] = useState(false);
@@ -107,6 +107,11 @@ export function ProjectDialog({ project, onClose, onSaved }: { project: ProjectD
             <Field id="pj-start" label={t("projects.start")}><Input id="pj-start" type="date" value={v.start_date ?? ""} onChange={(e) => set({ start_date: e.target.value })} /></Field>
             <Field id="pj-end" label={t("projects.end")}><Input id="pj-end" type="date" value={v.end_date ?? ""} onChange={(e) => set({ end_date: e.target.value })} /></Field>
           </div>
+
+          <label className="flex items-start gap-2 text-sm">
+            <input type="checkbox" className="accent-primary mt-0.5 size-4" checked={!!v.improvement} onChange={(e) => set({ improvement: e.target.checked })} aria-describedby="pj-improve-hint" />
+            <span>{t("projects.improvement")}<span id="pj-improve-hint" className="text-muted-foreground block text-xs">{t("projects.improvementHelp")}</span></span>
+          </label>
 
           {!project && (
             <section className="grid gap-2">
@@ -310,6 +315,7 @@ export function ItemDialog({ project, item, names, files = [], onFiles, onClose,
   const [v, setV] = useState<ItemInput>(() => item ? {
     date: item.date, item: item.item, kind: item.kind, section_id: item.section_id ?? "", qty: str(item.qty), unit: item.unit ?? "", rate: str(item.rate),
     amount: str(item.amount), tax: item.tax ? str(item.tax) : "", tax_percent: "", vendor: item.vendor ?? "", bill_no: item.bill_no ?? "", notes: item.notes ?? "", custom: item.custom,
+    warranty_until: item.warranty_until ?? "",
   } : blank());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -393,6 +399,10 @@ export function ItemDialog({ project, item, names, files = [], onFiles, onClose,
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem]">
             {!hides("vendor") && <Field id="pi-vendor" label={columnName(project, "vendor", t)}><Input id="pi-vendor" list="pi-vendors" maxLength={100} value={v.vendor ?? ""} onChange={(e) => set({ vendor: e.target.value })} /></Field>}
             {!hides("bill_no") && <Field id="pi-bill" label={columnName(project, "bill_no", t)}><Input id="pi-bill" maxLength={60} value={v.bill_no ?? ""} onChange={(e) => set({ bill_no: e.target.value })} /></Field>}
+          </div>
+          <div className="grid gap-3 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-end">
+            <Field id="pi-warranty" label={t("projects.warrantyUntil")}><Input id="pi-warranty" type="date" value={v.warranty_until ?? ""} min={v.date} onChange={(e) => set({ warranty_until: e.target.value })} aria-describedby="pi-warranty-hint" /></Field>
+            <p id="pi-warranty-hint" className="text-muted-foreground pb-2 text-xs">{item?.document_id ? t("projects.warrantyInDocuments") : t("projects.warrantyHelp")}</p>
           </div>
           {project.columns.length > 0 && (
             <div className="grid gap-3 sm:grid-cols-2">

@@ -244,6 +244,10 @@
   "re": "^say who will keep each card \\(up to 60 characters\\)$"
  },
  {
+  "id": "e2e251ca5",
+  "re": "^the warranty can't end before the item was bought$"
+ },
+ {
   "id": "e61617b12",
   "re": "^this project already has a section with that name$"
  },

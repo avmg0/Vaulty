@@ -13,7 +13,7 @@ const DEFAULTS: &[(&str, &str)] = &[
     ("currency", "Currency"), ("status", "Status"), ("period", "Dates"), ("no", "S.No."), ("date", "Date"), ("section", "Section"),
     ("item", "Item"), ("kind", "Kind"), ("qty", "Qty"), ("unit", "Unit"), ("rate", "Rate"), ("amount", "Amount"), ("total", "Total"),
     ("vendor", "Paid to / bought from"), ("bill_no", "Bill no."), ("notes", "Notes"), ("paidTo", "Paid to"), ("accountName", "Name on account"),
-    ("mode", "Mode"), ("reference", "Reference"), ("fromAccount", "Paid from"), ("none", "No section"), ("name", "Name"), ("yes", "Yes"), ("no_", "No"),
+    ("mode", "Mode"), ("improvement", "Cost of improvement, by financial year"), ("fy", "Financial year"), ("warranty", "Warranty until"), ("reference", "Reference"), ("fromAccount", "Paid from"), ("none", "No section"), ("name", "Name"), ("yes", "Yes"), ("no_", "No"),
 ];
 
 struct Labels<'a>(&'a Value);
@@ -76,6 +76,17 @@ pub fn to_xlsx(conn: &rusqlite::Connection, project_id: &str, labels: &Value) ->
                 row += 1;
             }
         }
+        if let Some(years) = p["improvement_by_year"].as_array().filter(|y| !y.is_empty()) {
+            row += 1;
+            ws.write_string_with_format(row, 0, l.get("improvement"), &bold)?; row += 1;
+            for (i, h) in [l.get("fy"), l.get("billed")].iter().enumerate() { ws.write_string_with_format(row, i as u16, h, &head)?; }
+            row += 1;
+            for y in years {
+                ws.write_string(row, 0, st(&y["fy"]))?;
+                ws.write_number_with_format(row, 1, num(&y["amount"]).unwrap_or(0.0), &money)?;
+                row += 1;
+            }
+        }
         row += 1;
         ws.write_string_with_format(row, 0, l.get("sections"), &bold)?; row += 1;
         for (i, h) in [l.get("section"), l.get("budget"), l.get("billed"), l.get("paid")].iter().enumerate() { ws.write_string_with_format(row, i as u16, h, &head)?; }
@@ -124,6 +135,7 @@ pub fn to_xlsx(conn: &rusqlite::Connection, project_id: &str, labels: &Value) ->
         if shows("bill_no") { cols.push((own("bill_no"), 12.0, "bill_no")); }
         for c in &custom { cols.push((st(&c["name"]).to_string(), 14.0, "custom")); }
         if shows("notes") { cols.push((own("notes"), 30.0, "notes")); }
+        if items.iter().any(|i| i["warranty_until"].is_string()) { cols.push((l.get("warranty"), 13.0, "warranty")); }
         for (i, (h, w, _)) in cols.iter().enumerate() {
             ws.set_column_width(i as u16, *w)?;
             ws.write_string_with_format(0, i as u16, h, &head)?;
@@ -150,6 +162,7 @@ pub fn to_xlsx(conn: &rusqlite::Connection, project_id: &str, labels: &Value) ->
                     "vendor" => { ws.write_string(r, c, st(&it["vendor"]))?; }
                     "bill_no" => { ws.write_string(r, c, st(&it["bill_no"]))?; }
                     "notes" => { ws.write_string(r, c, st(&it["notes"]))?; }
+                    "warranty" => { ws.write_string(r, c, st(&it["warranty_until"]))?; }
                     _ => {
                         let def = &custom[ci];
                         ci += 1;

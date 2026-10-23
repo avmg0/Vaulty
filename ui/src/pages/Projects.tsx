@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, FileScan, FileSpreadsheet, FileUp, FolderKanban, Send, Link2, Paperclip, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, Landmark, ShieldCheck, FileScan, FileSpreadsheet, FileUp, FolderKanban, Send, Link2, Paperclip, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, DATA_RESTORED, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_STATUSES, type CustomValue, type LinkSuggestion, type NameableColumn, type BillDraft, type Project, type ProjectDetail, type ProjectFile, type ProjectItem, type ProjectPayment } from "@/api";
 import { BillsPanel } from "@/components/projects/Bills";
@@ -154,7 +154,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
         section: t("projects.col.section"), item: t("projects.col.item"), kind: t("projects.col.kind"), qty: t("projects.col.qty"), unit: t("projects.col.unit"), rate: t("projects.col.rate"),
         amount: t("projects.col.amount"), total: t("projects.col.total"), vendor: t("projects.col.vendor"), bill_no: t("projects.col.bill_no"), notes: t("projects.col.notes"),
         paidTo: t("projects.paidTo"), accountName: t("projects.accountName"), mode: t("projects.mode"), reference: t("projects.reference"), fromAccount: t("projects.fromAccount"),
-        none: t("projects.noSection"), name: t("projects.person"), yes: t("projects.yes"), no_: t("projects.no"),
+        none: t("projects.noSection"), name: t("projects.person"), improvement: t("projects.improvementCost"), fy: t("projects.financialYear"), warranty: t("projects.warrantyUntil"), yes: t("projects.yes"), no_: t("projects.no"),
         ...Object.fromEntries(ITEM_KINDS.map((k) => [`itemKind.${k}`, t(`projects.itemKinds.${k}`)])),
         ...Object.fromEntries(PAY_MODES.map((k) => [`mode.${k}`, t(`projects.modes.${k}`)])),
         ...Object.fromEntries(PROJECT_STATUSES.map((k) => [`status.${k}`, t(`projects.statuses.${k}`)])),
@@ -209,6 +209,18 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
           {p.budget != null && <div className="col-span-2 sm:col-span-4"><BudgetBar spent={p.spent} budget={p.budget} label={t("projects.budgetUsed")} /></div>}
         </CardContent>
       </Card>
+
+      {p.improvement_by_year.length > 0 && (
+        <Card className="gap-2 py-3">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1 px-6">
+            <h3 className="flex items-center gap-2 text-sm font-medium"><Landmark className="text-muted-foreground size-4" aria-hidden />{t("projects.improvementCost")}</h3>
+            <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {p.improvement_by_year.map((y) => <li key={y.fy}><span className="text-muted-foreground">{t("projects.fy", { fy: y.fy })}</span> <span className="font-medium tabular-nums">{money(y.amount)}</span></li>)}
+            </ul>
+          </div>
+          <p className="text-muted-foreground px-6 text-xs">{t("projects.improvementNote")}</p>
+        </Card>
+      )}
 
       {links.length > 0 && (
         <div className="print-hide flex flex-wrap items-center gap-2 rounded-lg border border-sky-300 bg-sky-50 px-3 py-2 text-sm dark:border-sky-500/40 dark:bg-sky-500/10">
@@ -267,7 +279,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
                     <td className={cn(cell, "text-muted-foreground text-end tabular-nums")}>{n + 1}</td>
                     <td className={cn(cell, "whitespace-nowrap tabular-nums")}>{date(i.date)}</td>
                     <td className={cn(cell, "max-w-[18rem]")}>
-                      <button className="block w-full truncate text-start font-medium focus-visible:underline focus-visible:outline-none" onClick={(e) => { e.stopPropagation(); setItem(i); }}>{i.item}{i.files > 0 && <Paperclip className="text-muted-foreground ms-1.5 inline size-3.5" aria-label={t("projects.hasBill", { count: i.files })} />}</button>
+                      <button className="block w-full truncate text-start font-medium focus-visible:underline focus-visible:outline-none" onClick={(e) => { e.stopPropagation(); setItem(i); }}>{i.item}{i.warranty_until && <ShieldCheck className="text-muted-foreground ms-1.5 inline size-3.5" aria-label={t("projects.warrantyTill", { date: date(i.warranty_until) })} />}{i.files > 0 && <Paperclip className="text-muted-foreground ms-1.5 inline size-3.5" aria-label={t("projects.hasBill", { count: i.files })} />}</button>
                       <span className="text-muted-foreground block truncate text-xs">{[shows("section") && i.section_name, shows("kind") && t(`projects.itemKinds.${i.kind}`), shows("notes") && i.notes].filter(Boolean).join(" · ")}</span>
                     </td>
                     {shows("qty") && <td className={cn(cell, "text-end whitespace-nowrap tabular-nums")}>{i.qty == null ? "" : `${formatNumber(i.qty, { maximumFractionDigits: 4 })}${i.unit ? ` ${i.unit}` : ""}`}</td>}

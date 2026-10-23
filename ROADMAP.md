@@ -425,7 +425,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - [x] Splitting a project's costs with friends (shares, what each owes) and sharing a project as a file
 - [x] Settle-up amounts recorded in Lend & borrow
 - [ ] Live shared editing once device sync exists
-- [ ] Warranties from items become documents with expiry reminders; home improvement costs noted for capital gains
+- [x] Warranties from items become documents with expiry reminders; home improvement costs noted for capital gains
 
 ### Investments and prices
 - [ ] Mutual fund NAVs from AMFI's free daily file: daily values for Indian funds with no account or API key (Phase 3, top pick).

@@ -58,6 +58,8 @@ What changed in each version, for people using Vaulty. Newest first.
   fewest payments to settle up), and a project can be shared as a password-protected file that
   updates the other person's copy when sent back. What each person owes can be recorded in Lend &
   borrow, with your spending adjusted to your own share; recording again adds only what changed.
+  An item's warranty date adds it to Documents with a reminder before it ends, and a project that
+  improves a property shows its cost by financial year, for capital gains when the property is sold.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

@@ -47,23 +47,24 @@ export type PayMode = (typeof PAY_MODES)[number];
 export type ColumnType = (typeof COLUMN_TYPES)[number];
 export type HideableColumn = (typeof HIDEABLE_COLUMNS)[number];
 export type ProjectColumn = { id?: string; name: string; type: ColumnType; options: string[] };
-export type ProjectInput = { name: string; kind: ProjectKind; status: ProjectStatus; currency?: string; budget?: string; start_date?: string; end_date?: string; notes?: string; columns: ProjectColumn[]; hidden: HideableColumn[]; labels: Partial<Record<NameableColumn, string>>; sections?: string[] };
+export type ProjectInput = { name: string; kind: ProjectKind; status: ProjectStatus; currency?: string; budget?: string; start_date?: string; end_date?: string; notes?: string; columns: ProjectColumn[]; hidden: HideableColumn[]; labels: Partial<Record<NameableColumn, string>>; improvement?: boolean; sections?: string[] };
 export type ProjectSection = { id: string; name: string; position: number; budget: number | null; billed: number; items: number; paid: number };
 export type ProjectPerson = { name: string; billed: number; paid: number; balance: number; items: number; payments: number };
 export type Project = {
   id: string; name: string; kind: ProjectKind; status: ProjectStatus; currency: string; budget: number | null; start_date: string | null; end_date: string | null; notes: string | null;
-  columns: (ProjectColumn & { id: string })[]; hidden: HideableColumn[]; labels: Partial<Record<NameableColumn, string>>; amount: number; tax: number; billed: number; paid: number; owed: number; spent: number; budget_left: number | null;
+  columns: (ProjectColumn & { id: string })[]; hidden: HideableColumn[]; labels: Partial<Record<NameableColumn, string>>; improvement: number; amount: number; tax: number; billed: number; paid: number; owed: number; spent: number; budget_left: number | null;
   items: number; payments: number; files: number; last_date: string | null; created_at: string;
 };
 export type ProjectDetail = Project & {
+  improvement_by_year: { fy: string; amount: number }[];
   sections: ProjectSection[]; unsectioned: { billed: number; items: number }; by_kind: Partial<Record<ItemKind, number>>; by_mode: Partial<Record<PayMode, number>>; vendors: ProjectPerson[];
 };
 export type CustomValue = string | number | boolean;
 export type ProjectItem = {
   id: string; section_id: string | null; section_name: string | null; date: string; item: string; kind: ItemKind; qty: number | null; unit: string | null; rate: number | null;
-  amount: number; tax: number; total: number; vendor: string | null; bill_no: string | null; notes: string | null; custom: Record<string, CustomValue>; files: number;
+  amount: number; tax: number; total: number; vendor: string | null; bill_no: string | null; notes: string | null; custom: Record<string, CustomValue>; files: number; warranty_until: string | null; document_id: string | null;
 };
-export type ItemInput = { section_id?: string; date: string; item: string; kind: ItemKind; qty?: string; unit?: string; rate?: string; amount?: string; tax?: string; tax_percent?: string; vendor?: string; bill_no?: string; notes?: string; custom: Record<string, CustomValue> };
+export type ItemInput = { section_id?: string; date: string; item: string; kind: ItemKind; qty?: string; unit?: string; rate?: string; amount?: string; tax?: string; tax_percent?: string; vendor?: string; bill_no?: string; notes?: string; warranty_until?: string; custom: Record<string, CustomValue> };
 export type ProjectPayment = {
   id: string; section_id: string | null; section_name: string | null; date: string; amount: number; vendor: string | null; mode: PayMode; account_name: string | null;
   reference: string | null; entry_id: string | null; from_account: string | null; notes: string | null; files: number; paid_by: string | null; paid_by_name: string | null;

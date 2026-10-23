@@ -397,3 +397,35 @@ fn recording_the_split_in_lend_and_borrow() {
     history::undo_last(&c).unwrap();
     assert_eq!(pr::settle_preview(&c, id).unwrap()[0]["change"].as_f64(), Some(-4000.0));
 }
+
+#[test]
+fn warranties_become_documents_and_improvement_costs_by_year() {
+    use vaulty_core::documents;
+    let c = setup();
+    let today = chrono::NaiveDate::from_ymd_opt(2026, 10, 23).unwrap();
+    let p = pr::create(&c, &json!({ "name": "Kitchen renovation", "improvement": true })).unwrap();
+    let id = p["id"].as_str().unwrap();
+    assert_eq!(p["improvement"], 1);
+    let it = pr::add_item(&c, id, &json!({ "date": "2026-03-20", "item": "Chimney 90 cm", "amount": "18000", "tax_percent": 18, "vendor": "Example Appliances",
+        "bill_no": "EA-77", "warranty_until": "2031-03-19" })).unwrap();
+    assert_eq!(it["warranty_until"], "2031-03-19");
+    let doc_id = it["document_id"].as_str().unwrap().to_string();
+    let doc = documents::get(&c, &doc_id, today).unwrap();
+    assert_eq!((doc["title"].as_str(), doc["kind"].as_str(), doc["issuer"].as_str(), doc["number"].as_str(), doc["expires_on"].as_str()),
+        (Some("Chimney 90 cm"), Some("warranty"), Some("Example Appliances"), Some("EA-77"), Some("2031-03-19")));
+    assert!(doc["kept_at"].as_str().unwrap().contains("Kitchen renovation"));
+    // Changing the date updates the same document; an impossible date is refused.
+    let mut v = json!({ "date": "2026-03-20", "item": "Chimney 90 cm", "amount": "18000", "tax_percent": 18, "vendor": "Example Appliances", "warranty_until": "2033-03-19" });
+    let it = pr::update_item(&c, it["id"].as_str().unwrap(), &v).unwrap();
+    assert_eq!(it["document_id"].as_str(), Some(doc_id.as_str()));
+    assert_eq!(documents::get(&c, &doc_id, today).unwrap()["expires_on"], "2033-03-19");
+    v["warranty_until"] = json!("2025-01-01");
+    assert!(pr::update_item(&c, it["id"].as_str().unwrap(), &v).is_err());
+    assert_eq!(documents::list(&c, today).unwrap().len(), 1);
+
+    pr::add_item(&c, id, &json!({ "date": "2026-04-02", "item": "Tiles", "amount": "40000" })).unwrap();
+    let p = pr::get(&c, id).unwrap();
+    assert_eq!(p["improvement_by_year"], json!([{ "fy": "2025-26", "amount": 21240.0 }, { "fy": "2026-27", "amount": 40000.0 }]));
+    let plain = pr::create(&c, &json!({ "name": "Trip" })).unwrap();
+    assert_eq!(pr::get(&c, plain["id"].as_str().unwrap()).unwrap()["improvement_by_year"], json!([]));
+}

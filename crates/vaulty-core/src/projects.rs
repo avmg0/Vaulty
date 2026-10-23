@@ -236,7 +236,7 @@ fn summary(conn: &Connection, mut p: Value) -> Result<Value> {
     Ok(p)
 }
 
-const COLS: &str = "id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden, labels, created_at, updated_at";
+const COLS: &str = "id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden, labels, improvement, created_at, updated_at";
 
 /// Every project: ongoing and planned first, then on hold, then done; newest activity first.
 pub fn list(conn: &Connection) -> Result<Vec<Value>> {
@@ -276,7 +276,16 @@ pub fn get(conn: &Connection, id: &str) -> Result<Value> {
     let by_kind = group("SELECT kind, sum(amount_minor) FROM project_items WHERE project_id = ? GROUP BY kind")?;
     let by_mode = group("SELECT mode, sum(amount_minor) FROM project_payments WHERE project_id = ? GROUP BY mode")?;
     let vendors = vendors(conn, id, &cur)?;
+    // Cost of improvement per Indian financial year (April to March), for capital gains.
+    let improvement: Vec<Value> = if p["improvement"].as_i64() == Some(1) {
+        let mut st = conn.prepare(
+            "SELECT CASE WHEN CAST(substr(date, 6, 2) AS INTEGER) >= 4 THEN CAST(substr(date, 1, 4) AS INTEGER) ELSE CAST(substr(date, 1, 4) AS INTEGER) - 1 END AS fy,
+                    sum(amount_minor + tax_minor) FROM project_items WHERE project_id = ? GROUP BY fy ORDER BY fy")?;
+        let rows = st.query_map([id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?)))?;
+        rows.map(|r| r.map(|(fy, a)| json!({ "fy": format!("{}-{:02}", fy, (fy + 1) % 100), "amount": money::to_decimal(a, &cur) }))).collect::<std::result::Result<_, _>>()?
+    } else { vec![] };
     if let Some(o) = p.as_object_mut() {
+        o.insert("improvement_by_year".into(), json!(improvement));
         o.insert("sections".into(), json!(sections));
         o.insert("unsectioned".into(), json!({ "billed": money::to_decimal(loose, &cur), "items": loose_n }));
         o.insert("by_kind".into(), by_kind);
@@ -311,11 +320,12 @@ fn project_fields(conn: &Connection, v: &Value, currency_now: Option<&str>) -> R
 pub fn create(conn: &Connection, v: &Value) -> Result<Value> {
     let (name, kind, status, currency, budget, start, end, notes, columns, hidden) = project_fields(conn, v, None)?;
     let labels = labels_of(&v["labels"])?;
+    let improvement = v["improvement"].as_bool().unwrap_or(false);
     let id = new_id();
     atomic(conn, |tx| {
         tx.execute("INSERT INTO projects (id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             params![id, name, kind, status, currency, budget, start, end, notes, columns, hidden])?;
-        tx.execute("UPDATE projects SET labels = ? WHERE id = ?", params![labels, id])?;
+        tx.execute("UPDATE projects SET labels = ?, improvement = ? WHERE id = ?", params![labels, improvement, id])?;
         let names: Vec<&str> = v["sections"].as_array().into_iter().flatten().filter_map(Value::as_str).collect();
         if names.len() > MAX_SECTIONS { return Err(bad("a project can have at most 60 sections")); }
         for n in names { add_section(tx, &id, &json!({ "name": n })).or_else(|e| if e.to_string().contains("already") { Ok(Value::Null) } else { Err(e) })?; }
@@ -329,8 +339,9 @@ pub fn update(conn: &Connection, id: &str, v: &Value) -> Result<Value> {
     let cur = currency_of(conn, id)?;
     let (name, kind, status, _, budget, start, end, notes, columns, hidden) = project_fields(conn, v, Some(&cur))?;
     let labels = labels_of(&v["labels"])?;
-    conn.execute("UPDATE projects SET name = ?, kind = ?, status = ?, budget_minor = ?, start_date = ?, end_date = ?, notes = ?, columns = ?, hidden = ?, labels = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        params![name, kind, status, budget, start, end, notes, columns, hidden, labels, id])?;
+    let improvement = v["improvement"].as_bool().unwrap_or(false);
+    conn.execute("UPDATE projects SET name = ?, kind = ?, status = ?, budget_minor = ?, start_date = ?, end_date = ?, notes = ?, columns = ?, hidden = ?, labels = ?, improvement = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        params![name, kind, status, budget, start, end, notes, columns, hidden, labels, improvement, id])?;
     get(conn, id)
 }
 
@@ -449,7 +460,7 @@ fn item_row(conn: &Connection, id: &str) -> Result<Value> {
 fn items_where(conn: &Connection, filter: &str, arg: &str) -> Result<Vec<Value>> {
     let rows = query(conn, &format!(
         "SELECT i.id, i.project_id, i.section_id, s.name AS section_name, i.date, i.item, i.kind, i.qty_e4, i.unit, i.rate_minor, i.amount_minor, i.tax_minor,
-                i.vendor, i.bill_no, i.notes, i.custom, p.currency, i.created_at,
+                i.vendor, i.bill_no, i.notes, i.custom, p.currency, i.created_at, i.warranty_until, i.document_id,
                 (SELECT count(*) FROM project_files f WHERE f.item_id = i.id) AS files
          FROM project_items i JOIN projects p ON p.id = i.project_id LEFT JOIN project_sections s ON s.id = i.section_id
          WHERE {filter} ORDER BY i.date, i.created_at, i.rowid"), &[json!(arg)])?;
@@ -482,6 +493,7 @@ pub fn add_item(conn: &Connection, project_id: &str, v: &Value) -> Result<Value>
         "INSERT INTO project_items (id, project_id, section_id, date, item, kind, qty_e4, unit, rate_minor, amount_minor, tax_minor, vendor, bill_no, notes, custom)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params![id, project_id, section, d, item, kind, q, unit, rate, amt, tax, vendor, bill_no, notes, custom])?;
+    sync_warranty(conn, &id, v)?;
     item_row(conn, &id)
 }
 
@@ -492,7 +504,34 @@ pub fn update_item(conn: &Connection, id: &str, v: &Value) -> Result<Value> {
         "UPDATE project_items SET section_id = ?, date = ?, item = ?, kind = ?, qty_e4 = ?, unit = ?, rate_minor = ?, amount_minor = ?, tax_minor = ?,
                 vendor = ?, bill_no = ?, notes = ?, custom = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         params![section, d, item, kind, q, unit, rate, amt, tax, vendor, bill_no, notes, custom, id])?;
+    sync_warranty(conn, id, v)?;
     item_row(conn, id)
+}
+
+/// Sets an item's warranty end date. An item with a warranty is kept in Documents too (kind
+/// "warranty", with a reminder before it ends), and that document follows later changes. Clearing
+/// the date leaves the document, which can be deleted there.
+fn sync_warranty(conn: &Connection, item_id: &str, v: &Value) -> Result<()> {
+    let until = date(v, "warranty_until")?;
+    let (item, d, vendor, bill_no, doc, project): (String, String, Option<String>, Option<String>, Option<String>, String) = conn.query_row(
+        "SELECT i.item, i.date, i.vendor, i.bill_no, i.document_id, p.name FROM project_items i JOIN projects p ON p.id = i.project_id WHERE i.id = ?",
+        [item_id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)))?;
+    if until.as_deref().is_some_and(|u| u < d.as_str()) { return Err(bad("the warranty can't end before the item was bought")); }
+    conn.execute("UPDATE project_items SET warranty_until = ? WHERE id = ?", params![until, item_id])?;
+    let Some(until) = until else { return Ok(()) };
+    let live = doc.as_deref().map(|id| conn.query_row("SELECT EXISTS(SELECT 1 FROM vault_documents WHERE id = ? AND deleted_at IS NULL)", [id], |r| r.get::<_, bool>(0))).transpose()?.unwrap_or(false);
+    let title: String = item.chars().take(120).collect();
+    let kept = format!("Bill in the project “{}”", project.chars().take(80).collect::<String>());
+    if live {
+        conn.execute("UPDATE vault_documents SET title = ?, issuer = ?, number = ?, issued_on = ?, expires_on = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            params![title, vendor, bill_no, d, until, doc])?;
+    } else {
+        let today = chrono::Local::now().date_naive();
+        let made = crate::documents::create(conn, &json!({ "title": title, "kind": "warranty", "issuer": vendor, "number": bill_no, "issued_on": d,
+            "expires_on": until, "remind_days": 30, "kept_at": kept }), today)?;
+        conn.execute("UPDATE project_items SET document_id = ? WHERE id = ?", params![made["id"].as_str(), item_id])?;
+    }
+    Ok(())
 }
 
 pub fn delete_item(conn: &Connection, id: &str) -> Result<()> {

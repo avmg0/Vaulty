@@ -21,7 +21,7 @@ fn bad(m: &str) -> Error { Error::Invalid(m.into()) }
 /// The project as a shareable value. Gives the project a share id first, if it has none, so a
 /// file sent back can find it.
 pub fn export(conn: &Connection, dk: &Key, dir: &Path, project_id: &str, with_files: bool) -> Result<Value> {
-    let p = query_one(conn, "SELECT id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden, labels, share_id FROM projects WHERE id = ?", &[json!(project_id)])?
+    let p = query_one(conn, "SELECT id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden, labels, improvement, share_id FROM projects WHERE id = ?", &[json!(project_id)])?
         .ok_or_else(|| bad("no such project"))?;
     let share_id = match p["share_id"].as_str() {
         Some(s) => s.to_string(),
@@ -30,7 +30,7 @@ pub fn export(conn: &Connection, dk: &Key, dir: &Path, project_id: &str, with_fi
     let me: Option<String> = conn.query_row("SELECT id FROM project_members WHERE project_id = ? AND is_me = 1", [project_id], |r| r.get(0)).optional()?;
     let sections = query(conn, "SELECT id, name, budget_minor, position FROM project_sections WHERE project_id = ? ORDER BY position", &[json!(project_id)])?;
     let members = query(conn, "SELECT id, name, share, position FROM project_members WHERE project_id = ? ORDER BY position", &[json!(project_id)])?;
-    let items = query(conn, "SELECT id, section_id, date, item, kind, qty_e4, unit, rate_minor, amount_minor, tax_minor, vendor, bill_no, notes, custom FROM project_items WHERE project_id = ? ORDER BY date, rowid", &[json!(project_id)])?;
+    let items = query(conn, "SELECT id, section_id, date, item, kind, qty_e4, unit, rate_minor, amount_minor, tax_minor, vendor, bill_no, notes, custom, warranty_until FROM project_items WHERE project_id = ? ORDER BY date, rowid", &[json!(project_id)])?;
     // Payments you made are marked as made by your person, so the other side sees who paid.
     let payments = query(conn, "SELECT id, section_id, date, amount_minor, vendor, mode, account_name, reference, notes, coalesce(paid_by, ?) AS paid_by FROM project_payments WHERE project_id = ? ORDER BY date, rowid",
         &[json!(me), json!(project_id)])?;
@@ -56,7 +56,7 @@ pub fn export(conn: &Connection, dk: &Key, dir: &Path, project_id: &str, with_fi
     Ok(json!({
         "format": FORMAT, "version": VERSION, "share_id": share_id, "sent_by": me, "exported_at": now(),
         "project": { "name": p["name"], "kind": p["kind"], "status": p["status"], "currency": p["currency"], "budget_minor": p["budget_minor"],
-                     "start_date": p["start_date"], "end_date": p["end_date"], "notes": p["notes"], "columns": p["columns"], "hidden": p["hidden"], "labels": p["labels"] },
+                     "start_date": p["start_date"], "end_date": p["end_date"], "notes": p["notes"], "columns": p["columns"], "hidden": p["hidden"], "labels": p["labels"], "improvement": p["improvement"] },
         "sections": sections, "members": members, "items": items, "payments": payments, "files": files, "files_left_out": left_out,
     }))
 }
@@ -140,14 +140,14 @@ pub fn import(conn: &Connection, dk: &Key, dir: &Path, data: &Value, me: Option<
                 for t in ["project_files", "project_payments", "project_items", "project_members", "project_sections"] {
                     tx.execute(&format!("DELETE FROM {t} WHERE project_id = ?"), [&id])?;
                 }
-                tx.execute("UPDATE projects SET name = ?, kind = ?, status = ?, budget_minor = ?, start_date = ?, end_date = ?, notes = ?, columns = ?, hidden = ?, labels = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                    params![name, kind, status, minor(pj, "budget_minor"), date_of(pj, "start_date")?, date_of(pj, "end_date")?, s(pj, "notes", 2000)?, columns, hidden, labels, id])?;
+                tx.execute("UPDATE projects SET name = ?, kind = ?, status = ?, budget_minor = ?, start_date = ?, end_date = ?, notes = ?, columns = ?, hidden = ?, labels = ?, improvement = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    params![name, kind, status, minor(pj, "budget_minor"), date_of(pj, "start_date")?, date_of(pj, "end_date")?, s(pj, "notes", 2000)?, columns, hidden, labels, pj["improvement"].as_i64() == Some(1), id])?;
                 id
             }
             None => {
                 let id = new_id();
-                tx.execute("INSERT INTO projects (id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden, labels, share_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    params![id, name, kind, status, currency, minor(pj, "budget_minor"), date_of(pj, "start_date")?, date_of(pj, "end_date")?, s(pj, "notes", 2000)?, columns, hidden, labels, share_id])?;
+                tx.execute("INSERT INTO projects (id, name, kind, status, currency, budget_minor, start_date, end_date, notes, columns, hidden, labels, share_id, improvement) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    params![id, name, kind, status, currency, minor(pj, "budget_minor"), date_of(pj, "start_date")?, date_of(pj, "end_date")?, s(pj, "notes", 2000)?, columns, hidden, labels, share_id, pj["improvement"].as_i64() == Some(1)])?;
                 id
             }
         };
@@ -172,11 +172,12 @@ pub fn import(conn: &Connection, dk: &Key, dir: &Path, data: &Value, me: Option<
             let custom = projects::check_custom(&cols, &custom).map_err(|_| bad("this shared project is damaged"))?;
             let kind = x["kind"].as_str().filter(|k| projects::ITEM_KINDS.contains(k)).unwrap_or("other");
             tx.execute(
-                "INSERT INTO project_items (id, project_id, section_id, date, item, kind, qty_e4, unit, rate_minor, amount_minor, tax_minor, vendor, bill_no, notes, custom)
-                 VALUES (?, ?, (SELECT id FROM project_sections WHERE id = ? AND project_id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO project_items (id, project_id, section_id, date, item, kind, qty_e4, unit, rate_minor, amount_minor, tax_minor, vendor, bill_no, notes, custom, warranty_until)
+                 VALUES (?, ?, (SELECT id FROM project_sections WHERE id = ? AND project_id = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 params![need_id(x, "id")?, id, id_of(x, "section_id")?, id, date_of(x, "date")?.ok_or_else(|| bad("this shared project is damaged"))?,
                         s(x, "item", 200)?.unwrap_or("—"), kind, x["qty_e4"].as_i64().filter(|q| *q > 0), s(x, "unit", 20)?, minor(x, "rate_minor"),
-                        minor(x, "amount_minor").unwrap_or(0), minor(x, "tax_minor").unwrap_or(0), s(x, "vendor", 100)?, s(x, "bill_no", 60)?, s(x, "notes", 1000)?, custom])?;
+                        minor(x, "amount_minor").unwrap_or(0), minor(x, "tax_minor").unwrap_or(0), s(x, "vendor", 100)?, s(x, "bill_no", 60)?, s(x, "notes", 1000)?, custom,
+                        date_of(x, "warranty_until")?])?;
         }
         for x in data["payments"].as_array().into_iter().flatten() {
             let pid = need_id(x, "id")?;

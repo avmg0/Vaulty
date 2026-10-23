@@ -1410,6 +1410,7 @@
     "e41694f53": "this isn't a current nominee card for this profile",
     "e6f7fb8ff": "sub-categories can't have their own sub-categories",
     "e2651cf7d": "say who will keep each card (up to 60 characters)",
+    "e2e251ca5": "the warranty can't end before the item was bought",
     "e61617b12": "this project already has a section with that name",
     "e9a8a9438": "only a debit card's linked account can be changed",
     "ea786a967": "biometric unlock isn't turned on for this profile",
@@ -2835,6 +2836,16 @@
     "recordN_one": "Record {{count}}",
     "recordN_other": "Record {{count}}",
     "recorded_one": "Recorded {{count}} in Lend & borrow.",
-    "recorded_other": "Recorded {{count}} in Lend & borrow."
+    "recorded_other": "Recorded {{count}} in Lend & borrow.",
+    "improvement": "This improves a property",
+    "improvementHelp": "Renovation, an extension, new fittings: what it costs adds to the property's cost when you sell it, which lowers the capital gains tax. Totals are shown by financial year.",
+    "improvementCost": "Cost of improvement",
+    "improvementNote": "Keep these bills: when the property is sold, this cost is added to what it cost you. Check the rules for your sale with a tax adviser.",
+    "fy": "FY {{fy}}",
+    "financialYear": "Financial year",
+    "warrantyUntil": "Warranty until",
+    "warrantyHelp": "Adds it to Documents, with a reminder before the warranty ends.",
+    "warrantyInDocuments": "It's in Documents, with a reminder before the warranty ends. Changing the date updates it there.",
+    "warrantyTill": "Warranty until {{date}}"
   }
 }
