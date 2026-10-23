@@ -84,6 +84,10 @@
   "re": "^can't change the currency of an account that already has transactions$"
  },
  {
+  "id": "e975b01b9",
+  "re": "^this project was shared from a newer Vaulty; update Vaulty to open it$"
+ },
+ {
   "id": "e42f5c1a4",
   "re": "^can't switch a category between income and expense once it's in use$"
  },
@@ -174,6 +178,10 @@
  {
   "id": "e46964378",
   "re": "^sign out and in again to finish upgrading this profile$"
+ },
+ {
+  "id": "e6916d0f8",
+  "re": "^only payments you made are added to your transactions$"
  },
  {
   "id": "e7aa01197",
@@ -384,6 +392,10 @@
   "re": "^select at most 5000 transactions at a time$"
  },
  {
+  "id": "ee99b86a4",
+  "re": "^a project can be shared by up to 50 people$"
+ },
+ {
   "id": "e245b50f5",
   "re": "^the low-balance level can't be below zero$"
  },
@@ -458,6 +470,10 @@
  {
   "id": "ec60de13d",
   "re": "^a category name needs 1 to 40 characters$"
+ },
+ {
+  "id": "e459887d7",
+  "re": "^use a password of at least 8 characters$"
  },
  {
   "id": "e4cc1f52f",
@@ -580,12 +596,20 @@
   "re": "^a page of that PDF couldn't be read$"
  },
  {
+  "id": "e9f153355",
+  "re": "^a share is a number, such as 1 or 2$"
+ },
+ {
   "id": "eb1012afa",
   "re": "^choose the account it was paid from$"
  },
  {
   "id": "eb8ec1a2a",
   "re": "^invalid or already-used backup code$"
+ },
+ {
+  "id": "ee4716e5a",
+  "re": "^two people can't have the same name$"
  },
  {
   "id": "eef1a8ef3",
@@ -626,6 +650,14 @@
  {
   "id": "ecbde5738",
   "re": "^no setup code issued; ask an admin$"
+ },
+ {
+  "id": "ed7bee8a1",
+  "re": "^this isn't a shared Vaulty project$"
+ },
+ {
+  "id": "edf9840c2",
+  "re": "^a share is a number from 0 to 1000$"
  },
  {
   "id": "ee4b82cfa",
@@ -694,6 +726,10 @@
  {
   "id": "ee1029b7d",
   "re": "^the backup's contents are damaged$"
+ },
+ {
+  "id": "ee266937f",
+  "re": "^someone needs a share more than 0$"
  },
  {
   "id": "ee28277c5",
@@ -828,6 +864,10 @@
   "re": "^that file is larger than 20 MB$"
  },
  {
+  "id": "e7f7cff2c",
+  "re": "^this shared project is damaged$"
+ },
+ {
   "id": "e8d1e4900",
   "re": "^expected auto, dmy, mdy or ymd$"
  },
@@ -850,6 +890,10 @@
  {
   "id": "e07a93728",
   "re": "^repeat every 1 to 366 periods$"
+ },
+ {
+  "id": "e112478b6",
+  "re": "^mark which one of them is you$"
  },
  {
   "id": "e1ff07609",
@@ -930,6 +974,10 @@
  {
   "id": "e75c44dab",
   "re": "^unsupported backup settings$"
+ },
+ {
+  "id": "e83279581",
+  "re": "^choose which person you are$"
  },
  {
   "id": "ea9a4a474",
@@ -1098,6 +1146,10 @@
  {
   "id": "e7270d4bf",
   "re": "^check for updates first$"
+ },
+ {
+  "id": "e9ca46b7b",
+  "re": "^give each person a name$"
  },
  {
   "id": "e9cf66c12",
@@ -1334,6 +1386,10 @@
  {
   "id": "e0ba0ed77",
   "re": "^already undone$"
+ },
+ {
+  "id": "e105d12c8",
+  "re": "^no such member$"
  },
  {
   "id": "e3cf72817",

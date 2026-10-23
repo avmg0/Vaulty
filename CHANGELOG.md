@@ -54,6 +54,9 @@ What changed in each version, for people using Vaulty. Newest first.
   A PDF bill or a photo of one can be read into items (seller, GSTIN, bill no., date, each line,
   GST), checked against the bill's total, and added in one go. Photos are read by the system's
   own text recognition (Apple Vision on macOS, Windows OCR, Tesseract on Linux), offline.
+  Costs can be split with the people in a project (equal or weighted shares, who paid what, the
+  fewest payments to settle up), and a project can be shared as a password-protected file that
+  updates the other person's copy when sent back.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import))$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -66,9 +66,9 @@ export type ProjectItem = {
 export type ItemInput = { section_id?: string; date: string; item: string; kind: ItemKind; qty?: string; unit?: string; rate?: string; amount?: string; tax?: string; tax_percent?: string; vendor?: string; bill_no?: string; notes?: string; custom: Record<string, CustomValue> };
 export type ProjectPayment = {
   id: string; section_id: string | null; section_name: string | null; date: string; amount: number; vendor: string | null; mode: PayMode; account_name: string | null;
-  reference: string | null; entry_id: string | null; from_account: string | null; notes: string | null; files: number;
+  reference: string | null; entry_id: string | null; from_account: string | null; notes: string | null; files: number; paid_by: string | null; paid_by_name: string | null;
 };
-export type PaymentInput = { section_id?: string; date: string; amount: string; vendor?: string; mode: PayMode; account_name?: string; reference?: string; notes?: string; entry_id?: string; record?: { account_id: string; category_id?: string } };
+export type PaymentInput = { paid_by?: string; section_id?: string; date: string; amount: string; vendor?: string; mode: PayMode; account_name?: string; reference?: string; notes?: string; entry_id?: string; record?: { account_id: string; category_id?: string } };
 export type ProjectFile = {
   id: string; item_id: string | null; payment_id: string | null; name: string; mime: string; size: number; created_at: string;
   item: string | null; item_date: string | null; payment_vendor: string | null; payment_date: string | null; payment_amount: number | null;
@@ -77,6 +77,16 @@ export type BillDraft = {
   vendor: string | null; gstin: string | null; bill_no: string | null; date: string | null; taxable: string | null; tax: string | null; tax_rate: string | null; total: string | null;
   items_total: string; matches: boolean | null;
   items: { item: string; qty: string | null; unit: string | null; rate: string | null; amount: string; tax_percent: string | null; hsn: string | null }[];
+};
+export type ProjectMember = { id?: string; name: string; share: number; is_me: boolean | number };
+export type ProjectSplit = {
+  total: number;
+  members: { id: string; name: string; is_me: boolean; share: number; paid: number; owes: number; balance: number }[];
+  settle: { from: string; from_me: boolean; to: string; to_me: boolean; amount: number }[];
+};
+export type SharePeek = {
+  name: string; currency: string; sent_by: string | null; exported_at: string | null; members: { id: string; name: string }[];
+  items: number; payments: number; files: number; files_left_out: number | null; billed: number; paid: number; updates: { id: string; name: string } | null;
 };
 export type FileLink = { item_id?: string | null; payment_id?: string | null };
 export type LinkSuggestion = { payment_id: string; candidates: { id: string; date: string; merchant: string | null; description: string | null; account: string | null; named: boolean }[] };
@@ -455,7 +465,7 @@ export const api = {
     exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
-  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document" | "fund_statement" | "save_project", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
+  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document" | "fund_statement" | "save_project" | "project_share" | "save_project_share", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
   /** This computer: the tray icon, the quick-add shortcut, keeping Vaulty running when closed. */
   device: {
     get: () => invoke<DeviceSettings>("app_settings_get"),
@@ -500,6 +510,12 @@ export const api = {
     removeFile: (id: string) => invoke<void>("projects_file_remove", { id }),
     previewFile: (id: string) => invoke<{ name: string; mime: string; data: string }>("projects_file_preview", { id }),
     saveFile: (id: string, path: string) => invoke<void>("projects_file_save", { id, path }),
+    members: (id: string) => invoke<ProjectMember[]>("projects_members", { id }),
+    setMembers: (id: string, members: ProjectMember[]) => invoke<ProjectMember[]>("projects_members_set", { id, members }),
+    split: (id: string) => invoke<ProjectSplit>("projects_split", { id }),
+    shareExport: (id: string, path: string, password: string, withFiles: boolean) => invoke<{ files: number; files_left_out: number }>("projects_share_export", { id, path, password, withFiles }),
+    sharePeek: (path: string, password: string) => invoke<SharePeek>("projects_share_peek", { path, password }),
+    shareImport: (path: string, password: string, me: string | null) => invoke<{ id: string; updated: boolean; files: number }>("projects_share_import", { path, password, me }),
     readBill: (id: string) => invoke<BillDraft>("projects_read_bill", { id }),
     addItems: (projectId: string, batch: { items: ItemInput[]; file_id?: string }) => invoke<ProjectItem[]>("projects_items_add", { projectId, batch }),
   },

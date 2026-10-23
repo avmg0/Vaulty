@@ -30,6 +30,7 @@ pub mod cas;
 pub mod investments;
 pub mod projects;
 pub mod project_export;
+pub mod project_share;
 pub mod invoice;
 pub mod ocr;
 pub mod people;

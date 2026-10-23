@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   api, COLUMN_TYPES, errorText, HIDEABLE_COLUMNS, NAMEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_KINDS, PROJECT_STATUSES,
   type Account, type Category, type ColumnType, type CustomValue, type HideableColumn, type ItemInput, type ItemKind, type LinkSuggestion, type NameableColumn, type PaymentInput,
-  type PayMode, type ProjectColumn, type ProjectFile, type ProjectDetail, type ProjectInput, type ProjectItem, type ProjectKind, type ProjectPayment, type ProjectStatus,
+  type PayMode, type ProjectColumn, type ProjectFile, type ProjectMember, type ProjectDetail, type ProjectInput, type ProjectItem, type ProjectKind, type ProjectPayment, type ProjectStatus,
 } from "@/api";
 import { AttachedBills } from "@/components/projects/Bills";
 import { Button } from "@/components/ui/button";
@@ -424,8 +424,10 @@ export function PaymentDialog({ project, payment, names, files = [], onFiles, on
   const { t } = useTranslation();
   const [v, setV] = useState<PaymentInput>(() => payment ? {
     date: payment.date, amount: str(payment.amount), vendor: payment.vendor ?? "", mode: payment.mode, account_name: payment.account_name ?? "", reference: payment.reference ?? "",
-    section_id: payment.section_id ?? "", notes: payment.notes ?? "",
-  } : { date: today(), amount: "", vendor: "", mode: "upi", account_name: "", reference: "", section_id: "", notes: "" });
+    section_id: payment.section_id ?? "", notes: payment.notes ?? "", paid_by: payment.paid_by ?? "",
+  } : { date: today(), amount: "", vendor: "", mode: "upi", account_name: "", reference: "", section_id: "", notes: "", paid_by: "" });
+  const [members, setMembers] = useState<ProjectMember[]>([]);
+  useEffect(() => { api.projects.members(project.id).then(setMembers).catch(() => {}); }, [project.id]);
   const [record, setRecord] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -487,6 +489,14 @@ export function PaymentDialog({ project, payment, names, files = [], onFiles, on
               </NativeSelect>
             </Field>
           </div>
+          {members.length > 0 && (
+            <Field id="pp-paidby" label={t("projects.paidBy")}>
+              <NativeSelect id="pp-paidby" value={v.paid_by ?? ""} onChange={(e) => { set({ paid_by: e.target.value }); if (e.target.value) setRecord(false); }}>
+                <option value="">{t("projects.you")}</option>
+                {members.filter((m) => !m.is_me).map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+              </NativeSelect>
+            </Field>
+          )}
           <Field id="pp-notes" label={t("projects.col.notes")}><textarea id="pp-notes" rows={2} maxLength={1000} className={textarea} value={v.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} /></Field>
           {payment ? <AttachedBills project={project} files={files.filter((f) => f.payment_id === payment.id)} link={{ payment_id: payment.id }} onChanged={() => onFiles?.()} />
             : <PendingBill path={bill} setPath={setBill} />}
@@ -495,7 +505,7 @@ export function PaymentDialog({ project, payment, names, files = [], onFiles, on
             <section className="grid gap-2 rounded-lg border p-3">
               <label className="flex items-center justify-between gap-3 text-sm font-medium" htmlFor="pp-record">
                 {t("projects.alsoRecord")}
-                <Switch id="pp-record" checked={record} onCheckedChange={setRecord} disabled={accounts.length === 0} />
+                <Switch id="pp-record" checked={record} onCheckedChange={setRecord} disabled={accounts.length === 0 || !!v.paid_by} />
               </label>
               <p className="text-muted-foreground text-xs">{accounts.length === 0 ? t("projects.noAccounts", { currency: project.currency }) : t("projects.alsoRecordHelp")}</p>
               {record && (

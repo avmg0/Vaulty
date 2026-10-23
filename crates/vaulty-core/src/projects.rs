@@ -150,6 +150,15 @@ fn custom_values(columns: &[Value], v: &Value) -> Result<String> {
     Ok(Value::Object(out).to_string())
 }
 
+/// A project's own columns, hidden columns and column names, checked as if typed in (for a
+/// shared project being opened): as stored JSON text.
+pub fn checked_columns(columns: &Value, hidden: &Value, labels: &Value) -> Result<(String, String, String)> {
+    Ok((serde_json::to_string(&columns_of(columns)?)?, serde_json::to_string(&hidden_of(hidden)?)?, labels_of(labels)?))
+}
+
+/// An item's values for the project's own columns, checked (unknown ones dropped), as JSON text.
+pub fn check_custom(columns: &[Value], v: &Value) -> Result<String> { custom_values(columns, v) }
+
 fn project_columns(conn: &Connection, project_id: &str) -> Result<Vec<Value>> {
     let raw: String = conn.query_row("SELECT columns FROM projects WHERE id = ?", [project_id], |r| r.get(0)).optional()?.ok_or_else(|| bad("no such project"))?;
     Ok(serde_json::from_str::<Vec<Value>>(&raw).unwrap_or_default())
@@ -496,10 +505,10 @@ pub fn delete_item(conn: &Connection, id: &str) -> Result<()> {
 fn payments_where(conn: &Connection, filter: &str, arg: &str) -> Result<Vec<Value>> {
     let rows = query(conn, &format!(
         "SELECT y.id, y.project_id, y.section_id, s.name AS section_name, y.date, y.amount_minor, y.vendor, y.mode, y.account_name, y.reference,
-                y.entry_id, y.notes, p.currency, a.name AS from_account, t.date AS entry_date, y.created_at,
+                y.entry_id, y.notes, p.currency, a.name AS from_account, t.date AS entry_date, y.created_at, y.paid_by, m.name AS paid_by_name,
                 (SELECT count(*) FROM project_files f WHERE f.payment_id = y.id) AS files
          FROM project_payments y JOIN projects p ON p.id = y.project_id LEFT JOIN project_sections s ON s.id = y.section_id
-         LEFT JOIN transactions t ON t.id = y.entry_id LEFT JOIN accounts a ON a.id = t.account_id
+         LEFT JOIN transactions t ON t.id = y.entry_id LEFT JOIN accounts a ON a.id = t.account_id LEFT JOIN project_members m ON m.id = y.paid_by
          WHERE {filter} ORDER BY y.date, y.created_at, y.rowid"), &[json!(arg)])?;
     Ok(rows.into_iter().map(|mut r| {
         let cur = r["currency"].as_str().unwrap_or("INR").to_string();
@@ -518,7 +527,7 @@ fn payment_row(conn: &Connection, id: &str) -> Result<Value> {
     payments_where(conn, "y.id = ?", id)?.pop().ok_or_else(|| bad("no such payment"))
 }
 
-type PaymentFields = (Option<String>, String, i64, Option<String>, String, Option<String>, Option<String>, Option<String>);
+type PaymentFields = (Option<String>, String, i64, Option<String>, String, Option<String>, Option<String>, Option<String>, Option<String>);
 
 fn payment_fields(conn: &Connection, project_id: &str, v: &Value) -> Result<PaymentFields> {
     let cur = currency_of(conn, project_id)?;
@@ -527,7 +536,14 @@ fn payment_fields(conn: &Connection, project_id: &str, v: &Value) -> Result<Paym
     let amt = amount(v, "amount", &cur)?.filter(|a| *a > 0).ok_or_else(|| bad("give the amount paid"))?;
     let mode = v["mode"].as_str().unwrap_or("upi");
     if !MODES.contains(&mode) { return Err(bad("unknown way of paying")); }
-    Ok((section, d, amt, text(v, "vendor", 100)?, mode.into(), text(v, "account_name", 100)?, text(v, "reference", 60)?, text(v, "notes", 1000)?))
+    let paid_by = match v["paid_by"].as_str().filter(|s| !s.is_empty()) {
+        None => None,
+        Some(m) => {
+            let me: Option<bool> = conn.query_row("SELECT is_me FROM project_members WHERE id = ? AND project_id = ?", params![m, project_id], |r| r.get(0)).optional()?;
+            match me { None => return Err(bad("no such member")), Some(true) => None, Some(false) => Some(m.to_string()) }
+        }
+    };
+    Ok((section, d, amt, text(v, "vendor", 100)?, mode.into(), text(v, "account_name", 100)?, text(v, "reference", 60)?, text(v, "notes", 1000)?, paid_by))
 }
 
 /// The transaction a payment is linked to must be money that went out, in the project's currency,
@@ -546,7 +562,8 @@ fn check_link(conn: &Connection, project_id: &str, entry_id: &str, amount: i64, 
 /// Records a payment. With `record` ({account_id, category_id}) the transaction is added too
 /// (tagged with the project's name); with `entry_id` it's linked to one already there.
 pub fn add_payment(conn: &Connection, project_id: &str, v: &Value) -> Result<Value> {
-    let (section, d, amt, vendor, mode, account_name, reference, notes) = payment_fields(conn, project_id, v)?;
+    let (section, d, amt, vendor, mode, account_name, reference, notes, paid_by) = payment_fields(conn, project_id, v)?;
+    if paid_by.is_some() && v["record"].is_object() { return Err(bad("only payments you made are added to your transactions")); }
     let id = new_id();
     atomic(conn, |tx| {
         let entry = match (&v["record"], v["entry_id"].as_str().filter(|s| !s.is_empty())) {
@@ -566,8 +583,8 @@ pub fn add_payment(conn: &Connection, project_id: &str, v: &Value) -> Result<Val
             (_, Some(e)) => { check_link(tx, project_id, e, amt, None)?; Some(e.to_string()) }
             _ => None,
         };
-        tx.execute("INSERT INTO project_payments (id, project_id, section_id, date, amount_minor, vendor, mode, account_name, reference, entry_id, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            params![id, project_id, section, d, amt, vendor, mode, account_name, reference, entry, notes])?;
+        tx.execute("INSERT INTO project_payments (id, project_id, section_id, date, amount_minor, vendor, mode, account_name, reference, entry_id, notes, paid_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            params![id, project_id, section, d, amt, vendor, mode, account_name, reference, entry, notes, paid_by])?;
         Ok(())
     })?;
     payment_row(conn, &id)
@@ -577,7 +594,7 @@ pub fn add_payment(conn: &Connection, project_id: &str, v: &Value) -> Result<Val
 /// transaction itself isn't changed.
 pub fn update_payment(conn: &Connection, id: &str, v: &Value) -> Result<Value> {
     let (project_id, linked): (String, Option<String>) = conn.query_row("SELECT project_id, entry_id FROM project_payments WHERE id = ?", [id], |r| Ok((r.get(0)?, r.get(1)?))).optional()?.ok_or_else(|| bad("no such payment"))?;
-    let (section, d, amt, vendor, mode, account_name, reference, notes) = payment_fields(conn, &project_id, v)?;
+    let (section, d, amt, vendor, mode, account_name, reference, notes, paid_by) = payment_fields(conn, &project_id, v)?;
     let entry = match v.get("entry_id") {
         None => linked,
         Some(Value::String(e)) if !e.is_empty() => { check_link(conn, &project_id, e, amt, Some(id))?; Some(e.clone()) }
@@ -587,8 +604,8 @@ pub fn update_payment(conn: &Connection, id: &str, v: &Value) -> Result<Value> {
         let minor: Option<i64> = conn.query_row("SELECT amount_minor FROM transactions WHERE id = ?", [e], |r| r.get(0)).optional()?;
         if minor.is_some_and(|m| m != amt) { return Err(bad("the transaction's amount isn't the same as the payment's")); }
     }
-    conn.execute("UPDATE project_payments SET section_id = ?, date = ?, amount_minor = ?, vendor = ?, mode = ?, account_name = ?, reference = ?, entry_id = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        params![section, d, amt, vendor, mode, account_name, reference, entry, notes, id])?;
+    conn.execute("UPDATE project_payments SET section_id = ?, date = ?, amount_minor = ?, vendor = ?, mode = ?, account_name = ?, reference = ?, entry_id = ?, notes = ?, paid_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        params![section, d, amt, vendor, mode, account_name, reference, entry, notes, paid_by, id])?;
     payment_row(conn, id)
 }
 
@@ -757,4 +774,90 @@ pub fn add_items(conn: &Connection, project_id: &str, v: &Value) -> Result<Vec<V
         }
         Ok(out)
     })
+}
+
+// ---------------------------------------------------------------- splitting the cost
+
+/// The people sharing the project's costs, in order, with their shares.
+pub fn members(conn: &Connection, project_id: &str) -> Result<Vec<Value>> {
+    currency_of(conn, project_id)?;
+    query(conn, "SELECT id, name, share, is_me, position FROM project_members WHERE project_id = ? ORDER BY position, name COLLATE NOCASE", &[json!(project_id)])
+}
+
+/// Replaces the list of members: `[{id?, name, share, is_me}]`. One of them is you (when there
+/// are any). Removed members' payments count as yours.
+pub fn set_members(conn: &Connection, project_id: &str, list: &Value) -> Result<Vec<Value>> {
+    currency_of(conn, project_id)?;
+    let list = list.as_array().cloned().unwrap_or_default();
+    if list.len() > 50 { return Err(bad("a project can be shared by up to 50 people")); }
+    let mut rows: Vec<(Option<String>, String, f64, bool)> = vec![];
+    for m in &list {
+        let name = text(m, "name", 60)?.ok_or_else(|| bad("give each person a name"))?;
+        if rows.iter().any(|r| r.1.to_lowercase() == name.to_lowercase()) { return Err(bad("two people can't have the same name")); }
+        let share = match &m["share"] { Value::Null => 1.0, v => v.as_f64().or_else(|| v.as_str().and_then(|s| s.trim().parse().ok())).ok_or_else(|| bad("a share is a number, such as 1 or 2"))? };
+        if !share.is_finite() || !(0.0..=1000.0).contains(&share) { return Err(bad("a share is a number from 0 to 1000")); }
+        rows.push((m["id"].as_str().filter(|s| !s.is_empty()).map(str::to_string), name, share, m["is_me"].as_bool().unwrap_or(false)));
+    }
+    if !rows.is_empty() && rows.iter().filter(|r| r.3).count() != 1 { return Err(bad("mark which one of them is you")); }
+    if !rows.is_empty() && rows.iter().all(|r| r.2 == 0.0) { return Err(bad("someone needs a share more than 0")); }
+    atomic(conn, |tx| {
+        let keep: Vec<String> = rows.iter().filter_map(|r| r.0.clone()).collect();
+        let existing: Vec<String> = tx.prepare("SELECT id FROM project_members WHERE project_id = ?")?.query_map([project_id], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+        for id in existing.iter().filter(|e| !keep.contains(e)) { tx.execute("DELETE FROM project_members WHERE id = ?", [id])?; }
+        // Free the names first, so two people can swap names in one save.
+        for id in &keep { tx.execute("UPDATE project_members SET name = id WHERE id = ? AND project_id = ?", params![id, project_id])?; }
+        for (i, (id, name, share, me)) in rows.iter().enumerate() {
+            match id {
+                Some(id) if existing.contains(id) => { tx.execute("UPDATE project_members SET name = ?, share = ?, is_me = ?, position = ? WHERE id = ?", params![name, share, me, i as i64, id])?; }
+                Some(_) => return Err(bad("no such member")),
+                None => { tx.execute("INSERT INTO project_members (id, project_id, name, share, is_me, position) VALUES (?, ?, ?, ?, ?, ?)", params![new_id(), project_id, name, share, me, i as i64])?; }
+            }
+        }
+        // Payments by the person now marked as you are yours.
+        tx.execute("UPDATE project_payments SET paid_by = NULL WHERE project_id = ? AND paid_by IN (SELECT id FROM project_members WHERE is_me = 1)", [project_id])?;
+        Ok(())
+    })?;
+    members(conn, project_id)
+}
+
+/// Who paid what, each person's share of the total paid, and the fewest payments that settle up.
+pub fn split(conn: &Connection, project_id: &str) -> Result<Value> {
+    let cur = currency_of(conn, project_id)?;
+    let ms = members(conn, project_id)?;
+    if ms.is_empty() { return Ok(json!({ "members": [], "settle": [], "total": 0 })); }
+    let me = ms.iter().find(|m| m["is_me"].as_i64() == Some(1)).and_then(|m| m["id"].as_str()).unwrap_or_default().to_string();
+    let mut paid: std::collections::HashMap<String, i64> = std::collections::HashMap::new();
+    let mut st = conn.prepare("SELECT coalesce(paid_by, ?), sum(amount_minor) FROM project_payments WHERE project_id = ? GROUP BY 1")?;
+    for r in st.query_map(params![me, project_id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? { let (k, v) = r?; paid.insert(k, v); }
+    let total: i64 = paid.values().sum();
+    // Shares in whole paise; what's left over from rounding goes to the largest shares first.
+    let weights: Vec<f64> = ms.iter().map(|m| m["share"].as_f64().unwrap_or(0.0)).collect();
+    let sum_w: f64 = weights.iter().sum();
+    let exact: Vec<f64> = weights.iter().map(|w| total as f64 * w / sum_w).collect();
+    let mut owed: Vec<i64> = exact.iter().map(|x| x.floor() as i64).collect();
+    let mut left = total - owed.iter().sum::<i64>();
+    let mut order: Vec<usize> = (0..ms.len()).collect();
+    order.sort_by(|&a, &b| (exact[b] - exact[b].floor()).total_cmp(&(exact[a] - exact[a].floor())));
+    for &i in order.iter().cycle().take(ms.len() * 2) {
+        if left <= 0 { break; }
+        if weights[i] > 0.0 { owed[i] += 1; left -= 1; }
+    }
+    let mut bal: Vec<(usize, i64)> = Vec::new();
+    let mut people = vec![];
+    for (i, m) in ms.iter().enumerate() {
+        let id = m["id"].as_str().unwrap_or_default();
+        let p = *paid.get(id).unwrap_or(&0);
+        bal.push((i, p - owed[i]));
+        people.push(json!({ "id": id, "name": m["name"], "is_me": m["is_me"].as_i64() == Some(1), "share": m["share"],
+            "paid": money::to_decimal(p, &cur), "owes": money::to_decimal(owed[i], &cur), "balance": money::to_decimal(p - owed[i], &cur) }));
+    }
+    // Largest debtor pays largest creditor, until everyone is square.
+    let mut settle = vec![];
+    while let (Some(&(d, dv)), Some(&(c, cv))) = (bal.iter().filter(|b| b.1 < 0).min_by_key(|b| b.1), bal.iter().filter(|b| b.1 > 0).max_by_key(|b| b.1)) {
+        let x = (-dv).min(cv);
+        settle.push(json!({ "from": ms[d]["name"], "from_me": ms[d]["is_me"].as_i64() == Some(1), "to": ms[c]["name"], "to_me": ms[c]["is_me"].as_i64() == Some(1), "amount": money::to_decimal(x, &cur) }));
+        for b in bal.iter_mut() { if b.0 == d { b.1 += x } else if b.0 == c { b.1 -= x } }
+        if settle.len() > 200 { break; }
+    }
+    Ok(json!({ "members": people, "settle": settle, "total": money::to_decimal(total, &cur) }))
 }

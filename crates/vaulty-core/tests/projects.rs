@@ -255,3 +255,104 @@ fn reading_a_kept_bill_into_items() {
     assert_eq!((draft.items.len(), draft.items[0].item.as_str(), draft.matches), (1, "Primer 4L", Some(true)));
     assert!(pr::read_bill(&c, &key, dir.path(), iid, |_, _| Ok(vec![])).is_err(), "nothing recognised");
 }
+
+#[test]
+fn splitting_a_trip_with_friends() {
+    let c = setup();
+    let p = pr::create(&c, &json!({ "name": "Goa trip", "kind": "group" })).unwrap();
+    let id = p["id"].as_str().unwrap();
+    assert_eq!(pr::split(&c, id).unwrap()["members"], json!([]));
+    assert!(pr::set_members(&c, id, &json!([{ "name": "Me" }, { "name": "John" }])).is_err(), "someone must be you");
+    assert!(pr::set_members(&c, id, &json!([{ "name": "Jane", "is_me": true }, { "name": "jane" }])).is_err());
+    let ms = pr::set_members(&c, id, &json!([{ "name": "Jane", "is_me": true }, { "name": "John" }, { "name": "Jenny", "share": 2 }])).unwrap();
+    let mid = |n: &str| ms.iter().find(|m| m["name"] == n).unwrap()["id"].as_str().unwrap().to_string();
+    let (john, jenny) = (mid("John"), mid("Jenny"));
+    // I paid the hotel, John the flights, Jenny dinner.
+    pr::add_payment(&c, id, &json!({ "date": "2026-05-01", "amount": "24000", "vendor": "Hotel", "mode": "card" })).unwrap();
+    pr::add_payment(&c, id, &json!({ "date": "2026-05-01", "amount": "15000", "vendor": "Airline", "mode": "upi", "paid_by": john })).unwrap();
+    pr::add_payment(&c, id, &json!({ "date": "2026-05-03", "amount": "1000.01", "vendor": "Shack", "mode": "cash", "paid_by": jenny })).unwrap();
+    assert!(pr::add_payment(&c, id, &json!({ "date": "2026-05-03", "amount": "10", "mode": "cash", "paid_by": "nobody" })).is_err());
+    let acct = accounts::create(&c, &json!({ "name": "Savings", "type": "savings", "currency": "INR", "initial_balance": "1000" })).unwrap();
+    assert!(pr::add_payment(&c, id, &json!({ "date": "2026-05-03", "amount": "10", "mode": "cash", "paid_by": john, "record": { "account_id": acct["id"] } })).is_err(), "not my money");
+
+    let s = pr::split(&c, id).unwrap();
+    assert_eq!(s["total"].as_f64(), Some(40000.01));
+    let get = |n: &str| s["members"].as_array().unwrap().iter().find(|m| m["name"] == n).unwrap().clone();
+    // Shares 1:1:2 of ₹40,000.01; the odd paisa goes to someone, and the shares add up exactly.
+    let owes: f64 = ["Jane", "John", "Jenny"].iter().map(|n| get(n)["owes"].as_f64().unwrap()).sum();
+    assert!((owes - 40000.01).abs() < 1e-6);
+    assert_eq!((get("Jane")["paid"].as_f64(), get("Jane")["owes"].as_f64()), (Some(24000.0), Some(10000.0)));
+    assert_eq!(get("Jenny")["balance"].as_f64(), Some(1000.01 - 20000.01));
+    let settle = s["settle"].as_array().unwrap();
+    assert_eq!(settle.len(), 2, "{settle:?}");
+    assert_eq!((settle[0]["from"].as_str(), settle[0]["to"].as_str(), settle[0]["amount"].as_f64(), settle[0]["to_me"].as_bool()), (Some("Jenny"), Some("Jane"), Some(14000.0), Some(true)));
+    assert_eq!((settle[1]["from"].as_str(), settle[1]["to"].as_str(), settle[1]["amount"].as_f64()), (Some("Jenny"), Some("John"), Some(5000.0)));
+    let pays = pr::payments(&c, id).unwrap();
+    assert_eq!(pays.iter().filter_map(|y| y["paid_by_name"].as_str()).collect::<Vec<_>>(), ["John", "Jenny"]);
+
+    // Removing John makes his payment mine; renaming keeps ids.
+    let ms = pr::set_members(&c, id, &json!([{ "id": mid("Jane"), "name": "Jane D", "is_me": true }, { "id": jenny, "name": "Jenny" }])).unwrap();
+    assert_eq!(ms.len(), 2);
+    assert_eq!(pr::split(&c, id).unwrap()["members"][0]["paid"].as_f64(), Some(39000.0));
+}
+
+#[test]
+fn sharing_a_project_as_a_file_and_back() {
+    use vaulty_core::{backup, project_share as share, Key};
+    const PDF: &[u8] = b"%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n";
+    // Jane's Vaulty and John's Vaulty.
+    let (jane, john) = (setup(), setup());
+    let (kj, kn) = (Key::new([1u8; 32]), Key::new([2u8; 32]));
+    let (dj, dn) = (tempfile::tempdir().unwrap(), tempfile::tempdir().unwrap());
+    let p = pr::create(&jane, &json!({ "name": "Goa trip", "kind": "group", "sections": ["Travel", "Stay"],
+        "columns": [{ "name": "Booked on", "type": "date" }], "labels": { "vendor": "Booked with" } })).unwrap();
+    let pid = p["id"].as_str().unwrap();
+    let col = p["columns"][0]["id"].as_str().unwrap().to_string();
+    let ms = pr::set_members(&jane, pid, &json!([{ "name": "Jane", "is_me": true }, { "name": "John" }])).unwrap();
+    let john_id = ms[1]["id"].as_str().unwrap().to_string();
+    pr::add_item(&jane, pid, &json!({ "date": "2026-05-01", "item": "Flights", "amount": "15000", "custom": { col.clone(): "2026-04-01" } })).unwrap();
+    let acct = accounts::create(&jane, &json!({ "name": "Savings", "type": "savings", "currency": "INR", "initial_balance": "50000" })).unwrap();
+    let hotel = pr::add_payment(&jane, pid, &json!({ "date": "2026-05-01", "amount": "24000", "vendor": "Hotel", "mode": "card", "record": { "account_id": acct["id"] } })).unwrap();
+    pr::add_payment(&jane, pid, &json!({ "date": "2026-05-01", "amount": "15000", "vendor": "Airline", "mode": "upi", "paid_by": john_id })).unwrap();
+    pr::add_file(&jane, &kj, dj.path(), pid, "hotel.pdf", PDF, &json!({ "payment_id": hotel["id"] })).unwrap();
+
+    // Jane sends it, encrypted with a password.
+    let value = share::export(&jane, &kj, dj.path(), pid, true).unwrap();
+    assert!(value["payments"].as_array().unwrap().iter().all(|y| y.get("entry_id").is_none()), "her transactions stay hers");
+    let file = backup::encrypt_value(&value, "goa-2026-trip", None).unwrap();
+    assert!(!file.windows(5).any(|w| w == b"Hotel"));
+    let got = backup::decrypt(&file, "goa-2026-trip").unwrap();
+
+    // John opens it and says which person he is.
+    let peek = share::peek(&john, &got).unwrap();
+    assert_eq!((peek["name"].as_str(), peek["members"].as_array().unwrap().len(), peek["files"].as_u64(), peek["updates"].is_null()), (Some("Goa trip"), 2, Some(1), true));
+    assert!(share::import(&john, &kn, dn.path(), &got, None).is_err(), "he must say who he is");
+    let r = share::import(&john, &kn, dn.path(), &got, Some(&john_id)).unwrap();
+    assert_eq!((r["updated"].as_bool(), r["files"].as_u64()), (Some(false), Some(1)));
+    let jid = r["id"].as_str().unwrap().to_string();
+    let s = pr::split(&john, &jid).unwrap();
+    let me = s["members"].as_array().unwrap().iter().find(|m| m["is_me"] == true).unwrap();
+    assert_eq!((me["name"].as_str(), me["paid"].as_f64()), (Some("John"), Some(15000.0)), "the flights John paid are his own on his side");
+    assert_eq!(pr::get(&john, &jid).unwrap()["labels"]["vendor"], "Booked with");
+    assert_eq!(pr::items(&john, &jid).unwrap()[0]["custom"][&col], "2026-04-01");
+    let fid = pr::files(&john, &jid).unwrap()[0]["id"].as_str().unwrap().to_string();
+    assert_eq!(pr::read_file(&john, &kn, dn.path(), &fid).unwrap().2, PDF, "the bill, under John's key");
+
+    // John adds dinner and sends it back; Jane's project is brought up to date, links kept.
+    pr::add_payment(&john, &jid, &json!({ "date": "2026-05-03", "amount": "3000", "vendor": "Shack", "mode": "cash" })).unwrap();
+    let back = share::export(&john, &kn, dn.path(), &jid, false).unwrap();
+    assert_eq!(share::peek(&jane, &back).unwrap()["updates"]["id"].as_str(), Some(pid));
+    let jane_me = ms[0]["id"].as_str().unwrap().to_string();
+    let r = share::import(&jane, &kj, dj.path(), &back, Some(&jane_me)).unwrap();
+    assert_eq!((r["id"].as_str(), r["updated"].as_bool()), (Some(pid), Some(true)));
+    let pays = pr::payments(&jane, pid).unwrap();
+    assert_eq!(pays.len(), 3);
+    assert!(pays.iter().find(|y| y["vendor"] == "Hotel").unwrap()["entry_id"].is_string(), "her link to her transaction survives");
+    assert_eq!(pays.iter().find(|y| y["vendor"] == "Shack").unwrap()["paid_by_name"], "John");
+    let s = pr::split(&jane, pid).unwrap();
+    assert_eq!(s["total"].as_f64(), Some(42000.0));
+
+    // Files that aren't shared projects are refused.
+    assert!(share::peek(&jane, &json!({ "format": "something" })).is_err());
+    assert!(share::peek(&jane, &json!({ "format": "vaulty-project", "version": 99, "share_id": "x" })).unwrap_err().to_string().contains("newer"));
+}

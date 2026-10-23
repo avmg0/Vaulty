@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, FileScan, FileSpreadsheet, FolderKanban, Link2, Paperclip, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, FileScan, FileSpreadsheet, FileUp, FolderKanban, Send, Link2, Paperclip, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, DATA_RESTORED, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_STATUSES, type CustomValue, type LinkSuggestion, type NameableColumn, type BillDraft, type Project, type ProjectDetail, type ProjectFile, type ProjectItem, type ProjectPayment } from "@/api";
 import { BillsPanel } from "@/components/projects/Bills";
 import { chooseAndRead, ReadBillDialog } from "@/components/projects/ReadBill";
+import { OpenSharedDialog, ShareDialog, SplitPanel } from "@/components/projects/Sharing";
 import { columnName, ItemDialog, LinkDialog, PaymentDialog, ProjectDialog, SectionsEditor } from "@/components/projects/ProjectDialogs";
 import { Segmented } from "@/components/Segmented";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,7 @@ export function ProjectsPage() {
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [open, setOpen] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
   const reload = () => setVersion((v) => v + 1);
@@ -55,11 +57,17 @@ export function ProjectsPage() {
           <FolderKanban className="text-muted-foreground mx-auto mb-3 size-8" aria-hidden />
           <p className="font-medium">{t("projects.emptyTitle")}</p>
           <p className="text-muted-foreground mx-auto mt-1 max-w-md text-sm">{t("projects.emptyDesc")}</p>
-          <Button className="mt-4" onClick={() => setCreating(true)}><Plus />{t("projects.new")}</Button>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <Button onClick={() => setCreating(true)}><Plus />{t("projects.new")}</Button>
+            <Button variant="outline" onClick={() => setOpening(true)}><FileUp />{t("projects.openShared")}</Button>
+          </div>
         </CardContent></Card>
       ) : (
         <>
-          <div className="flex justify-end"><Button onClick={() => setCreating(true)}><Plus />{t("projects.new")}</Button></div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" onClick={() => setOpening(true)}><FileUp />{t("projects.openShared")}</Button>
+            <Button onClick={() => setCreating(true)}><Plus />{t("projects.new")}</Button>
+          </div>
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {(projects ?? []).map((p) => (
               <li key={p.id}>
@@ -86,12 +94,13 @@ export function ProjectsPage() {
           </ul>
         </>
       )}
+      {opening && <OpenSharedDialog onClose={() => setOpening(false)} onOpened={(id) => { setOpening(false); setOpen(id); reload(); }} />}
       {creating && <ProjectDialog project={null} onClose={() => setCreating(false)} onSaved={(id) => { setCreating(false); setOpen(id); reload(); }} />}
     </div>
   );
 }
 
-type Tab = "items" | "payments" | "bills" | "people" | "sections";
+type Tab = "items" | "payments" | "bills" | "people" | "split" | "sections";
 
 function ProjectView({ id, version, onBack, onChanged }: { id: string; version: number; onBack: () => void; onChanged: () => void }) {
   const { t } = useTranslation();
@@ -108,6 +117,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
   const [item, setItem] = useState<ProjectItem | "new" | null>(null);
   const [payment, setPayment] = useState<ProjectPayment | "new" | null>(null);
   const [linking, setLinking] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [reading, setReading] = useState<{ fileId: string; draft: BillDraft; photo: boolean } | null>(null);
   const [readBusy, setReadBusy] = useState(false);
   const [error, setError] = useState("");
@@ -177,6 +187,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
         <div className="print-hide flex flex-wrap gap-1">
           <Button variant="ghost" size="icon" aria-label={t("projects.edit")} title={t("projects.edit")} onClick={() => setEditing(true)}><Pencil /></Button>
           <Button variant="ghost" size="icon" aria-label={t("projects.exportExcel")} title={t("projects.exportExcel")} onClick={exportXlsx}><FileSpreadsheet /></Button>
+          <Button variant="ghost" size="icon" aria-label={t("projects.shareProject")} title={t("projects.shareProject")} onClick={() => setSharing(true)}><Send /></Button>
           <Button variant="ghost" size="icon" aria-label={t("projects.print")} title={t("projects.print")} onClick={printPage}><Printer /></Button>
           <Button variant="ghost" size="icon" className="text-destructive" aria-label={t("projects.delete")} title={t("projects.delete")} onClick={remove}><Trash2 /></Button>
         </div>
@@ -213,6 +224,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
           { value: "payments", label: t("projects.tabs.paymentsN", { count: payments.length }) },
           { value: "bills", label: t("projects.tabs.billsN", { count: files.length }) },
           { value: "people", label: t("projects.tabs.people") },
+          { value: "split", label: t("projects.tabs.split") },
           { value: "sections", label: t("projects.tabs.sections") },
         ]} /></div>
         {(tab === "items" || tab === "payments") && (p.sections.length > 0) && (
@@ -316,6 +328,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
                       <span className="text-muted-foreground block text-xs">{[y.account_name && y.vendor ? t("projects.asShown", { name: y.account_name }) : null, y.section_name].filter(Boolean).join(" · ")}</span>
                     </td>
                     <td className={cell}>{t(`projects.modes.${y.mode}`)}
+                      {y.paid_by_name && <span className="text-muted-foreground block text-xs">{t("projects.paidByName", { name: y.paid_by_name })}</span>}
                       {y.entry_id && <span className="text-muted-foreground flex items-center gap-1 text-xs"><Link2 className="size-3" aria-hidden />{y.from_account ?? t("projects.linked")}</span>}</td>
                     <td className={cn(cell, "text-muted-foreground")}>{y.reference}</td>
                     <td className={cn(cell, "text-end font-medium tabular-nums")}>{money(y.amount)}</td>
@@ -370,12 +383,14 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
       )}
 
       {tab === "sections" && <SectionsEditor project={p} onChanged={changed} />}
+      {tab === "split" && <SplitPanel project={p} onChanged={changed} />}
       {tab === "bills" && <BillsPanel project={p} files={files} items={items} payments={payments} onChanged={changed} onRead={readKept} />}
 
       {editing && <ProjectDialog project={p} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); changed(); }} />}
       {item && <ItemDialog project={p} item={item === "new" ? null : item} names={names} files={files} onFiles={load} onClose={() => setItem(null)} onSaved={() => { setItem(null); changed(); }} />}
       {payment && <PaymentDialog project={p} payment={payment === "new" ? null : payment} names={names} files={files} onFiles={load} onClose={() => setPayment(null)} onSaved={() => { setPayment(null); changed(); }} />}
       {reading && <ReadBillDialog project={p} fileId={reading.fileId} draft={reading.draft} photo={reading.photo} onClose={() => { setReading(null); load(); }} onAdded={() => { setReading(null); setTab("items"); changed(); }} />}
+      {sharing && <ShareDialog project={p} onClose={() => setSharing(false)} />}
       {linking && <LinkDialog project={p} suggestions={links} payments={payments} onClose={(c) => { setLinking(false); if (c) changed(); }} />}
     </div>
   );

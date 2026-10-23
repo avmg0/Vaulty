@@ -422,7 +422,8 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - [x] Reading PDF invoices (GSTIN, invoice number, items, HSN, CGST/SGST/IGST, total) into draft items
 - [x] Reading photos of bills with the system's own text recognition (Apple Vision, Windows OCR, Tesseract on Linux), offline
 - [ ] Better recognition models to download from Settings (needs the model host allowed on the network allowlist)
-- [ ] Splitting a project's costs with friends (shares, what each owes) and sharing a project as a file
+- [x] Splitting a project's costs with friends (shares, what each owes) and sharing a project as a file
+- [ ] Settle-up amounts recorded in Lend & borrow; live shared editing once device sync exists
 - [ ] Warranties from items become documents with expiry reminders; home improvement costs noted for capital gains
 
 ### Investments and prices
