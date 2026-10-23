@@ -1964,6 +1964,10 @@
   "re": "^([\\s\\S]+?)/([\\s\\S]+?) needs slabs for age 0$"
  },
  {
+  "id": "e56178dd9",
+  "re": "^([\\s\\S]+?)/([\\s\\S]+?): taper needs per > 0$"
+ },
+ {
   "id": "e30919696",
   "re": "^([\\s\\S]+?) is already used for ([\\s\\S]+?)$"
  },
@@ -1980,8 +1984,16 @@
   "re": "^([\\s\\S]+?): ([\\s\\S]+?)$"
  },
  {
+  "id": "ef9a32eea",
+  "re": "^([\\s\\S]+?)/([\\s\\S]+?): levy ([\\s\\S]+?) bands must rise, rates 0–100, only the last open$"
+ },
+ {
   "id": "e5b08c112",
   "re": "^`([\\s\\S]+?)` has more than ([\\s\\S]+?) decimal place([\\s\\S]+?) for this currency$"
+ },
+ {
+  "id": "eaa033453",
+  "re": "^([\\s\\S]+?)/([\\s\\S]+?): levy ([\\s\\S]+?) last band must be open$"
  },
  {
   "id": "e08c36655",

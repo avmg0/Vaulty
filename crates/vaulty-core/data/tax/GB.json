@@ -1,0 +1,167 @@
+{
+  "country": "GB",
+  "currency": "GBP",
+  "last_checked": "2026-10-23",
+  "notes": "England, Wales and Northern Ireland. Scotland has its own income tax bands, not included yet. Savings and dividend income have their own allowances and rates; here other income is taxed at the normal rates. The High Income Child Benefit Charge, the marriage allowance and Gift Aid aren't included.",
+  "sources": [
+    "https://www.gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027",
+    "https://www.gov.uk/income-tax-rates",
+    "https://www.gov.uk/national-insurance-rates-letters"
+  ],
+  "years": [
+    {
+      "id": "2025-26",
+      "label": "2025-26 (6 April 2025 to 5 April 2026)",
+      "start": "2025-04-06",
+      "end": "2026-04-05",
+      "regimes": [
+        {
+          "id": "uk",
+          "name": "England, Wales and Northern Ireland",
+          "default": true,
+          "description": "Income tax on earnings and other income, with Class 1 National Insurance on salary.",
+          "slabs": [
+            {
+              "age_min": 0,
+              "bands": [
+                {
+                  "upto": 37700,
+                  "rate": 20
+                },
+                {
+                  "upto": 125140,
+                  "rate": 40
+                },
+                {
+                  "upto": null,
+                  "rate": 45
+                }
+              ]
+            }
+          ],
+          "standard_deduction": {
+            "amount": 12570,
+            "applies_to": "all",
+            "label": "Personal Allowance",
+            "taper": {
+              "above": 100000,
+              "per": 2
+            }
+          },
+          "deductions": [
+            {
+              "id": "pension",
+              "label": "Pension contributions taken before tax",
+              "cap": 60000,
+              "hint": "Through your employer's net pay or salary sacrifice scheme. Contributions you make yourself get relief at source instead and aren't entered here."
+            },
+            {
+              "id": "work_expenses",
+              "label": "Work expenses you can claim",
+              "hint": "Uniform, tools, professional fees and other costs of your job that your employer didn't pay back."
+            }
+          ],
+          "levies": [
+            {
+              "id": "ni",
+              "name": "National Insurance (Class 1)",
+              "base": "salary",
+              "bands": [
+                {
+                  "upto": 12570,
+                  "rate": 0
+                },
+                {
+                  "upto": 50270,
+                  "rate": 8
+                },
+                {
+                  "upto": null,
+                  "rate": 2
+                }
+              ],
+              "note": "Worked out on the year's salary; employers work it out each pay period, so the total can differ slightly."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "2026-27",
+      "label": "2026-27 (6 April 2026 to 5 April 2027)",
+      "start": "2026-04-06",
+      "end": "2027-04-05",
+      "regimes": [
+        {
+          "id": "uk",
+          "name": "England, Wales and Northern Ireland",
+          "default": true,
+          "description": "Income tax on earnings and other income, with Class 1 National Insurance on salary.",
+          "slabs": [
+            {
+              "age_min": 0,
+              "bands": [
+                {
+                  "upto": 37700,
+                  "rate": 20
+                },
+                {
+                  "upto": 125140,
+                  "rate": 40
+                },
+                {
+                  "upto": null,
+                  "rate": 45
+                }
+              ]
+            }
+          ],
+          "standard_deduction": {
+            "amount": 12570,
+            "applies_to": "all",
+            "label": "Personal Allowance",
+            "taper": {
+              "above": 100000,
+              "per": 2
+            }
+          },
+          "deductions": [
+            {
+              "id": "pension",
+              "label": "Pension contributions taken before tax",
+              "cap": 60000,
+              "hint": "Through your employer's net pay or salary sacrifice scheme. Contributions you make yourself get relief at source instead and aren't entered here."
+            },
+            {
+              "id": "work_expenses",
+              "label": "Work expenses you can claim",
+              "hint": "Uniform, tools, professional fees and other costs of your job that your employer didn't pay back."
+            }
+          ],
+          "levies": [
+            {
+              "id": "ni",
+              "name": "National Insurance (Class 1)",
+              "base": "salary",
+              "bands": [
+                {
+                  "upto": 12570,
+                  "rate": 0
+                },
+                {
+                  "upto": 50270,
+                  "rate": 8
+                },
+                {
+                  "upto": null,
+                  "rate": 2
+                }
+              ],
+              "note": "Worked out on the year's salary; employers work it out each pay period, so the total can differ slightly."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

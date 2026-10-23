@@ -208,7 +208,7 @@
     "standardDeduction": "Standard deduction",
     "deductionsAllowed": "Deductions",
     "taxable": "Taxable income",
-    "slabTax": "Tax on slabs",
+    "slabTax": "Income tax",
     "rebate": "Rebate",
     "surcharge": "Surcharge ({{rate}}%)",
     "cess": "Cess",
@@ -252,7 +252,10 @@
     "kind": {
       "tds": "TDS",
       "advance": "Advance tax",
-      "self_assessment": "Self-assessment tax"
+      "self_assessment": "Self-assessment tax",
+      "tds_GB": "PAYE (taken from your pay)",
+      "advance_GB": "Payment on account",
+      "self_assessment_GB": "Self Assessment balancing payment"
     },
     "linksTitle": "Categories that count for tax",
     "linksDesc": "Transactions in these categories during {{year}} add up to the figure you choose.",
@@ -315,7 +318,11 @@
       "employerTax": "Your employer worked out {{amount}} of tax for the year.",
       "back": "Back",
       "fill": "Fill in"
-    }
+    },
+    "estimated": "Estimated tax this year: {{amount}}",
+    "paidDesc_GB": "Tax taken through PAYE and anything paid through Self Assessment for this year.",
+    "noPayments_GB": "Nothing recorded yet. Add the tax shown on your payslips or P60, and any Self Assessment payments.",
+    "ofWhichTds_GB": "{{amount}} of it through PAYE"
   },
   "ticker": {
     "label": "Market prices",
@@ -1980,11 +1987,14 @@
     "ede1457aa": "entry does not balance in {{p0}} (off by {{p1}})",
     "e3f05e09b": "{{p0}} is too long (at most {{p1}} characters)",
     "e91b59850": "{{p0}}/{{p1}} needs slabs for age 0",
+    "e56178dd9": "{{p0}}/{{p1}}: taper needs per > 0",
     "e30919696": "{{p0}} is already used for {{p1}}",
     "e7b8dfd3e": "`{{p0}}` must be {{p1}}",
     "e7e7b299c": "tax pack {{p0}}: {{p1}}",
     "ea546073a": "{{p0}}: {{p1}}",
+    "ef9a32eea": "{{p0}}/{{p1}}: levy {{p2}} bands must rise, rates 0–100, only the last open",
     "e5b08c112": "`{{p0}}` has more than {{p1}} decimal place{{p2}} for this currency",
+    "eaa033453": "{{p0}}/{{p1}}: levy {{p2}} last band must be open",
     "e08c36655": "{{p0}}/{{p1}}: rate {{p2}} out of range"
   },
   "errors": {

@@ -92,6 +92,10 @@ What changed in each version, for people using Vaulty. Newest first.
   reminder for new ones. Mark them fine, or delete a double charge.
 - Money journal: dated notes with a mood, tags and the transactions they're about, searchable.
   At the end of a month it offers a review, keeping that month's figures with what you write.
+- Tax planner for the United Kingdom (England, Wales and Northern Ireland), 2025-26 and 2026-27:
+  the Personal Allowance and its taper above £100,000, basic, higher and additional rates,
+  Class 1 National Insurance on salary, and pension contributions taken before tax. Tax packs
+  can now describe a tapering allowance and charges alongside income tax.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

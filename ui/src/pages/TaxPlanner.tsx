@@ -236,6 +236,8 @@ function Results({ result, regime, onRegime }: { result: TaxComparison; regime: 
   const money = (n: number) => formatMoney(n, cur, hideBalances, WHOLE);
   const best = result.estimates.find((e) => e.regime === result.recommended);
   const anyIncome = result.estimates.some((e) => e.gross > 0);
+  // One regime (as in the UK): no comparison, just the estimate.
+  const single = result.estimates.length === 1;
 
   return (
     <>
@@ -245,16 +247,17 @@ function Results({ result, regime, onRegime }: { result: TaxComparison; regime: 
           <div className="space-y-1">
             <div className="text-lg font-semibold tracking-tight">
               {!anyIncome ? t("tax.enterIncome")
+                : single ? t("tax.estimated", { amount: money(result.estimates[0].total) })
                 : result.saving > 0 && best ? t("tax.saves", { regime: best.name, amount: money(result.saving) })
                 : t("tax.same")}
             </div>
-            {anyIncome && best && <p className="text-muted-foreground text-sm">{t("tax.choiceNote")}</p>}
+            {anyIncome && best && !single && <p className="text-muted-foreground text-sm">{t("tax.choiceNote")}</p>}
             {anyIncome && regime && regime !== result.recommended && result.saving > 0 && (
               <p className="text-sm">{t("tax.chosenCosts", { regime: result.estimates.find((e) => e.regime === regime)?.name, amount: money(result.saving) })}</p>
             )}
           </div>
         </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label={t("tax.planUnder")}>
+        {!single && <div className="mt-4 flex flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label={t("tax.planUnder")}>
           <span className="text-muted-foreground me-1">{t("tax.planUnder")}</span>
           {[null, ...result.estimates.map((e) => e.regime)].map((r) => {
             const on = (regime ?? null) === r;
@@ -265,10 +268,10 @@ function Results({ result, regime, onRegime }: { result: TaxComparison; regime: 
               </button>
             );
           })}
-        </div>
+        </div>}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className={cn("grid gap-4", !single && "md:grid-cols-2")}>
         {result.estimates.map((e) => <RegimeCard key={e.regime} e={e} best={anyIncome && e.regime === result.recommended && result.saving > 0} money={money} cur={cur} />)}
       </div>
     </>
@@ -300,13 +303,14 @@ function RegimeCard({ e, best, money, cur }: { e: TaxEstimate; best: boolean; mo
   const capped = e.deductions.filter((d) => d.claimed > d.allowed);
   const rows: [string, number, boolean?][] = [
     [t("tax.gross"), e.gross],
-    [t("tax.standardDeduction"), -e.standard_deduction],
+    [e.standard_deduction_label ?? t("tax.standardDeduction"), -e.standard_deduction],
     [t("tax.deductionsAllowed"), -deducted],
     [t("tax.taxable"), e.taxable, true],
     [t("tax.slabTax"), e.slab_tax],
     [t("tax.rebate"), -e.rebate],
     [t("tax.surcharge", { rate: formatNumber(e.surcharge_rate) }), e.surcharge],
     [t("tax.cess"), e.cess],
+    ...e.levies.map((l): [string, number] => [l.name, l.amount]),
   ];
   return (
     <Card className={cn("gap-4 transition-shadow duration-300", best && "ring-primary ring-2")}>

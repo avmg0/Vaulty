@@ -10,7 +10,7 @@ fn total(regime: &str, req: Value) -> f64 {
 
 #[test]
 fn packs_parse_and_validate() {
-    assert_eq!(tax::countries().unwrap(), vec!["IN"]);
+    assert_eq!(tax::countries().unwrap(), vec!["IN", "GB"]);
     let p = tax::pack("in").unwrap();
     assert_eq!(p.currency, "INR");
     assert!(p.years[0].regimes.iter().any(|r| r.id == "new" && r.default));
@@ -95,4 +95,42 @@ fn rejects_bad_input() {
     assert!(tax::compare("IN", None, &json!({ "salary": -5 })).is_err());
     assert!(tax::compare("IN", None, &json!({ "salary": "12.345" })).is_err());
     assert!(tax::compare("ZZ", None, &json!({})).is_err());
+}
+
+// ---------------------------------------------------------------- United Kingdom (2026-27)
+
+fn uk(req: Value) -> Value {
+    vaulty_core::tax::compare("GB", Some("2026-27"), &req).unwrap()["estimates"][0].clone()
+}
+
+#[test]
+fn uk_basic_and_higher_rate_with_national_insurance() {
+    // £60,000 salary: £12,570 tax-free, £37,700 at 20%, £9,730 at 40% = £11,432 income tax;
+    // NI 8% of £37,700 + 2% of £9,730 = £3,210.60.
+    let e = uk(json!({ "age": 35, "salary": "60000" }));
+    assert_eq!(e["standard_deduction"], 12570.0);
+    assert_eq!(e["slab_tax"], 11432.0);
+    assert_eq!(e["levies"][0]["amount"], 3210.6);
+    assert_eq!(e["total"], 14642.6);
+    assert_eq!(e["standard_deduction_label"], "Personal Allowance");
+}
+
+#[test]
+fn uk_personal_allowance_tapers_above_100k() {
+    // £110,000: allowance cut by £5,000 to £7,570; tax £33,432.
+    let e = uk(json!({ "age": 35, "salary": "0", "other_income": "110000" }));
+    assert_eq!(e["standard_deduction"], 7570.0);
+    assert_eq!(e["slab_tax"], 33432.0);
+    assert_eq!(e["levies"][0]["amount"], 0.0, "no NI on income that isn't salary");
+    // Gone entirely at £125,140.
+    assert_eq!(uk(json!({ "age": 35, "salary": "0", "other_income": "130000" }))["standard_deduction"], 0.0);
+    // A £10,000 pension contribution through payroll brings income back to £100,000: full allowance.
+    let p = uk(json!({ "age": 35, "salary": "0", "other_income": "110000", "deductions": { "pension": "10000" } }));
+    assert_eq!(p["standard_deduction"], 12570.0);
+}
+
+#[test]
+fn uk_low_income_pays_nothing() {
+    let e = uk(json!({ "age": 35, "salary": "12000" }));
+    assert_eq!(e["total"], 0.0);
 }

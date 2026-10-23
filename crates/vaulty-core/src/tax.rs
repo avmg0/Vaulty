@@ -1,15 +1,17 @@
 //! Personal income tax estimates from region packs (`data/tax/<COUNTRY>.json`).
 //!
 //! The rules are data; this module only knows the generic shapes: progressive bands by age,
-//! a standard deduction, capped deductions, a rebate, surcharge and cess, each with optional
-//! marginal relief. All arithmetic is in integer minor units.
+//! a standard deduction or tax-free allowance (optionally tapered away at higher incomes),
+//! capped deductions, a rebate, surcharge and cess, each with optional marginal relief, and
+//! levies charged alongside income tax (such as National Insurance). All arithmetic is in
+//! integer minor units.
 
 use crate::{error::{Error, Result}, money};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::BTreeMap;
 
-const PACKS: &[&str] = &[include_str!("../data/tax/IN.json")];
+const PACKS: &[&str] = &[include_str!("../data/tax/IN.json"), include_str!("../data/tax/GB.json")];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pack {
@@ -59,6 +61,8 @@ pub struct Regime {
     #[serde(default)] pub surcharge: Option<Surcharge>,
     #[serde(default)] pub cess: Option<Cess>,
     #[serde(default)] pub deductions: Vec<Deduction>,
+    /// Charged alongside income tax on their own base (e.g. National Insurance on earnings).
+    #[serde(default)] pub levies: Vec<Levy>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -66,7 +70,19 @@ pub struct Slabs { pub age_min: u32, pub bands: Vec<Band> }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Band { pub upto: Option<i64>, pub rate: f64 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StandardDeduction { pub amount: i64, #[serde(default)] pub applies_to: Option<String> }
+pub struct StandardDeduction {
+    pub amount: i64,
+    #[serde(default)] pub applies_to: Option<String>,
+    /// What the form calls it ("Personal Allowance"); "Standard deduction" when not given.
+    #[serde(default)] pub label: Option<String>,
+    /// Reduced by 1 for every `per` of income (after deductions) above `above`.
+    #[serde(default)] pub taper: Option<Taper>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Taper { pub above: i64, pub per: i64 }
+/// A charge alongside income tax, on salary or on all income, in bands like the slabs.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Levy { pub id: String, pub name: String, #[serde(default)] pub base: Option<String>, pub bands: Vec<Band>, #[serde(default)] pub note: Option<String> }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Rebate { pub income_limit: i64, pub max: i64, #[serde(default)] pub marginal_relief: bool }
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -123,6 +139,16 @@ fn validate(p: &Pack) -> Result<()> {
                 }
                 if s.bands.last().is_some_and(|b| b.upto.is_some()) { return bad(format!("{}/{}: last band must be open (upto: null)", y.id, r.id)); }
             }
+            for l in &r.levies {
+                let mut prev = 0;
+                for (i, b) in l.bands.iter().enumerate() {
+                    let ok = (0.0..=100.0).contains(&b.rate) && match b.upto { Some(u) => u > prev, None => i == l.bands.len() - 1 };
+                    if !ok { return bad(format!("{}/{}: levy {} bands must rise, rates 0–100, only the last open", y.id, r.id, l.id)); }
+                    if let Some(u) = b.upto { prev = u; }
+                }
+                if l.bands.last().is_some_and(|b| b.upto.is_some()) { return bad(format!("{}/{}: levy {} last band must be open", y.id, r.id, l.id)); }
+            }
+            if r.standard_deduction.as_ref().and_then(|s| s.taper.as_ref()).is_some_and(|t| t.per <= 0) { return bad(format!("{}/{}: taper needs per > 0", y.id, r.id)); }
         }
     }
     Ok(())
@@ -162,6 +188,8 @@ pub fn parse_input(v: &Value, currency: &str) -> Result<Input> {
 #[derive(Debug, Serialize)]
 pub struct BandLine { pub from: i64, pub upto: Option<i64>, pub rate: f64, pub taxed: i64, pub tax: i64 }
 #[derive(Debug, Serialize)]
+pub struct LevyLine { pub id: String, pub name: String, pub amount: i64 }
+#[derive(Debug, Serialize)]
 pub struct DeductionLine { pub id: String, pub label: String, pub claimed: i64, pub allowed: i64, pub cap: Option<i64> }
 
 /// One regime's estimate. Money fields are minor units.
@@ -179,17 +207,19 @@ pub struct Estimate {
     pub surcharge: i64,
     pub surcharge_rate: f64,
     pub cess: i64,
+    pub standard_deduction_label: Option<String>,
+    pub levies: Vec<LevyLine>,
     pub total: i64,
     /// Basis points of gross income.
     pub effective_bp: i64,
 }
 
-fn slab_tax(r: &Regime, age: u32, taxable: i64, scale: i64) -> (i64, Vec<BandLine>) {
-    let slabs = r.slabs.iter().filter(|s| s.age_min <= age).max_by_key(|s| s.age_min).expect("validated: age 0 slabs exist");
+/// Tax on `amount` through progressive bands.
+fn banded(bands: &[Band], amount: i64, scale: i64) -> (i64, Vec<BandLine>) {
     let (mut from, mut total, mut lines) = (0i64, 0i64, vec![]);
-    for b in &slabs.bands {
+    for b in bands {
         let upto = b.upto.map(|u| u * scale);
-        let top = upto.map_or(taxable, |u| taxable.min(u));
+        let top = upto.map_or(amount, |u| amount.min(u));
         let taxed = (top - from).max(0);
         let tax = pct(taxed, bp(b.rate));
         lines.push(BandLine { from, upto, rate: b.rate, taxed, tax });
@@ -197,6 +227,11 @@ fn slab_tax(r: &Regime, age: u32, taxable: i64, scale: i64) -> (i64, Vec<BandLin
         match upto { Some(u) => from = u, None => break }
     }
     (total, lines)
+}
+
+fn slab_tax(r: &Regime, age: u32, taxable: i64, scale: i64) -> (i64, Vec<BandLine>) {
+    let slabs = r.slabs.iter().filter(|s| s.age_min <= age).max_by_key(|s| s.age_min).expect("validated: age 0 slabs exist");
+    banded(&slabs.bands, taxable, scale)
 }
 
 /// Income tax after rebate, before surcharge and cess.
@@ -230,10 +265,6 @@ fn surcharge_for(r: &Regime, age: u32, taxable: i64, tax: i64, scale: i64) -> (i
 pub fn estimate(year: &Year, r: &Regime, input: &Input, currency: &str) -> Estimate {
     let scale = money::scale(currency);
     let gross = input.salary + input.other;
-    let std = r.standard_deduction.as_ref().map_or(0, |sd| {
-        let base = if sd.applies_to.as_deref() == Some("salary") { input.salary } else { gross };
-        base.min(sd.amount * scale)
-    });
     let senior = input.age >= 60;
     let deductions: Vec<DeductionLine> = r.deductions.iter().map(|d| {
         let cap = if input.alt.contains(&d.id) { d.cap_alt.or(d.cap) } else if senior { d.cap_senior.or(d.cap) } else { d.cap };
@@ -242,17 +273,31 @@ pub fn estimate(year: &Year, r: &Regime, input: &Input, currency: &str) -> Estim
         DeductionLine { id: d.id.clone(), label: d.label.clone(), claimed, allowed: cap.map_or(claimed, |c| claimed.min(c)), cap }
     }).collect();
     let deducted: i64 = deductions.iter().map(|d| d.allowed).sum();
+    let std = r.standard_deduction.as_ref().map_or(0, |sd| {
+        let base = if sd.applies_to.as_deref() == Some("salary") { input.salary } else { gross };
+        // A taper takes 1 off the allowance for every `per` of income (after deductions) above `above`.
+        let amount = match &sd.taper {
+            Some(t) => (sd.amount * scale - ((gross - deducted - t.above * scale).max(0) / t.per)).max(0),
+            None => sd.amount * scale,
+        };
+        base.min(amount)
+    });
     let taxable = round_to((gross - std - deducted).max(0), year.rounding.taxable * scale);
 
     let (slab, rebate, bands) = tax_after_rebate(r, input.age, taxable, scale);
     let tax = slab - rebate;
     let (surcharge, surcharge_rate) = surcharge_for(r, input.age, taxable, tax, scale);
     let cess = r.cess.as_ref().map_or(0, |c| pct(tax + surcharge, bp(c.rate)));
-    let total = round_to(tax + surcharge + cess, year.rounding.tax * scale);
+    let levies: Vec<LevyLine> = r.levies.iter().map(|l| {
+        let base = if l.base.as_deref() == Some("salary") { input.salary } else { gross };
+        LevyLine { id: l.id.clone(), name: l.name.clone(), amount: banded(&l.bands, base, scale).0 }
+    }).collect();
+    let total = round_to(tax + surcharge + cess, year.rounding.tax * scale) + levies.iter().map(|l| l.amount).sum::<i64>();
     let effective_bp = if gross > 0 { (total as i128 * 10_000 / gross as i128) as i64 } else { 0 };
     Estimate {
         regime: r.id.clone(), name: r.name.clone(), gross, standard_deduction: std, deductions, taxable, bands,
         slab_tax: slab, rebate, surcharge, surcharge_rate, cess, total, effective_bp,
+        standard_deduction_label: r.standard_deduction.as_ref().and_then(|s| s.label.clone()), levies,
     }
 }
 
@@ -298,6 +343,8 @@ fn to_json(e: &Estimate, cur: &str) -> Value {
         "taxable": d(e.taxable),
         "bands": e.bands.iter().map(|b| json!({ "from": d(b.from), "upto": b.upto.map(d), "rate": b.rate, "taxed": d(b.taxed), "tax": d(b.tax) })).collect::<Vec<_>>(),
         "slab_tax": d(e.slab_tax), "rebate": d(e.rebate), "surcharge": d(e.surcharge), "surcharge_rate": e.surcharge_rate,
-        "cess": d(e.cess), "total": d(e.total), "total_minor": e.total, "effective_rate": e.effective_bp as f64 / 100.0,
+        "cess": d(e.cess), "standard_deduction_label": e.standard_deduction_label,
+        "levies": e.levies.iter().map(|l| json!({ "id": l.id, "name": l.name, "amount": d(l.amount) })).collect::<Vec<_>>(),
+        "total": d(e.total), "total_minor": e.total, "effective_rate": e.effective_bp as f64 / 100.0,
     })
 }

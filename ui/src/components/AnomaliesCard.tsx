@@ -16,7 +16,7 @@ export function AnomaliesCard() {
   const { hideBalances } = useTheme();
   const [items, setItems] = useState<Anomaly[]>([]);
   const [error, setError] = useState("");
-  const load = () => api.anomalies.list().then(setItems).catch(() => setItems([]));
+  const load = () => api.anomalies.list().then((d) => setItems(d ?? [])).catch(() => setItems([]));
   useEffect(() => { load(); window.addEventListener(DATA_RESTORED, load); return () => window.removeEventListener(DATA_RESTORED, load); }, []);
   if (items.length === 0) return null;
   const money = (a: Anomaly, n: number) => formatMoney(n, a.currency, hideBalances);

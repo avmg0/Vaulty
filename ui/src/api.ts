@@ -141,6 +141,7 @@ export type TaxInput = { age: number; salary: string; other_income: string; dedu
 export type TaxEstimate = {
   regime: string; name: string; gross: number; standard_deduction: number; taxable: number; slab_tax: number; rebate: number;
   surcharge: number; surcharge_rate: number; cess: number; total: number; effective_rate: number;
+  standard_deduction_label: string | null; levies: { id: string; name: string; amount: number }[];
   deductions: { id: string; label: string; claimed: number; allowed: number; cap: number | null }[];
   bands: { from: number; upto: number | null; rate: number; taxed: number; tax: number }[];
 };

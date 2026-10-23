@@ -206,12 +206,13 @@ Vaulty must work in any country. Tax rules change every year and differ by count
 - **Per person, not per device:** the household has a default country; each member can override it (e.g. someone working abroad).
 - **Starter packs:** India, US (federal; states over time), UK, Canada, Australia, Singapore, UAE, and a generic EU VAT pack. Without a pack, everything except tax estimates still works.
 - **Tests:** each pack ships with worked examples (income X → tax Y) that run in CI, so a wrong rule fails the build.
-- **Status:** format, loader and the India pack done (`crates/vaulty-core/data/tax/`). The calculator is built from generic building blocks: bands by age, standard deduction, capped deductions, rebate, surcharge, cess, marginal relief and rounding.
+- **Status:** format, loader, the India pack and the UK pack done (`crates/vaulty-core/data/tax/`). The calculator is built from generic building blocks: bands by age, standard deduction, capped deductions, rebate, surcharge, cess, marginal relief and rounding.
 - **Building blocks still to add**, each the first time a country needs it, then reusable by every pack:
   - filing status (single, married jointly…) with its own bands (US)
   - tax credits that reduce the tax rather than the income (US child credit, Australian offsets)
   - layered taxes: federal plus state or provincial, chosen by where the person lives (US, Canada, Australia); extra taxes such as UK National Insurance or the Medicare levy
-  - allowance taper: a tax-free amount that shrinks as income rises (UK above £100k)
+  - allowance taper: a tax-free amount that shrinks as income rises (UK above £100k) ✅ done
+  - levies alongside income tax (UK National Insurance) ✅ done
   - an overall cap across several reliefs (Singapore)
   - as a last resort, a pack may name a small, tested Rust function for a rule too unusual for data
 - **Updates:** packs are built into the app so tax works offline. Later, optional signed pack updates let a budget change be fixed without a full app release; nothing else leaves the device.
@@ -319,7 +320,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Tax planner filled from transactions; TDS and advance tax with reminders; HRA rent receipts
 - [x] Form 16 import (PDF, password-protected too)
 - [ ] AIS / Form 26AS import (needs a real download to match its layout)
-- [ ] Second country's tax pack
+- [x] Second country's tax pack: United Kingdom (England, Wales and Northern Ireland; Scotland's bands to follow)
 - [x] PDF statement import (password-protected too)
 - [x] Anomaly detection (unusual amounts, new merchants, double charges)
 - **Done when:** net worth is complete and the tax planner fills itself in.

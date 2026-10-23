@@ -26,12 +26,12 @@ export function TaxPaidCard({ plan, onChange }: { plan: TaxPlan; onChange: () =>
     <Card>
       <CardHeader>
         <CardTitle>{t("tax.paidTitle")}</CardTitle>
-        <CardDescription>{t("tax.paidDesc")}</CardDescription>
+        <CardDescription>{t("tax.paidDesc", { context: plan.country })}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <dl className="grid gap-3 sm:grid-cols-3">
           <Figure label={t("tax.taxFor", { regime: usedName })} value={money(plan.total)} />
-          <Figure label={t("tax.paidSoFar")} value={money(plan.paid)} sub={plan.tds > 0 ? t("tax.ofWhichTds", { amount: money(plan.tds) }) : undefined} />
+          <Figure label={t("tax.paidSoFar")} value={money(plan.paid)} sub={plan.tds > 0 ? t("tax.ofWhichTds", { amount: money(plan.tds), context: plan.country }) : undefined} />
           {plan.balance > 0
             ? <Figure label={t("tax.stillToPay")} value={money(plan.balance)} strong />
             : <Figure label={plan.balance < 0 ? t("tax.refund") : t("tax.allPaid")} value={money(-plan.balance)} strong good />}
@@ -59,9 +59,9 @@ export function TaxPaidCard({ plan, onChange }: { plan: TaxPlan; onChange: () =>
 
         <section className="space-y-2" aria-labelledby="payments-h">
           <h2 id="payments-h" className="text-sm font-medium">{t("tax.payments")}</h2>
-          {plan.payments.length === 0 ? <p className="text-muted-foreground text-sm">{t("tax.noPayments")}</p> : (
+          {plan.payments.length === 0 ? <p className="text-muted-foreground text-sm">{t("tax.noPayments", { context: plan.country })}</p> : (
             <ul className="divide-y rounded-lg border">
-              {plan.payments.map((p) => <PaymentRow key={p.id} p={p} money={money} onChange={onChange} />)}
+              {plan.payments.map((p) => <PaymentRow key={p.id} p={p} money={money} onChange={onChange} country={plan.country} />)}
             </ul>
           )}
           <AddPayment plan={plan} onChange={onChange} />
@@ -81,14 +81,14 @@ function Figure({ label, value, sub, strong, good }: { label: string; value: str
   );
 }
 
-function PaymentRow({ p, money, onChange }: { p: TaxPayment; money: (n: number) => string; onChange: () => Promise<void> }) {
+function PaymentRow({ p, money, onChange, country }: { p: TaxPayment; money: (n: number) => string; onChange: () => Promise<void>; country: string }) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const remove = () => { setBusy(true); api.tax.deletePayment(p.id).then(onChange).finally(() => setBusy(false)); };
   return (
     <li className="flex items-center gap-3 px-3 py-2 text-sm">
       <div className="min-w-0 flex-1">
-        <div className="truncate">{t(`tax.kind.${p.kind}`)}</div>
+        <div className="truncate">{t(`tax.kind.${p.kind}`, { context: country })}</div>
         <div className="text-muted-foreground truncate text-xs">{formatDate(p.date)}{p.note && ` · ${p.note}`}</div>
       </div>
       <span className="tabular-nums">{money(p.amount)}</span>
@@ -117,7 +117,7 @@ function AddPayment({ plan, onChange }: { plan: TaxPlan; onChange: () => Promise
     <form onSubmit={add} className="grid gap-2 rounded-lg border border-dashed p-3 sm:grid-cols-[9rem_9.5rem_minmax(0,1fr)]">
       <div className="space-y-1"><Label htmlFor="tp-kind" className="text-xs">{t("tax.paymentKind")}</Label>
         <select id="tp-kind" className={SELECT} value={kind} onChange={(e) => setKind(e.target.value as TaxPayment["kind"])}>
-          {KINDS.map((k) => <option key={k} value={k}>{t(`tax.kind.${k}`)}</option>)}
+          {KINDS.map((k) => <option key={k} value={k}>{t(`tax.kind.${k}`, { context: plan.country })}</option>)}
         </select>
       </div>
       <div className="space-y-1"><Label htmlFor="tp-date" className="text-xs">{t("tax.paymentDate")}</Label>
