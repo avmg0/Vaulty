@@ -724,12 +724,21 @@ pub fn remove_file(conn: &Connection, id: &str) -> Result<()> {
     Ok(())
 }
 
-/// Reads a kept bill (a PDF with text in it) into draft items to check before adding.
-pub fn read_bill(conn: &Connection, dk: &crate::crypto::Key, dir: &std::path::Path, file_id: &str) -> Result<crate::invoice::Draft> {
+/// Reads a kept bill into draft items to check before adding: a PDF from its text, a photo with
+/// `recognize` (the system's text recognition, given the image and its type).
+pub fn read_bill(conn: &Connection, dk: &crate::crypto::Key, dir: &std::path::Path, file_id: &str,
+                 recognize: impl FnOnce(&[u8], &str) -> Result<Vec<crate::ocr::Piece>>) -> Result<crate::invoice::Draft> {
     let (_, mime, bytes) = read_file(conn, dk, dir, file_id)?;
-    if mime != "application/pdf" { return Err(bad("only PDF bills can be read for now; photos come later")); }
-    let draft = crate::invoice::read_pdf(&bytes, None)?;
-    if draft.items.is_empty() && draft.total.is_none() { return Err(bad("no bill lines were found in this PDF (a scanned PDF has no text to read)")); }
+    let draft = if mime == "application/pdf" {
+        let d = crate::invoice::read_pdf(&bytes, None)?;
+        if d.items.is_empty() && d.total.is_none() { return Err(bad("no bill lines were found in this PDF (a scanned PDF has no text to read)")); }
+        d
+    } else {
+        let pieces = recognize(&bytes, &mime)?;
+        if pieces.is_empty() { return Err(bad("no text was found in this photo; try a sharper, straighter photo in good light")); }
+        crate::invoice::parse(&crate::ocr::lines(&pieces))
+    };
+    if draft.items.is_empty() && draft.total.is_none() { return Err(bad("no bill lines were found; add the items by hand")); }
     Ok(draft)
 }
 

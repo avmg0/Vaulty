@@ -8,6 +8,14 @@
   "re": "^adults recover with their own recovery key; to start their profile over, use Erase and reset$"
  },
  {
+  "id": "e914c1720",
+  "re": "^to read photos of bills, install Tesseract \\(for example: sudo apt install tesseract-ocr\\)$"
+ },
+ {
+  "id": "e9b81635c",
+  "re": "^Windows has no text recognition for your language; add one in Settings → Time & language$"
+ },
+ {
   "id": "e27fb26b4",
   "re": "^this copy of Vaulty can't update itself; download new versions from the releases page$"
  },
@@ -26,6 +34,10 @@
  {
   "id": "e42b7c0a6",
   "re": "^Unlock the Hidden section to export: the file will include hidden transactions$"
+ },
+ {
+  "id": "e63257608",
+  "re": "^no text was found in this photo; try a sharper, straighter photo in good light$"
  },
  {
   "id": "e0d4cf818",
@@ -172,10 +184,6 @@
   "re": "^a debit card must be linked to an active bank account$"
  },
  {
-  "id": "ef505b6ad",
-  "re": "^only PDF bills can be read for now; photos come later$"
- },
- {
   "id": "e040fdaa6",
   "re": "^this backup was made by a newer Vaulty; update first$"
  },
@@ -202,6 +210,10 @@
  {
   "id": "eeeb809e3",
   "re": "^the number of units can have up to 4 decimal places$"
+ },
+ {
+  "id": "e1d7558f9",
+  "re": "^that photo is too large to read; try a smaller one$"
  },
  {
   "id": "e3047a98a",
@@ -282,6 +294,10 @@
  {
   "id": "e67f096c7",
   "re": "^this data can't be opened with the key provided$"
+ },
+ {
+  "id": "ee1a42587",
+  "re": "^no bill lines were found; add the items by hand$"
  },
  {
   "id": "e58c5c5f4",
@@ -772,6 +788,10 @@
   "re": "^a page of that PDF is too large$"
  },
  {
+  "id": "e7f82b1fa",
+  "re": "^that photo is too large to read$"
+ },
+ {
   "id": "ea671333c",
   "re": "^refresh every 5 to 1440 minutes$"
  },
@@ -966,6 +986,10 @@
  {
   "id": "ed78500f6",
   "re": "^give the investment a name$"
+ },
+ {
+  "id": "ed8aceb17",
+  "re": "^the photo couldn't be read$"
  },
  {
   "id": "edccd2708",
@@ -1466,6 +1490,10 @@
  {
   "id": "e2447391d",
   "re": "^the sheet has more than ([\\s\\S]+?) rows$"
+ },
+ {
+  "id": "e5b2eb12a",
+  "re": "^the photo couldn't be read \\(([\\s\\S]+?)\\)$"
  },
  {
   "id": "ecd15cb08",

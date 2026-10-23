@@ -108,7 +108,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
   const [item, setItem] = useState<ProjectItem | "new" | null>(null);
   const [payment, setPayment] = useState<ProjectPayment | "new" | null>(null);
   const [linking, setLinking] = useState(false);
-  const [reading, setReading] = useState<{ fileId: string; draft: BillDraft } | null>(null);
+  const [reading, setReading] = useState<{ fileId: string; draft: BillDraft; photo: boolean } | null>(null);
   const [readBusy, setReadBusy] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
@@ -155,11 +155,11 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
   };
   const readNew = async () => {
     setError(""); setReadBusy(true);
-    try { const r = await chooseAndRead(p.id, t("projects.pdfBill")); if (r) setReading(r); } catch (e) { setError(errorText(e)); load(); } finally { setReadBusy(false); }
+    try { const r = await chooseAndRead(p.id, t("projects.billFiles")); if (r) setReading(r); } catch (e) { setError(errorText(e)); load(); } finally { setReadBusy(false); }
   };
   const readKept = async (fileId: string) => {
     setError("");
-    try { setReading({ fileId, draft: await api.projects.readBill(fileId) }); } catch (e) { setError(errorText(e)); }
+    try { setReading({ fileId, draft: await api.projects.readBill(fileId), photo: files.find((f) => f.id === fileId)?.mime.startsWith("image/") ?? false }); } catch (e) { setError(errorText(e)); }
   };
   const remove = async () => {
     try { await api.projects.delete(p.id); onBack(); } catch (e) { setError(errorText(e)); }
@@ -375,7 +375,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
       {editing && <ProjectDialog project={p} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); changed(); }} />}
       {item && <ItemDialog project={p} item={item === "new" ? null : item} names={names} files={files} onFiles={load} onClose={() => setItem(null)} onSaved={() => { setItem(null); changed(); }} />}
       {payment && <PaymentDialog project={p} payment={payment === "new" ? null : payment} names={names} files={files} onFiles={load} onClose={() => setPayment(null)} onSaved={() => { setPayment(null); changed(); }} />}
-      {reading && <ReadBillDialog project={p} fileId={reading.fileId} draft={reading.draft} onClose={() => { setReading(null); load(); }} onAdded={() => { setReading(null); setTab("items"); changed(); }} />}
+      {reading && <ReadBillDialog project={p} fileId={reading.fileId} draft={reading.draft} photo={reading.photo} onClose={() => { setReading(null); load(); }} onAdded={() => { setReading(null); setTab("items"); changed(); }} />}
       {linking && <LinkDialog project={p} suggestions={links} payments={payments} onClose={(c) => { setLinking(false); if (c) changed(); }} />}
     </div>
   );

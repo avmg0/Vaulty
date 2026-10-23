@@ -31,6 +31,7 @@ pub mod investments;
 pub mod projects;
 pub mod project_export;
 pub mod invoice;
+pub mod ocr;
 pub mod people;
 pub mod profiles;
 pub mod quick;

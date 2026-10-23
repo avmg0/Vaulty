@@ -64,7 +64,7 @@ function FileRow({ f, project, items, payments, onChanged, onRead, compact }: {
         <span className="min-w-0 flex-1 truncate text-sm" title={f.name}>{f.name}</span>
         <span className="text-muted-foreground text-xs tabular-nums">{size(f.size)}</span>
         {isImage && <Button type="button" size="sm" variant="ghost" onClick={show}>{t("projects.viewBill")}</Button>}
-        {onRead && f.mime === "application/pdf" && <Button type="button" size="sm" variant="ghost" onClick={() => onRead(f.id)}><FileScan />{t("projects.readItems")}</Button>}
+        {onRead && <Button type="button" size="sm" variant="ghost" onClick={() => onRead(f.id)}><FileScan />{t("projects.readItems")}</Button>}
         <Button type="button" size="icon" variant="ghost" aria-label={t("projects.saveBill", { name: f.name })} title={t("projects.saveBill", { name: f.name })} onClick={save}><Download /></Button>
         <Button type="button" size="icon" variant="ghost" aria-label={t("projects.removeBill", { name: f.name })} title={t("projects.removeBill", { name: f.name })} onClick={remove}><Trash2 /></Button>
       </div>

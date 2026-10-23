@@ -51,8 +51,9 @@ What changed in each version, for people using Vaulty. Newest first.
   the name the bank showed), what's still owed to each person, your own columns, templates, and
   Excel or PDF copies. Payments can be added to transactions or linked to bank statement rows.
   Bills and receipts (PDFs and photos) are kept with a project, encrypted, for an item or payment.
-  A PDF bill can be read into items (seller, GSTIN, bill no., date, each line, GST), checked
-  against the bill's total, and added in one go.
+  A PDF bill or a photo of one can be read into items (seller, GSTIN, bill no., date, each line,
+  GST), checked against the bill's total, and added in one go. Photos are read by the system's
+  own text recognition (Apple Vision on macOS, Windows OCR, Tesseract on Linux), offline.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

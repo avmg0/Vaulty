@@ -231,7 +231,7 @@ fn reading_a_kept_bill_into_items() {
     let pdf = std::fs::read(format!("{}/tests/fixtures/invoices/gst-cgst.pdf", env!("CARGO_MANIFEST_DIR"))).unwrap();
     let f = pr::add_file(&c, &key, dir.path(), id, "invoice.pdf", &pdf, &json!({})).unwrap();
     let fid = f["id"].as_str().unwrap();
-    let draft = pr::read_bill(&c, &key, dir.path(), fid).unwrap();
+    let draft = pr::read_bill(&c, &key, dir.path(), fid, |_, _| panic!("a PDF with text isn't sent for recognition")).unwrap();
     assert_eq!(draft.items.len(), 4);
     let items: Vec<serde_json::Value> = draft.items.iter().map(|i| json!({ "date": "2026-10-02", "item": i.item, "qty": i.qty, "unit": i.unit, "rate": i.rate,
         "amount": i.amount, "tax_percent": i.tax_percent, "vendor": draft.vendor, "bill_no": draft.bill_no })).collect();
@@ -242,8 +242,16 @@ fn reading_a_kept_bill_into_items() {
     assert_eq!(pr::files(&c, id).unwrap()[0]["item_id"], added[0]["id"]);
     history::undo_last(&c).unwrap();
     assert!(pr::items(&c, id).unwrap().is_empty(), "one undo takes the whole bill out");
-    // A photo can't be read yet.
+    // A photo goes to the system's text recognition; its pieces are laid out into lines.
     const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01\x08\x06\0\0\0\x1f\x15\xc4\x89";
     let img = pr::add_file(&c, &key, dir.path(), id, "bill.png", PNG, &json!({})).unwrap();
-    assert!(pr::read_bill(&c, &key, dir.path(), img["id"].as_str().unwrap()).is_err());
+    let iid = img["id"].as_str().unwrap();
+    let piece = |t: &str, x: f64, y: f64| vaulty_core::ocr::Piece { text: t.into(), x, y, w: t.len() as f64 * 0.012, h: 0.02 };
+    let draft = pr::read_bill(&c, &key, dir.path(), iid, |bytes, mime| {
+        assert_eq!((bytes, mime), (PNG, "image/png"));
+        Ok(vec![piece("SHARMA HARDWARE", 0.3, 0.05), piece("Primer 4L", 0.05, 0.3), piece("2", 0.5, 0.3), piece("1150.00", 0.62, 0.3), piece("2300.00", 0.8, 0.3),
+                piece("TOTAL", 0.05, 0.4), piece("2300.00", 0.8, 0.4)])
+    }).unwrap();
+    assert_eq!((draft.items.len(), draft.items[0].item.as_str(), draft.matches), (1, "Primer 4L", Some(true)));
+    assert!(pr::read_bill(&c, &key, dir.path(), iid, |_, _| Ok(vec![])).is_err(), "nothing recognised");
 }

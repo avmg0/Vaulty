@@ -420,7 +420,8 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - [x] Payments added to transactions, or linked to bank statement rows by amount, date and the name the bank showed
 - [x] Bills and receipts attached to items and payments, kept encrypted like documents
 - [x] Reading PDF invoices (GSTIN, invoice number, items, HSN, CGST/SGST/IGST, total) into draft items
-- [ ] Reading photos of bills with on-device OCR (about 20 MB); better recognition models to download from Settings
+- [x] Reading photos of bills with the system's own text recognition (Apple Vision, Windows OCR, Tesseract on Linux), offline
+- [ ] Better recognition models to download from Settings (needs the model host allowed on the network allowlist)
 - [ ] Splitting a project's costs with friends (shares, what each owes) and sharing a project as a file
 - [ ] Warranties from items become documents with expiry reminders; home improvement costs noted for capital gains
 

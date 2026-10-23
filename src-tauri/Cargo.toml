@@ -36,3 +36,13 @@ robius-authentication = "0.3"
 keyring = "4"
 # Quick add from anywhere (desktop only).
 tauri-plugin-global-shortcut = "2"
+
+# Reading photos of bills with the system's own text recognition (no download, works offline).
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSArray", "NSData", "NSDictionary", "NSError", "NSString", "NSEnumerator"] }
+objc2-vision = { version = "0.3", default-features = false, features = ["std", "VNRequest", "VNRequestHandler", "VNRecognizeTextRequest", "VNObservation", "VNTypes", "objc2-core-foundation"] }
+objc2-core-foundation = { version = "0.3", default-features = false, features = ["std", "CFCGTypes"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = ["Media_Ocr", "Graphics_Imaging", "Storage_Streams", "Security_Cryptography", "Foundation", "Foundation_Collections", "Win32_System_WinRT"] }

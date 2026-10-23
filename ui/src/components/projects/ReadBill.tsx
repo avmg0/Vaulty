@@ -12,15 +12,15 @@ import { formatMoney } from "@/lib/utils";
 type Row = { keep: boolean; item: string; qty: string; unit: string; rate: string; amount: string; tax_percent: string };
 
 /** Pick a PDF bill, keep it with the project, and read it. Returns the file and its draft. */
-export async function chooseAndRead(projectId: string, label: string): Promise<{ fileId: string; draft: BillDraft } | null> {
+export async function chooseAndRead(projectId: string, label: string): Promise<{ fileId: string; draft: BillDraft; photo: boolean } | null> {
   const path = await api.files.pick("document", label);
   if (!path) return null;
   const f = await api.projects.addFile(projectId, path, {});
-  return { fileId: f.id, draft: await api.projects.readBill(f.id) };
+  return { fileId: f.id, draft: await api.projects.readBill(f.id), photo: f.mime.startsWith("image/") };
 }
 
 /** The lines read from a bill, to check and correct before they're added as items. */
-export function ReadBillDialog({ project, fileId, draft, onClose, onAdded }: { project: ProjectDetail; fileId: string; draft: BillDraft; onClose: () => void; onAdded: () => void }) {
+export function ReadBillDialog({ project, fileId, draft, photo, onClose, onAdded }: { project: ProjectDetail; fileId: string; draft: BillDraft; photo?: boolean; onClose: () => void; onAdded: () => void }) {
   const { t } = useTranslation();
   const [rows, setRows] = useState<Row[]>(() => draft.items.map((i) => ({ keep: true, item: i.item, qty: i.qty ?? "", unit: i.unit ?? "", rate: i.rate ?? "", amount: i.amount, tax_percent: i.tax_percent ?? "" })));
   const [vendor, setVendor] = useState(draft.vendor ?? "");
@@ -53,10 +53,10 @@ export function ReadBillDialog({ project, fileId, draft, onClose, onAdded }: { p
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-4xl" onOpenAutoFocus={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>{t("projects.readTitle")}</DialogTitle>
-          <DialogDescription>{t("projects.readDesc")}</DialogDescription>
+          <DialogDescription>{t("projects.readDesc")}{photo ? ` ${t("projects.readPhoto")}` : ""}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_10rem_10rem]">
           <div className="grid gap-1.5"><Label htmlFor="rb-vendor">{columnName(project, "vendor", t)}</Label><Input id="rb-vendor" maxLength={100} value={vendor} onChange={(e) => setVendor(e.target.value)} /></div>
