@@ -177,3 +177,45 @@ fn standard_columns_can_be_renamed() {
     let p = pr::update(&c, id, &json!({ "name": "Line-following robot", "labels": {} })).unwrap();
     assert_eq!(p["labels"], json!({}));
 }
+
+#[test]
+fn bills_kept_encrypted_with_the_project() {
+    use vaulty_core::{documents, Key};
+    const PDF: &[u8] = b"%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n";
+    let key = Key::new([7u8; 32]);
+    let c = setup();
+    let dir = tempfile::tempdir().unwrap();
+    let p = pr::create(&c, &json!({ "name": "Kitchen" })).unwrap();
+    let id = p["id"].as_str().unwrap();
+    let item = pr::add_item(&c, id, &json!({ "date": "2026-10-02", "item": "Chimney", "amount": "18000" })).unwrap();
+    let iid = item["id"].as_str().unwrap();
+    let f = pr::add_file(&c, &key, dir.path(), id, "/Users/jane/Bills/chimney-invoice.pdf", PDF, &json!({ "item_id": iid })).unwrap();
+    let fid = f["id"].as_str().unwrap().to_string();
+    assert_eq!((f["name"].as_str(), f["item"].as_str()), (Some("chimney-invoice.pdf"), Some("Chimney")));
+    assert!(pr::add_file(&c, &key, dir.path(), id, "x.txt", b"hello", &json!({})).is_err(), "only PDFs and photos");
+    assert!(pr::add_file(&c, &key, dir.path(), id, "x.pdf", PDF, &json!({ "item_id": "nope" })).is_err());
+    let raw = std::fs::read(dir.path().join(format!("{fid}.vdoc"))).unwrap();
+    assert!(!raw.windows(5).any(|w| w == b"%PDF-"), "encrypted on disk");
+    assert_eq!(pr::read_file(&c, &key, dir.path(), &fid).unwrap().2, PDF);
+    assert_eq!(pr::items(&c, id).unwrap()[0]["files"], 1);
+    assert_eq!(pr::get(&c, id).unwrap()["files"], 1);
+
+    // Backups carry project bills, and purge leaves them alone.
+    let backup = documents::files_for_backup(&c, &key, dir.path()).unwrap().unwrap();
+    assert!(backup.get(&fid).is_some());
+    let old = std::time::SystemTime::now() - std::time::Duration::from_secs(40 * 86_400);
+    std::fs::File::options().write(true).open(dir.path().join(format!("{fid}.vdoc"))).unwrap().set_modified(old).unwrap();
+    assert_eq!(documents::purge(&c, dir.path()).unwrap(), 0);
+
+    // Deleting the item keeps the bill in the project; it can be pointed elsewhere.
+    pr::delete_item(&c, iid).unwrap();
+    assert!(pr::files(&c, id).unwrap()[0]["item_id"].is_null());
+    let pay = pr::add_payment(&c, id, &json!({ "date": "2026-10-03", "amount": "18000", "mode": "card" })).unwrap();
+    let f = pr::link_file(&c, &fid, &json!({ "payment_id": pay["id"] })).unwrap();
+    assert_eq!(f["payment_date"], "2026-10-03");
+    assert!(pr::link_file(&c, &fid, &json!({ "payment_id": pay["id"], "item_id": "x" })).is_err());
+    history::record(&c, "project.file_remove", |c| pr::remove_file(c, &fid)).unwrap();
+    assert!(pr::files(&c, id).unwrap().is_empty());
+    history::undo_last(&c).unwrap();
+    assert_eq!(pr::read_file(&c, &key, dir.path(), &fid).unwrap().0, "chimney-invoice.pdf");
+}

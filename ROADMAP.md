@@ -418,7 +418,7 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 ### Projects (added 23 October 2026)
 - [x] Projects with sections, budgets, bill items, payments, what's owed per person, own columns, templates, Excel and PDF
 - [x] Payments added to transactions, or linked to bank statement rows by amount, date and the name the bank showed
-- [ ] Bills and receipts attached to items and payments, kept encrypted like documents
+- [x] Bills and receipts attached to items and payments, kept encrypted like documents
 - [ ] Reading PDF invoices (GSTIN, invoice number, items, HSN, CGST/SGST/IGST, total) into draft items
 - [ ] Reading photos of bills with on-device OCR (about 20 MB); better recognition models to download from Settings
 - [ ] Splitting a project's costs with friends (shares, what each owes) and sharing a project as a file

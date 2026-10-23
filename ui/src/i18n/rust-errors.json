@@ -300,6 +300,10 @@
   "re": "^biometric unlock is not set up on this device$"
  },
  {
+  "id": "e501edc35",
+  "re": "^a file goes with one bill item or one payment$"
+ },
+ {
   "id": "e54fd4405",
   "re": "^expected a 3-letter ISO 4217 code such as INR$"
  },
@@ -582,6 +586,10 @@
  {
   "id": "e6f21a677",
   "re": "^data folder path isn't valid UTF-8$"
+ },
+ {
+  "id": "e80103251",
+  "re": "^a project can keep up to 500 files$"
  },
  {
   "id": "ea09bf6aa",

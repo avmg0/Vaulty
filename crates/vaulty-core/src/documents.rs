@@ -46,7 +46,7 @@ pub fn sniff(bytes: &[u8]) -> Option<&'static str> {
     else { None }
 }
 
-fn write_encrypted(dk: &Key, dir: &Path, file_id: &str, plain: &[u8]) -> Result<()> {
+pub(crate) fn write_encrypted(dk: &Key, dir: &Path, file_id: &str, plain: &[u8]) -> Result<()> {
     std::fs::create_dir_all(dir)?;
     let nonce = crypto::random_bytes::<24>();
     let ct = XChaCha20Poly1305::new(file_key(dk).as_ref().into())
@@ -59,7 +59,7 @@ fn write_encrypted(dk: &Key, dir: &Path, file_id: &str, plain: &[u8]) -> Result<
     Ok(())
 }
 
-fn read_encrypted(dk: &Key, dir: &Path, file_id: &str) -> Result<Vec<u8>> {
+pub(crate) fn read_encrypted(dk: &Key, dir: &Path, file_id: &str) -> Result<Vec<u8>> {
     let raw = std::fs::read(path_of(dir, file_id)?).map_err(|_| Error::Invalid("this file is missing from the documents folder".into()))?;
     if raw.len() < 24 { return Err(Error::Invalid("this file is damaged".into())); }
     let (nonce, ct) = raw.split_at(24);
@@ -189,7 +189,7 @@ pub fn purge(conn: &Connection, dir: &Path) -> Result<usize> {
     for e in entries.flatten() {
         let path = e.path();
         let Some(id) = path.file_name().and_then(|n| n.to_str()).and_then(|n| n.strip_suffix(".vdoc")) else { continue };
-        let used: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM vault_document_files WHERE id = ?)", [id], |r| r.get(0))?;
+        let used: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM vault_document_files WHERE id = ?1) OR EXISTS(SELECT 1 FROM project_files WHERE id = ?1)", [id], |r| r.get(0))?;
         let old = e.metadata().and_then(|m| m.modified()).is_ok_and(|t| t < cutoff);
         if !used && old && std::fs::remove_file(&path).is_ok() { removed += 1; }
     }
@@ -201,15 +201,20 @@ pub fn expiring_between(conn: &Connection, from: &str, to: &str) -> Result<Vec<V
     query(conn, "SELECT id, title, kind, holder, expires_on FROM vault_documents WHERE deleted_at IS NULL AND expires_on BETWEEN ? AND ? ORDER BY expires_on", &[json!(from), json!(to)])
 }
 
-/// Every attached file, base64, for an encrypted backup. None when they'd make it too large.
+/// Files kept: documents' (not in the trash) and projects' bills, as (id, size, fingerprint).
+const KEPT_FILES: &str = "SELECT f.id, f.size, f.sha256 FROM vault_document_files f JOIN vault_documents d ON d.id = f.document_id WHERE d.deleted_at IS NULL
+                          UNION ALL SELECT id, size, sha256 FROM project_files";
+
+/// Every attached file (documents' and projects' bills), base64, for an encrypted backup. None
+/// when they'd make it too large.
 pub fn files_for_backup(conn: &Connection, dk: &Key, dir: &Path) -> Result<Option<Value>> {
-    let total: i64 = conn.query_row("SELECT COALESCE(SUM(f.size), 0) FROM vault_document_files f JOIN vault_documents d ON d.id = f.document_id WHERE d.deleted_at IS NULL", [], |r| r.get(0))?;
-    if total as usize > MAX_BACKUP_FILES { return Ok(None); }
+    let files: Vec<(String, i64, String)> = conn.prepare(KEPT_FILES)?.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?.collect::<rusqlite::Result<_>>()?;
+    if files.iter().map(|f| f.1).sum::<i64>() as usize > MAX_BACKUP_FILES { return Ok(None); }
     let mut out = serde_json::Map::new();
-    let ids: Vec<String> = conn.prepare("SELECT f.id FROM vault_document_files f JOIN vault_documents d ON d.id = f.document_id WHERE d.deleted_at IS NULL")?
-        .query_map([], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
-    for id in ids {
-        if let Ok((_, _, bytes)) = read_file(conn, dk, dir, &id) { out.insert(id, json!(base64::engine::general_purpose::STANDARD.encode(bytes))); }
+    for (id, _, sha) in files {
+        if let Ok(bytes) = read_encrypted(dk, dir, &id) {
+            if crypto::sha256_hex(&bytes) == sha { out.insert(id, json!(base64::engine::general_purpose::STANDARD.encode(bytes))); }
+        }
     }
     Ok(Some(Value::Object(out)))
 }
@@ -220,7 +225,7 @@ pub fn restore_files(conn: &Connection, dk: &Key, dir: &Path, files: &Value) -> 
     let Some(map) = files.as_object() else { return Ok(0) };
     let mut n = 0;
     for (id, data) in map {
-        let Some(sha) = conn.query_row("SELECT sha256 FROM vault_document_files WHERE id = ?", [id], |r| r.get::<_, String>(0)).optional()? else { continue };
+        let Some(sha) = conn.query_row("SELECT sha256 FROM vault_document_files WHERE id = ?1 UNION ALL SELECT sha256 FROM project_files WHERE id = ?1", [id], |r| r.get::<_, String>(0)).optional()? else { continue };
         if path_of(dir, id)?.exists() { continue; }
         let Some(bytes) = data.as_str().and_then(|s| base64::engine::general_purpose::STANDARD.decode(s).ok()) else { continue };
         if bytes.len() > MAX_FILE || crypto::sha256_hex(&bytes) != sha { continue; }

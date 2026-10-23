@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, FileSpreadsheet, FolderKanban, Link2, Pencil, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, FileSpreadsheet, FolderKanban, Link2, Paperclip, Pencil, Plus, Printer, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, DATA_RESTORED, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_STATUSES, type CustomValue, type LinkSuggestion, type NameableColumn, type Project, type ProjectDetail, type ProjectItem, type ProjectPayment } from "@/api";
+import { api, DATA_RESTORED, errorText, HIDEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_STATUSES, type CustomValue, type LinkSuggestion, type NameableColumn, type Project, type ProjectDetail, type ProjectFile, type ProjectItem, type ProjectPayment } from "@/api";
+import { BillsPanel } from "@/components/projects/Bills";
 import { columnName, ItemDialog, LinkDialog, PaymentDialog, ProjectDialog, SectionsEditor } from "@/components/projects/ProjectDialogs";
 import { Segmented } from "@/components/Segmented";
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +90,7 @@ export function ProjectsPage() {
   );
 }
 
-type Tab = "items" | "payments" | "people" | "sections";
+type Tab = "items" | "payments" | "bills" | "people" | "sections";
 
 function ProjectView({ id, version, onBack, onChanged }: { id: string; version: number; onBack: () => void; onChanged: () => void }) {
   const { t } = useTranslation();
@@ -97,6 +98,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
   const [p, setP] = useState<ProjectDetail | null>(null);
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [payments, setPayments] = useState<ProjectPayment[]>([]);
+  const [files, setFiles] = useState<ProjectFile[]>([]);
   const [links, setLinks] = useState<LinkSuggestion[]>([]);
   const [names, setNames] = useState({ vendors: [] as string[], account_names: [] as string[], units: [] as string[] });
   const [tab, setTab] = useState<Tab>("items");
@@ -113,6 +115,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
     api.projects.get(id).then(setP).catch((e) => setError(errorText(e)));
     api.projects.items(id).then(setItems).catch(() => {});
     api.projects.payments(id).then(setPayments).catch(() => {});
+    api.projects.files(id).then(setFiles).catch(() => {});
     api.projects.linkSuggestions(id).then(setLinks).catch(() => setLinks([]));
     api.projects.names().then(setNames).catch(() => {});
   }, [id, n, version]);
@@ -197,6 +200,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
         <div className="max-w-full overflow-x-auto"><Segmented role="tablist" label={t("projects.view")} value={tab} onChange={setTab} options={[
           { value: "items", label: t("projects.tabs.itemsN", { count: items.length }) },
           { value: "payments", label: t("projects.tabs.paymentsN", { count: payments.length }) },
+          { value: "bills", label: t("projects.tabs.billsN", { count: files.length }) },
           { value: "people", label: t("projects.tabs.people") },
           { value: "sections", label: t("projects.tabs.sections") },
         ]} /></div>
@@ -239,7 +243,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
                     <td className={cn(cell, "text-muted-foreground text-end tabular-nums")}>{n + 1}</td>
                     <td className={cn(cell, "whitespace-nowrap tabular-nums")}>{date(i.date)}</td>
                     <td className={cn(cell, "max-w-[18rem]")}>
-                      <button className="block w-full truncate text-start font-medium focus-visible:underline focus-visible:outline-none" onClick={(e) => { e.stopPropagation(); setItem(i); }}>{i.item}</button>
+                      <button className="block w-full truncate text-start font-medium focus-visible:underline focus-visible:outline-none" onClick={(e) => { e.stopPropagation(); setItem(i); }}>{i.item}{i.files > 0 && <Paperclip className="text-muted-foreground ms-1.5 inline size-3.5" aria-label={t("projects.hasBill", { count: i.files })} />}</button>
                       <span className="text-muted-foreground block truncate text-xs">{[shows("section") && i.section_name, shows("kind") && t(`projects.itemKinds.${i.kind}`), shows("notes") && i.notes].filter(Boolean).join(" · ")}</span>
                     </td>
                     {shows("qty") && <td className={cn(cell, "text-end whitespace-nowrap tabular-nums")}>{i.qty == null ? "" : `${formatNumber(i.qty, { maximumFractionDigits: 4 })}${i.unit ? ` ${i.unit}` : ""}`}</td>}
@@ -296,7 +300,7 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
                     <td className={cn(cell, "text-muted-foreground text-end tabular-nums")}>{n + 1}</td>
                     <td className={cn(cell, "whitespace-nowrap tabular-nums")}>{date(y.date)}</td>
                     <td className={cell}>
-                      <button className="text-start font-medium focus-visible:underline focus-visible:outline-none" onClick={(e) => { e.stopPropagation(); setPayment(y); }}>{y.vendor || y.account_name || t("projects.someone")}</button>
+                      <button className="text-start font-medium focus-visible:underline focus-visible:outline-none" onClick={(e) => { e.stopPropagation(); setPayment(y); }}>{y.vendor || y.account_name || t("projects.someone")}{y.files > 0 && <Paperclip className="text-muted-foreground ms-1.5 inline size-3.5" aria-label={t("projects.hasBill", { count: y.files })} />}</button>
                       <span className="text-muted-foreground block text-xs">{[y.account_name && y.vendor ? t("projects.asShown", { name: y.account_name }) : null, y.section_name].filter(Boolean).join(" · ")}</span>
                     </td>
                     <td className={cell}>{t(`projects.modes.${y.mode}`)}
@@ -354,10 +358,11 @@ function ProjectView({ id, version, onBack, onChanged }: { id: string; version: 
       )}
 
       {tab === "sections" && <SectionsEditor project={p} onChanged={changed} />}
+      {tab === "bills" && <BillsPanel project={p} files={files} items={items} payments={payments} onChanged={changed} />}
 
       {editing && <ProjectDialog project={p} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); changed(); }} />}
-      {item && <ItemDialog project={p} item={item === "new" ? null : item} names={names} onClose={() => setItem(null)} onSaved={() => { setItem(null); changed(); }} />}
-      {payment && <PaymentDialog project={p} payment={payment === "new" ? null : payment} names={names} onClose={() => setPayment(null)} onSaved={() => { setPayment(null); changed(); }} />}
+      {item && <ItemDialog project={p} item={item === "new" ? null : item} names={names} files={files} onFiles={load} onClose={() => setItem(null)} onSaved={() => { setItem(null); changed(); }} />}
+      {payment && <PaymentDialog project={p} payment={payment === "new" ? null : payment} names={names} files={files} onFiles={load} onClose={() => setPayment(null)} onSaved={() => { setPayment(null); changed(); }} />}
       {linking && <LinkDialog project={p} suggestions={links} payments={payments} onClose={(c) => { setLinking(false); if (c) changed(); }} />}
     </div>
   );

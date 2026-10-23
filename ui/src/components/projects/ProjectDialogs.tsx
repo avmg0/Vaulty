@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, Link2, Loader2, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Link2, Loader2, Paperclip, Pencil, Plus, Trash2, Unlink, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   api, COLUMN_TYPES, errorText, HIDEABLE_COLUMNS, NAMEABLE_COLUMNS, ITEM_KINDS, PAY_MODES, PROJECT_KINDS, PROJECT_STATUSES,
   type Account, type Category, type ColumnType, type CustomValue, type HideableColumn, type ItemInput, type ItemKind, type LinkSuggestion, type NameableColumn, type PaymentInput,
-  type PayMode, type ProjectColumn, type ProjectDetail, type ProjectInput, type ProjectItem, type ProjectKind, type ProjectPayment, type ProjectStatus,
+  type PayMode, type ProjectColumn, type ProjectFile, type ProjectDetail, type ProjectInput, type ProjectItem, type ProjectKind, type ProjectPayment, type ProjectStatus,
 } from "@/api";
+import { AttachedBills } from "@/components/projects/Bills";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input, NativeSelect } from "@/components/ui/input";
@@ -259,6 +260,20 @@ export function SectionsEditor({ project, onChanged }: { project: ProjectDetail;
 
 // ------------------------------------------------------------------ items
 
+/** For a row not saved yet: a bill chosen now and kept once the row is saved. */
+function PendingBill({ path, setPath }: { path: string; setPath: (p: string) => void }) {
+  const { t } = useTranslation();
+  const choose = async () => { try { const p = await api.files.pick("document", t("projects.billFiles")); if (p) setPath(p); } catch { /* the picker reports nothing useful */ } };
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border p-3 text-sm">
+      <Paperclip className="text-muted-foreground size-4" aria-hidden />
+      <span className="min-w-0 flex-1 truncate">{path ? path.split(/[\\/]/).pop() : t("projects.noBillYet")}</span>
+      {path && <Button type="button" size="sm" variant="ghost" onClick={() => setPath("")}>{t("projects.dontAttach")}</Button>}
+      <Button type="button" size="sm" variant="outline" onClick={choose}>{path ? t("projects.chooseOther") : t("projects.attachBill")}</Button>
+    </div>
+  );
+}
+
 type Names = { vendors: string[]; account_names: string[]; units: string[] };
 
 function CustomInput({ column, value, onChange }: { column: ProjectDetail["columns"][number]; value: CustomValue | undefined; onChange: (v: CustomValue | "") => void }) {
@@ -284,7 +299,10 @@ function CustomInput({ column, value, onChange }: { column: ProjectDetail["colum
 
 const TAX_RATES = ["0", "5", "12", "18", "28"];
 
-export function ItemDialog({ project, item, names, onClose, onSaved }: { project: ProjectDetail; item: ProjectItem | null; names: Names; onClose: () => void; onSaved: () => void }) {
+export function ItemDialog({ project, item, names, files = [], onFiles, onClose, onSaved }: {
+  project: ProjectDetail; item: ProjectItem | null; names: Names; files?: ProjectFile[]; onFiles?: () => void; onClose: () => void; onSaved: () => void;
+}) {
+  const [bill, setBill] = useState("");
   const { t } = useTranslation();
   const hides = (c: string) => project.hidden.includes(c as never);
   const blank = (prev?: ItemInput): ItemInput => ({ date: prev?.date ?? today(), item: "", kind: prev?.kind ?? "material", section_id: prev?.section_id ?? "", qty: "", unit: "", rate: "", amount: "",
@@ -309,7 +327,8 @@ export function ItemDialog({ project, item, names, onClose, onSaved }: { project
     setBusy(true); setError("");
     try {
       const body: ItemInput = { ...v, custom: Object.fromEntries(Object.entries(v.custom).filter(([, x]) => x !== "")) };
-      if (item) await api.projects.updateItem(item.id, body); else await api.projects.addItem(project.id, body);
+      const saved = item ? await api.projects.updateItem(item.id, body) : await api.projects.addItem(project.id, body);
+      if (bill) { await api.projects.addFile(project.id, bill, { item_id: saved.id }); setBill(""); }
       if (another) { setV((x) => blank(x)); setAdded((n) => n + 1); document.getElementById("pi-item")?.focus(); } else onSaved();
     } catch (err) { setError(errorText(err)); } finally { setBusy(false); }
   };
@@ -381,6 +400,8 @@ export function ItemDialog({ project, item, names, onClose, onSaved }: { project
             </div>
           )}
           {!hides("notes") && <Field id="pi-notes" label={columnName(project, "notes", t)}><textarea id="pi-notes" rows={2} maxLength={1000} className={textarea} value={v.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} /></Field>}
+          {item ? <AttachedBills project={project} files={files.filter((f) => f.item_id === item.id)} link={{ item_id: item.id }} onChanged={() => onFiles?.()} />
+            : <PendingBill path={bill} setPath={setBill} />}
           {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
           <DialogFooter className="gap-2">
             {item && <Button type="button" variant="ghost" className="text-destructive me-auto" onClick={remove}><Trash2 />{t("common.delete")}</Button>}
@@ -396,7 +417,10 @@ export function ItemDialog({ project, item, names, onClose, onSaved }: { project
 
 // ------------------------------------------------------------------ payments
 
-export function PaymentDialog({ project, payment, names, onClose, onSaved }: { project: ProjectDetail; payment: ProjectPayment | null; names: Names; onClose: () => void; onSaved: () => void }) {
+export function PaymentDialog({ project, payment, names, files = [], onFiles, onClose, onSaved }: {
+  project: ProjectDetail; payment: ProjectPayment | null; names: Names; files?: ProjectFile[]; onFiles?: () => void; onClose: () => void; onSaved: () => void;
+}) {
+  const [bill, setBill] = useState("");
   const { t } = useTranslation();
   const [v, setV] = useState<PaymentInput>(() => payment ? {
     date: payment.date, amount: str(payment.amount), vendor: payment.vendor ?? "", mode: payment.mode, account_name: payment.account_name ?? "", reference: payment.reference ?? "",
@@ -421,7 +445,10 @@ export function PaymentDialog({ project, payment, names, onClose, onSaved }: { p
     e.preventDefault(); setBusy(true); setError("");
     try {
       if (payment) await api.projects.updatePayment(payment.id, { ...v, ...(unlink ? { entry_id: "" } : {}) });
-      else await api.projects.addPayment(project.id, { ...v, ...(record && account ? { record: { account_id: account, category_id: category || undefined } } : {}) });
+      else {
+        const saved = await api.projects.addPayment(project.id, { ...v, ...(record && account ? { record: { account_id: account, category_id: category || undefined } } : {}) });
+        if (bill) await api.projects.addFile(project.id, bill, { payment_id: saved.id });
+      }
       onSaved();
     } catch (err) { setError(errorText(err)); } finally { setBusy(false); }
   };
@@ -461,6 +488,8 @@ export function PaymentDialog({ project, payment, names, onClose, onSaved }: { p
             </Field>
           </div>
           <Field id="pp-notes" label={t("projects.col.notes")}><textarea id="pp-notes" rows={2} maxLength={1000} className={textarea} value={v.notes ?? ""} onChange={(e) => set({ notes: e.target.value })} /></Field>
+          {payment ? <AttachedBills project={project} files={files.filter((f) => f.payment_id === payment.id)} link={{ payment_id: payment.id }} onChanged={() => onFiles?.()} />
+            : <PendingBill path={bill} setPath={setBill} />}
 
           {!payment && (
             <section className="grid gap-2 rounded-lg border p-3">

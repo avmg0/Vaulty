@@ -406,7 +406,10 @@
         "item_delete": "Deleted a bill item",
         "payment_add": "Added a payment",
         "payment_update": "Changed a payment",
-        "payment_delete": "Deleted a payment"
+        "payment_delete": "Deleted a payment",
+        "file_add": "Attached a bill",
+        "file_link": "Moved a bill",
+        "file_remove": "Removed a bill"
       }
     },
     "check": {
@@ -1416,6 +1419,7 @@
     "edcdf4cd2": "this file is missing from the documents folder",
     "ef9baab73": "start the request with your nominee card first",
     "e499f549c": "biometric unlock is not set up on this device",
+    "e501edc35": "a file goes with one bill item or one payment",
     "e54fd4405": "expected a 3-letter ISO 4217 code such as INR",
     "e8042e6ac": "shared recovery isn't set up for this profile",
     "e07f528fe": "a benefit is a reward, a milestone or a perk",
@@ -1487,6 +1491,7 @@
     "e41decce7": "budgets are for expense categories",
     "e45b94d16": "the number of units isn't a number",
     "e6f21a677": "data folder path isn't valid UTF-8",
+    "e80103251": "a project can keep up to 500 files",
     "ea09bf6aa": "expected 0 (never), 1, 5, 15 or 30",
     "eab3edb79": "a document can have up to 10 files",
     "ecbde5738": "no setup code issued; ask an admin",
@@ -2609,7 +2614,8 @@
       "payments": "Payments",
       "paymentsN": "Payments ({{count}})",
       "people": "By person",
-      "sections": "Sections"
+      "sections": "Sections",
+      "billsN": "Bills ({{count}})"
     },
     "taxAmount": "Amount…",
     "taxIs": "Tax {{amount}}",
@@ -2696,6 +2702,23 @@
     "standardColumns": "Columns",
     "standardColumnsHelp": "Untick the ones you don't need, and rename any to suit the project, such as Part instead of Item or Supplier instead of Bought from.",
     "showColumn": "Show {{name}}",
-    "columnNameFor": "Name for {{name}}"
+    "columnNameFor": "Name for {{name}}",
+    "billFiles": "PDF or photo",
+    "viewBill": "View",
+    "saveBill": "Save a copy of {{name}}",
+    "removeBill": "Remove {{name}}",
+    "billFor": "For",
+    "wholeProject": "The whole project",
+    "billsHelp": "Bills, invoices and receipts. Point each one at the item or payment it's for.",
+    "attachBill": "Attach bill",
+    "noBills": "No bills kept yet. Attach PDFs or photos of bills and receipts.",
+    "billsEncrypted": "Files are encrypted on this computer and included in encrypted backups.",
+    "bills": "Bills",
+    "noBillsHere": "No bill attached.",
+    "noBillYet": "No bill attached",
+    "dontAttach": "Don't attach",
+    "chooseOther": "Choose another",
+    "hasBill_one": "{{count}} bill attached",
+    "hasBill_other": "{{count}} bills attached"
   }
 }

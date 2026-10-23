@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete))$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove))$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -53,7 +53,7 @@ export type ProjectPerson = { name: string; billed: number; paid: number; balanc
 export type Project = {
   id: string; name: string; kind: ProjectKind; status: ProjectStatus; currency: string; budget: number | null; start_date: string | null; end_date: string | null; notes: string | null;
   columns: (ProjectColumn & { id: string })[]; hidden: HideableColumn[]; labels: Partial<Record<NameableColumn, string>>; amount: number; tax: number; billed: number; paid: number; owed: number; spent: number; budget_left: number | null;
-  items: number; payments: number; last_date: string | null; created_at: string;
+  items: number; payments: number; files: number; last_date: string | null; created_at: string;
 };
 export type ProjectDetail = Project & {
   sections: ProjectSection[]; unsectioned: { billed: number; items: number }; by_kind: Partial<Record<ItemKind, number>>; by_mode: Partial<Record<PayMode, number>>; vendors: ProjectPerson[];
@@ -61,14 +61,19 @@ export type ProjectDetail = Project & {
 export type CustomValue = string | number | boolean;
 export type ProjectItem = {
   id: string; section_id: string | null; section_name: string | null; date: string; item: string; kind: ItemKind; qty: number | null; unit: string | null; rate: number | null;
-  amount: number; tax: number; total: number; vendor: string | null; bill_no: string | null; notes: string | null; custom: Record<string, CustomValue>;
+  amount: number; tax: number; total: number; vendor: string | null; bill_no: string | null; notes: string | null; custom: Record<string, CustomValue>; files: number;
 };
 export type ItemInput = { section_id?: string; date: string; item: string; kind: ItemKind; qty?: string; unit?: string; rate?: string; amount?: string; tax?: string; tax_percent?: string; vendor?: string; bill_no?: string; notes?: string; custom: Record<string, CustomValue> };
 export type ProjectPayment = {
   id: string; section_id: string | null; section_name: string | null; date: string; amount: number; vendor: string | null; mode: PayMode; account_name: string | null;
-  reference: string | null; entry_id: string | null; from_account: string | null; notes: string | null;
+  reference: string | null; entry_id: string | null; from_account: string | null; notes: string | null; files: number;
 };
 export type PaymentInput = { section_id?: string; date: string; amount: string; vendor?: string; mode: PayMode; account_name?: string; reference?: string; notes?: string; entry_id?: string; record?: { account_id: string; category_id?: string } };
+export type ProjectFile = {
+  id: string; item_id: string | null; payment_id: string | null; name: string; mime: string; size: number; created_at: string;
+  item: string | null; item_date: string | null; payment_vendor: string | null; payment_date: string | null; payment_amount: number | null;
+};
+export type FileLink = { item_id?: string | null; payment_id?: string | null };
 export type LinkSuggestion = { payment_id: string; candidates: { id: string; date: string; merchant: string | null; description: string | null; account: string | null; named: boolean }[] };
 export const HOLDING_KINDS = ["mutual_fund", "stock", "etf", "bond", "deposit", "gold", "other"] as const;
 export type HoldingKind = (typeof HOLDING_KINDS)[number];
@@ -484,6 +489,12 @@ export const api = {
     updatePayment: (id: string, payment: PaymentInput) => invoke<ProjectPayment>("projects_payment_update", { id, payment }),
     deletePayment: (id: string) => invoke<void>("projects_payment_delete", { id }),
     exportXlsx: (id: string, path: string, labels: Record<string, string>) => invoke<void>("projects_export_xlsx", { id, path, labels }),
+    files: (id: string) => invoke<ProjectFile[]>("projects_files", { id }),
+    addFile: (projectId: string, path: string, link: FileLink) => invoke<ProjectFile>("projects_file_add", { projectId, path, link }),
+    linkFile: (id: string, link: FileLink) => invoke<ProjectFile>("projects_file_link", { id, link }),
+    removeFile: (id: string) => invoke<void>("projects_file_remove", { id }),
+    previewFile: (id: string) => invoke<{ name: string; mime: string; data: string }>("projects_file_preview", { id }),
+    saveFile: (id: string, path: string) => invoke<void>("projects_file_save", { id, path }),
   },
   investments: {
     list: () => invoke<Holding[]>("investments_list"),

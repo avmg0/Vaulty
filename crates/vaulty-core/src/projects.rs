@@ -222,6 +222,7 @@ fn summary(conn: &Connection, mut p: Value) -> Result<Value> {
         o.insert("items".into(), json!(t.items));
         o.insert("payments".into(), json!(t.payments));
         o.insert("last_date".into(), json!(t.last));
+        o.insert("files".into(), json!(conn.query_row("SELECT count(*) FROM project_files WHERE project_id = ?", [&id], |r| r.get::<_, i64>(0))?));
     }
     Ok(p)
 }
@@ -439,7 +440,8 @@ fn item_row(conn: &Connection, id: &str) -> Result<Value> {
 fn items_where(conn: &Connection, filter: &str, arg: &str) -> Result<Vec<Value>> {
     let rows = query(conn, &format!(
         "SELECT i.id, i.project_id, i.section_id, s.name AS section_name, i.date, i.item, i.kind, i.qty_e4, i.unit, i.rate_minor, i.amount_minor, i.tax_minor,
-                i.vendor, i.bill_no, i.notes, i.custom, p.currency, i.created_at
+                i.vendor, i.bill_no, i.notes, i.custom, p.currency, i.created_at,
+                (SELECT count(*) FROM project_files f WHERE f.item_id = i.id) AS files
          FROM project_items i JOIN projects p ON p.id = i.project_id LEFT JOIN project_sections s ON s.id = i.section_id
          WHERE {filter} ORDER BY i.date, i.created_at, i.rowid"), &[json!(arg)])?;
     Ok(rows.into_iter().map(|mut r| {
@@ -494,7 +496,8 @@ pub fn delete_item(conn: &Connection, id: &str) -> Result<()> {
 fn payments_where(conn: &Connection, filter: &str, arg: &str) -> Result<Vec<Value>> {
     let rows = query(conn, &format!(
         "SELECT y.id, y.project_id, y.section_id, s.name AS section_name, y.date, y.amount_minor, y.vendor, y.mode, y.account_name, y.reference,
-                y.entry_id, y.notes, p.currency, a.name AS from_account, t.date AS entry_date, y.created_at
+                y.entry_id, y.notes, p.currency, a.name AS from_account, t.date AS entry_date, y.created_at,
+                (SELECT count(*) FROM project_files f WHERE f.payment_id = y.id) AS files
          FROM project_payments y JOIN projects p ON p.id = y.project_id LEFT JOIN project_sections s ON s.id = y.section_id
          LEFT JOIN transactions t ON t.id = y.entry_id LEFT JOIN accounts a ON a.id = t.account_id
          WHERE {filter} ORDER BY y.date, y.created_at, y.rowid"), &[json!(arg)])?;
@@ -637,4 +640,86 @@ pub fn names(conn: &Connection) -> Result<Value> {
         "account_names": col("SELECT account_name FROM project_payments WHERE account_name IS NOT NULL GROUP BY lower(account_name) ORDER BY max(date) DESC LIMIT 200")?,
         "units": col("SELECT unit FROM project_items WHERE unit IS NOT NULL GROUP BY lower(unit) ORDER BY count(*) DESC LIMIT 50")?,
     }))
+}
+
+// ---------------------------------------------------------------- bills and receipts
+
+/// Most files a project keeps.
+pub const MAX_FILES_PER_PROJECT: i64 = 500;
+
+fn file_link(conn: &Connection, project_id: &str, v: &Value) -> Result<(Option<String>, Option<String>)> {
+    let item = v["item_id"].as_str().filter(|s| !s.is_empty());
+    let payment = v["payment_id"].as_str().filter(|s| !s.is_empty());
+    if item.is_some() && payment.is_some() { return Err(bad("a file goes with one bill item or one payment")); }
+    if let Some(i) = item {
+        let ok: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM project_items WHERE id = ? AND project_id = ?)", params![i, project_id], |r| r.get(0))?;
+        if !ok { return Err(bad("no such item")); }
+    }
+    if let Some(y) = payment {
+        let ok: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM project_payments WHERE id = ? AND project_id = ?)", params![y, project_id], |r| r.get(0))?;
+        if !ok { return Err(bad("no such payment")); }
+    }
+    Ok((item.map(str::to_string), payment.map(str::to_string)))
+}
+
+/// Encrypts and keeps a bill, invoice or receipt (a PDF or a photo) with the project, optionally
+/// for one bill item or payment (`item_id` / `payment_id` in `link`).
+pub fn add_file(conn: &Connection, dk: &crate::crypto::Key, dir: &std::path::Path, project_id: &str, name: &str, bytes: &[u8], link: &Value) -> Result<Value> {
+    currency_of(conn, project_id)?;
+    if bytes.len() > crate::documents::MAX_FILE { return Err(bad("a file can be up to 25 MB")); }
+    let mime = crate::documents::sniff(bytes).ok_or_else(|| bad("Vaulty keeps PDFs and photos (PNG, JPEG or WebP)"))?;
+    let n: i64 = conn.query_row("SELECT count(*) FROM project_files WHERE project_id = ?", [project_id], |r| r.get(0))?;
+    if n >= MAX_FILES_PER_PROJECT { return Err(bad("a project can keep up to 500 files")); }
+    let (item, payment) = file_link(conn, project_id, link)?;
+    let name: String = std::path::Path::new(name).file_name().and_then(|n| n.to_str()).unwrap_or("bill").chars().take(120).collect();
+    let id = new_id();
+    crate::documents::write_encrypted(dk, dir, &id, bytes)?;
+    conn.execute("INSERT INTO project_files (id, project_id, item_id, payment_id, name, mime, size, sha256) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        params![id, project_id, item, payment, name, mime, bytes.len() as i64, crate::crypto::sha256_hex(bytes)])?;
+    file_row(conn, &id)
+}
+
+fn file_row(conn: &Connection, id: &str) -> Result<Value> {
+    files_where(conn, "f.id = ?", id)?.pop().ok_or_else(|| bad("no such file"))
+}
+
+fn files_where(conn: &Connection, filter: &str, arg: &str) -> Result<Vec<Value>> {
+    query(conn, &format!(
+        "SELECT f.id, f.project_id, f.item_id, f.payment_id, f.name, f.mime, f.size, f.created_at, i.item AS item, i.date AS item_date,
+                y.vendor AS payment_vendor, y.date AS payment_date, y.amount_minor AS payment_amount_minor
+         FROM project_files f LEFT JOIN project_items i ON i.id = f.item_id LEFT JOIN project_payments y ON y.id = f.payment_id
+         WHERE {filter} ORDER BY f.created_at DESC, f.rowid DESC"), &[json!(arg)])
+}
+
+/// A project's files, newest first, with what each is for.
+pub fn files(conn: &Connection, project_id: &str) -> Result<Vec<Value>> {
+    let cur = currency_of(conn, project_id)?;
+    Ok(files_where(conn, "f.project_id = ?", project_id)?.into_iter().map(|mut f| {
+        let a = f["payment_amount_minor"].as_i64();
+        if let Some(o) = f.as_object_mut() { o.insert("payment_amount".into(), json!(a.map(|a| money::to_decimal(a, &cur)))); }
+        f
+    }).collect())
+}
+
+/// Points a file at a bill item or payment (or, with neither, at the project alone).
+pub fn link_file(conn: &Connection, id: &str, link: &Value) -> Result<Value> {
+    let project_id: String = conn.query_row("SELECT project_id FROM project_files WHERE id = ?", [id], |r| r.get(0)).optional()?.ok_or_else(|| bad("no such file"))?;
+    let (item, payment) = file_link(conn, &project_id, link)?;
+    conn.execute("UPDATE project_files SET item_id = ?, payment_id = ? WHERE id = ?", params![item, payment, id])?;
+    file_row(conn, id)
+}
+
+/// A file's name, type and contents, checked against the fingerprint taken when it was added.
+pub fn read_file(conn: &Connection, dk: &crate::crypto::Key, dir: &std::path::Path, id: &str) -> Result<(String, String, Vec<u8>)> {
+    let (name, mime, sha): (String, String, String) = conn.query_row("SELECT name, mime, sha256 FROM project_files WHERE id = ?", [id], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+        .optional()?.ok_or_else(|| bad("no such file"))?;
+    let bytes = crate::documents::read_encrypted(dk, dir, id)?;
+    if crate::crypto::sha256_hex(&bytes) != sha { return Err(bad("this file is damaged")); }
+    Ok((name, mime, bytes))
+}
+
+/// Removes a file from the project. The encrypted file stays for 30 days, so undo can bring it back.
+pub fn remove_file(conn: &Connection, id: &str) -> Result<()> {
+    if conn.execute("DELETE FROM project_files WHERE id = ?", [id])? == 0 { return Err(bad("no such file")); }
+    Ok(())
 }

@@ -50,6 +50,7 @@ What changed in each version, for people using Vaulty. Newest first.
   budgets, bill items (qty × rate, GST, who from; every heading can be renamed), payments (advances and instalments, how paid,
   the name the bank showed), what's still owed to each person, your own columns, templates, and
   Excel or PDF copies. Payments can be added to transactions or linked to bank statement rows.
+  Bills and receipts (PDFs and photos) are kept with a project, encrypted, for an item or payment.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 
