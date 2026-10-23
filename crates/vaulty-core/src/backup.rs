@@ -31,12 +31,17 @@ fn aad(h: &Value) -> Vec<u8> {
 
 /// An encrypted backup of everything in the profile.
 pub fn encrypt(conn: &Connection, password: &str, hint: Option<&str>) -> Result<Vec<u8>> {
+    encrypt_value(&export::to_json(conn)?, password, hint)
+}
+
+/// Encrypts backup JSON made by the caller (e.g. with document files added).
+pub fn encrypt_value(data: &Value, password: &str, hint: Option<&str>) -> Result<Vec<u8>> {
     if password.chars().count() < MIN_PASSWORD { return Err(Error::Invalid(format!("use a backup password of at least {MIN_PASSWORD} characters"))); }
     if let Some(why) = crate::passwords::weakness(password, "") { return Err(Error::Invalid(why.into())); }
     let hint = hint.map(str::trim).filter(|h| !h.is_empty());
     if hint.is_some_and(|h| h.chars().count() > 80) { return Err(Error::Invalid("keep the hint under 80 characters".into())); }
     if hint.is_some_and(|h| h.contains(password)) { return Err(Error::Invalid("the hint can't contain the password".into())); }
-    let plain = zeroize::Zeroizing::new(serde_json::to_vec(&export::to_json(conn)?)?);
+    let plain = zeroize::Zeroizing::new(serde_json::to_vec(data)?);
     let salt = crypto::new_salt();
     let key = crypto::derive_key(password, &salt)?;
     let nonce = crypto::random_bytes::<24>();

@@ -128,6 +128,10 @@
   "re": "^choose the amount column, or the debit and credit columns$"
  },
  {
+  "id": "e9c620902",
+  "re": "^only photos can be shown here; save a copy to open a PDF$"
+ },
+ {
   "id": "eb69e5843",
   "re": "^this category has sub-categories, so it can't become one$"
  },
@@ -200,6 +204,10 @@
   "re": "^the helpers' approvals timed out; ask them again$"
  },
  {
+  "id": "ea9433c2e",
+  "re": "^Vaulty keeps PDFs and photos \\(PNG, JPEG or WebP\\)$"
+ },
+ {
   "id": "eb0f4c487",
   "re": "^changed again since; undo the later change first$"
  },
@@ -226,6 +234,10 @@
  {
   "id": "ea5bff745",
   "re": "^expected a language tag such as en-US or hi-IN$"
+ },
+ {
+  "id": "edcdf4cd2",
+  "re": "^this file is missing from the documents folder$"
  },
  {
   "id": "ef9baab73",
@@ -364,6 +376,10 @@
   "re": "^a transfer needs a destination account$"
  },
  {
+  "id": "e8c461b02",
+  "re": "^remind 0 to 365 days before it expires$"
+ },
+ {
   "id": "ecbe5189c",
   "re": "^that calendar file is larger than 5 MB$"
  },
@@ -394,6 +410,10 @@
  {
   "id": "eebc4b887",
   "re": "^the amount must be greater than zero$"
+ },
+ {
+  "id": "ef050fca1",
+  "re": "^it can't expire before it was issued$"
  },
  {
   "id": "efdd36dff",
@@ -430,6 +450,10 @@
  {
   "id": "ea09bf6aa",
   "re": "^expected 0 \\(never\\), 1, 5, 15 or 30$"
+ },
+ {
+  "id": "eab3edb79",
+  "re": "^a document can have up to 10 files$"
  },
  {
   "id": "ecbde5738",
@@ -736,6 +760,10 @@
   "re": "^snapshot is not encrypted$"
  },
  {
+  "id": "e5486d303",
+  "re": "^a file can be up to 25 MB$"
+ },
+ {
   "id": "e6580b75c",
   "re": "^amounts can't be negative$"
  },
@@ -778,6 +806,14 @@
  {
   "id": "eea354a80",
   "re": "^card name can't be empty$"
+ },
+ {
+  "id": "ef11b1bf6",
+  "re": "^unknown kind of document$"
+ },
+ {
+  "id": "efddf69bf",
+  "re": "^give the document a name$"
  },
  {
   "id": "e27510ee1",
@@ -846,6 +882,10 @@
  {
   "id": "e0d07ff4d",
   "re": "^the file has no rows$"
+ },
+ {
+  "id": "e1846d3fe",
+  "re": "^this file is damaged$"
  },
  {
   "id": "e948728d5",
@@ -932,6 +972,10 @@
   "re": "^no such snapshot$"
  },
  {
+  "id": "ed148f2d8",
+  "re": "^no such document$"
+ },
+ {
   "id": "eff7a2fe9",
   "re": "^no such category$"
  },
@@ -972,6 +1016,10 @@
   "re": "^no such user$"
  },
  {
+  "id": "e220d081e",
+  "re": "^no such file$"
+ },
+ {
   "id": "e47072ca1",
   "re": "^unknown type$"
  },
@@ -1010,6 +1058,10 @@
  {
   "id": "e4f058cd5",
   "re": "^the update couldn't be installed \\(([\\s\\S]+?)\\); nothing was changed$"
+ },
+ {
+  "id": "ef6f85c44",
+  "re": "^one of the details is too long \\(up to ([\\s\\S]+?) characters\\)$"
  },
  {
   "id": "e2d1a15b5",

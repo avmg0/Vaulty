@@ -360,6 +360,13 @@
         "done": "Ticked off a to-do",
         "reopen": "Reopened a to-do",
         "delete": "Deleted a to-do"
+      },
+      "document": {
+        "create": "Added a document",
+        "update": "Changed a document",
+        "delete": "Deleted a document",
+        "file_add": "Attached a file",
+        "file_remove": "Removed a file"
       }
     },
     "check": {
@@ -1125,7 +1132,8 @@
     "yourHint": "Your hint: {{hint}}",
     "plainWarning": "This is an older, unprotected backup. It will still be restored.",
     "restoreNote": "A safety copy is taken first, and the restore can be undone from History.",
-    "restored": "Restored {{tx}} transactions and {{acc}} accounts."
+    "restored": "Restored {{tx}} transactions and {{acc}} accounts.",
+    "filesLeftOut": "Document files were left out (over 60 MB); their details are in the backup."
   },
   "bulk": {
     "select": "Select",
@@ -1222,6 +1230,7 @@
     "eb988c1cd": "app updates can't be undone; restore a safety copy instead",
     "e09b47d45": "use Ctrl (Cmd on a Mac), Shift and Alt with one other key",
     "eb8488838": "choose the amount column, or the debit and credit columns",
+    "e9c620902": "only photos can be shown here; save a copy to open a PDF",
     "eb69e5843": "this category has sub-categories, so it can't become one",
     "ed24307a6": "need at least 2 shares, and no fewer shares than needed",
     "e46964378": "sign out and in again to finish upgrading this profile",
@@ -1240,6 +1249,7 @@
     "efa8919c9": "that code was already used; wait for the next one",
     "e6b092563": "snapshot can't be opened with this profile's key",
     "e79721fd8": "the helpers' approvals timed out; ask them again",
+    "ea9433c2e": "Vaulty keeps PDFs and photos (PNG, JPEG or WebP)",
     "eb0f4c487": "changed again since; undo the later change first",
     "efa47e7b1": "you can't erase your own profile while signed in",
     "e34074ab1": "that code has a typo; check it against the card",
@@ -1247,6 +1257,7 @@
     "e58c5c5f4": "setup code expired; ask an admin for a new one",
     "e689d772c": "give your nominee's name (up to 60 characters)",
     "ea5bff745": "expected a language tag such as en-US or hi-IN",
+    "edcdf4cd2": "this file is missing from the documents folder",
     "ef9baab73": "start the request with your nominee card first",
     "e499f549c": "biometric unlock is not set up on this device",
     "e54fd4405": "expected a 3-letter ISO 4217 code such as INR",
@@ -1281,6 +1292,7 @@
     "e541ff9dc": "logo must be a PNG, JPEG or WebP image",
     "e599a2669": "only expenses can be split with people",
     "e7c242647": "a transfer needs a destination account",
+    "e8c461b02": "remind 0 to 365 days before it expires",
     "ecbe5189c": "that calendar file is larger than 5 MB",
     "e5d803bee": "you don't need to share with yourself",
     "e7588a917": "that isn't an encrypted Vaulty backup",
@@ -1289,6 +1301,7 @@
     "edf7ff440": "no regional list for that country yet",
     "e74a5c73f": "an entry needs at least two postings",
     "eebc4b887": "the amount must be greater than zero",
+    "ef050fca1": "it can't expire before it was issued",
     "efdd36dff": "that key can't be used in a shortcut",
     "e3d60c603": "the hint can't contain the password",
     "e6f8ca333": "the spreadsheet couldn't be written",
@@ -1298,6 +1311,7 @@
     "e41decce7": "budgets are for expense categories",
     "e6f21a677": "data folder path isn't valid UTF-8",
     "ea09bf6aa": "expected 0 (never), 1, 5, 15 or 30",
+    "eab3edb79": "a document can have up to 10 files",
     "ecbde5738": "no setup code issued; ask an admin",
     "ee4b82cfa": "can't transfer to the same account",
     "ef1e11832": "`amount` must be greater than zero",
@@ -1374,6 +1388,7 @@
     "edccd2708": "that isn't a Vaulty backup",
     "ede5e8fa2": "a budget can't be negative",
     "e53f2dd48": "snapshot is not encrypted",
+    "e5486d303": "a file can be up to 25 MB",
     "e6580b75c": "amounts can't be negative",
     "e7770ca2a": "no such recurring payment",
     "e98d071e2": "keep it to one short line",
@@ -1385,6 +1400,8 @@
     "e8ae2935f": "a field name is too long",
     "ea044bf7d": "printing isn't available",
     "eea354a80": "card name can't be empty",
+    "ef11b1bf6": "unknown kind of document",
+    "efddf69bf": "give the document a name",
     "e27510ee1": "sealed value is corrupt",
     "e352ffe62": "logo image is too large",
     "e7270d4bf": "check for updates first",
@@ -1402,6 +1419,7 @@
     "ec18157fa": "times look like 14:30",
     "ee812a271": "choose the file again",
     "e0d07ff4d": "the file has no rows",
+    "e1846d3fe": "this file is damaged",
     "e948728d5": "incorrect setup code",
     "eaec50c42": "choose three helpers",
     "e4b334f26": "no such transaction",
@@ -1423,6 +1441,7 @@
     "e80c4da6d": "flow is out or in",
     "e23de18ba": "image is missing",
     "e371d6a76": "no such snapshot",
+    "ed148f2d8": "no such document",
     "eff7a2fe9": "no such category",
     "ea7cb5e24": "no such account",
     "e0ba0ed77": "already undone",
@@ -1433,6 +1452,7 @@
     "e2abe41b8": "no such to-do",
     "e6a286dbd": "no such event",
     "e1999cbaa": "no such user",
+    "e220d081e": "no such file",
     "e47072ca1": "unknown type",
     "e5810d133": "no such card",
     "e2192308d": "bad nonce",
@@ -1443,6 +1463,7 @@
     "e3582fbea": "the file has more than {{p0}} rows; split it into smaller statements",
     "e9d0f5058": "backup contains {{p0}} unbalanced entries; nothing was imported",
     "e4f058cd5": "the update couldn't be installed ({{p0}}); nothing was changed",
+    "ef6f85c44": "one of the details is too long (up to {{p0}} characters)",
     "e2d1a15b5": "category type must be income or expense, not `{{p0}}`",
     "e25d11d23": "use a backup password of at least {{p0}} characters",
     "e321bf116": "too many attempts; try again in {{p0}} seconds",
@@ -1570,7 +1591,8 @@
       "event": "Event",
       "reminder": "Reminder",
       "holiday": "Holiday",
-      "task": "To-do"
+      "task": "To-do",
+      "expiry": "Expires"
     },
     "addTitle": "Add to the calendar",
     "editTitle": "Edit",
@@ -1658,7 +1680,10 @@
       "soon": "{{name}} may go below your minimum {{when}}",
       "because": "Because of {{payment}}.",
       "becauseAmount": "Because of {{payment}}: lowest {{amount}}."
-    }
+    },
+    "expiry": "{{name}} expires {{when}}",
+    "expired": "{{name}} has expired",
+    "expiresToday": "{{name}} expires today"
   },
   "reports": {
     "safe": {
@@ -1991,7 +2016,13 @@
     "readOnly": "Read-only: nothing can be changed here.",
     "previewNote": "This is what your nominee would see.",
     "print": "Print or save as PDF",
-    "close": "Close"
+    "close": "Close",
+    "documents": "Documents",
+    "documentsHint": "Policies, IDs and papers, with where each original is kept.",
+    "keptAt": "Original kept at",
+    "expires": "expires {{date}}",
+    "scans_one": "1 scan in Vaulty",
+    "scans_other": "{{count}} scans in Vaulty"
   },
   "nominee": {
     "title": "Nominee",
@@ -2040,5 +2071,62 @@
       "cancel": "Cancel the request",
       "allow": "Let it go ahead now"
     }
+  },
+  "documents": {
+    "kinds": {
+      "id": "ID card",
+      "passport": "Passport",
+      "licence": "Driving licence",
+      "insurance": "Insurance policy",
+      "property": "Property papers",
+      "vehicle": "Vehicle papers",
+      "will": "Will",
+      "certificate": "Certificate",
+      "warranty": "Warranty or bill",
+      "medical": "Medical",
+      "tax": "Tax",
+      "other": "Other"
+    },
+    "search": "Search documents",
+    "kindLabel": "Kind",
+    "allKinds": "All kinds",
+    "add": "Add document",
+    "attention_one": "One document needs attention",
+    "attention_other": "{{count}} documents need attention",
+    "expired": "Expired {{date}}",
+    "expiresIn_one": "Expires tomorrow",
+    "expiresIn_other": "Expires in {{count}} days",
+    "expiresIn_zero": "Expires today",
+    "validTill": "Valid till {{date}}",
+    "files_one": "1 file",
+    "files_other": "{{count}} files",
+    "emptyTitle": "Your family’s important papers, in one place",
+    "emptyDesc": "Passports, Aadhaar and PAN, insurance policies, property papers, your will. Keep scans encrypted here, note where the originals are, and get reminded before anything expires.",
+    "noMatch": "No documents match.",
+    "newTitle": "Add a document",
+    "newDesc": "Save the details, then attach scans or photos.",
+    "editDesc": "Details, expiry and attached files.",
+    "title": "Name",
+    "titlePlaceholder": "e.g. Jane’s passport, Jimmy’s PAN card",
+    "holder": "Whose",
+    "number": "Number",
+    "issuer": "Issued by",
+    "issued": "Issued on",
+    "expires": "Expires on",
+    "remind": "Remind me",
+    "daysBefore_one": "{{count}} day before",
+    "daysBefore_other": "{{count}} days before",
+    "keptAt": "Where the original is kept",
+    "keptAtPlaceholder": "e.g. Steel almirah, top shelf; bank locker",
+    "notes": "Notes",
+    "scans": "Scans and photos",
+    "addFile": "Attach a file",
+    "noFiles": "No files yet. Attach a PDF or a photo of each side.",
+    "fileTypes": "PDFs and photos",
+    "view": "View",
+    "saveCopy": "Save a copy of {{name}}",
+    "removeFile": "Remove {{name}}",
+    "encrypted": "Files are encrypted with your profile’s key. PDFs open in your own viewer: save a copy to open one.",
+    "done": "Done"
   }
 }

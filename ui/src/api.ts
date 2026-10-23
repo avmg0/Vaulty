@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -28,6 +28,12 @@ export type FailedAttempts = { count: number; last_at: number };
 /** Someone this member helped back into their profile, since they last signed in (`at` is Unix seconds). */
 export type HelpedNotice = { owner_name: string; at: number };
 export type SignedInUser = User & { recovery_key?: string | null; failed_attempts?: FailedAttempts | null; helped?: HelpedNotice[]; nominee_request?: NomineeRequest | null };
+export const DOC_KINDS = ["id", "passport", "licence", "insurance", "property", "vehicle", "will", "certificate", "warranty", "medical", "tax", "other"] as const;
+export type DocKind = (typeof DOC_KINDS)[number];
+export type DocFile = { id: string; name: string; mime: string; size: number; created_at?: string };
+export type DocInput = { title: string; kind: DocKind; holder?: string; number?: string; issuer?: string; issued_on?: string; expires_on?: string; remind_days: number; kept_at?: string; notes?: string };
+/** A document's details and attached files. `days_left` until it expires (negative once expired). */
+export type Doc = DocInput & { id: string; created_at: string; updated_at: string; files: DocFile[]; days_left: number | null; status: "expired" | "expiring" | "valid" | "no_expiry" };
 /** A nominee's request for access (times are Unix seconds). */
 export type NomineeRequest = { started_at: number; ready_at: number; allowed: boolean; ready: boolean };
 export type NomineeStatus = { set_up: boolean; name: string | null; wait_days: number; has_letter: boolean; request: NomineeRequest | null };
@@ -38,6 +44,7 @@ export type Estate = {
   cards: { name: string; kind: string; issuer: string | null; network: string | null; last4: string | null }[];
   people: { name: string; phone: string | null; currency: string; amount: number }[];
   regular: { name: string; kind: string; amount: number; currency: string; frequency: string; every: number; next_date: string | null; account: string | null }[];
+  documents: { title: string; kind: string; holder: string | null; number: string | null; issuer: string | null; expires_on: string | null; kept_at: string | null; files: number }[];
   totals: { currency: string; owned: number; owed: number; net: number }[];
 };
 export type NomineeOpened = { owner_name: string; letter: string | null; estate: Estate };
@@ -150,7 +157,7 @@ export type UserSettings = { locale: string; currency: string; date_format: stri
 /** A keyboard shortcut: `keys` like "Mod+Shift+K" ("" = off). */
 export type Hotkey = { action: string; keys: string; default: string; custom: boolean };
 
-export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday" | "task";
+export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday" | "task" | "expiry";
 /** One thing on the calendar. `pay_by` is set when banks are closed on the due date. */
 export type CalendarItem = { kind: CalendarKind; date: string; title: string; time?: string; amount?: number; currency?: string; icon?: string; source_id?: string; overdue: boolean; pay_by?: string };
 export type CalendarEventInput = { title: string; date: string; time: string; type: "custom" | "reminder" | "holiday"; repeat: "none" | "monthly" | "yearly"; amount: string; icon: string; notes: string };
@@ -158,7 +165,7 @@ export type CalendarEvent = { id: string; title: string; date: string; time: str
 export type IcsEvent = { uid: string | null; title: string; date: string; time: string | null; repeat: string | null; notes: string | null };
 
 /** A reminder due now (see crates/vaulty-core/src/reminders.rs). `days` < 0 means overdue. */
-export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
+export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low" | "expiry"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
 /** An account below its low-balance level, or a scheduled payment in the next 14 days that would take it there. */
 export type LowBalance = { account_id: string; name: string; currency: string; balance: number; level: number; now: boolean; date: string; because: string | null; lowest: number };
 
@@ -357,13 +364,25 @@ export const api = {
     apply: () => invoke<number>("rules_apply"),
   },
   backup: {
-    export: (path: string, password: string, hint?: string) => invoke<void>("backup_export", { path, password, hint }),
+    /** `document_files_left_out`: there were too many document files to carry; the backup has their details. */
+    export: (path: string, password: string, hint?: string) => invoke<{ document_files_left_out: boolean }>("backup_export", { path, password, hint }),
     inspect: (path: string) => invoke<BackupInfo>("backup_inspect", { path }),
     import: (path: string, password?: string) => invoke<{ transactions: number; accounts: number; categories: number }>("backup_import", { path, password }),
     exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
-  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report", label: string) => invoke<string | null>("pick_file", { kind, label }) },
+  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
+  documents: {
+    list: () => invoke<Doc[]>("documents_list"),
+    create: (document: DocInput) => invoke<Doc>("documents_create", { document }),
+    update: (id: string, document: DocInput) => invoke<Doc>("documents_update", { id, document }),
+    delete: (id: string) => invoke<void>("documents_delete", { id }),
+    addFile: (documentId: string, path: string) => invoke<DocFile>("documents_add_file", { documentId, path }),
+    removeFile: (fileId: string) => invoke<void>("documents_remove_file", { fileId }),
+    /** Photos only, as base64. */
+    preview: (fileId: string) => invoke<{ name: string; mime: string; data: string }>("documents_preview", { fileId }),
+    saveFile: (fileId: string, path: string) => invoke<void>("documents_save_file", { fileId, path }),
+  },
   updates: {
     check: () => invoke<UpdateInfo | null>("update_check"),
     auto: () => invoke<UpdateInfo | null>("update_auto"),

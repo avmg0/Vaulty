@@ -5531,6 +5531,7 @@ dependencies = [
 name = "vaulty"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "chrono",
  "keyring",
  "reqwest 0.12.28",
@@ -5553,6 +5554,7 @@ name = "vaulty-core"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "base64 0.22.1",
  "calamine",
  "chacha20poly1305",
  "chrono",

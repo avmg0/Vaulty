@@ -84,7 +84,12 @@ function MakeDialog({ open: isOpen, onClose, onDone }: { open: boolean; onClose:
     const path = await api.files.pick("save_backup", t("backups.files"));
     if (!path) return;
     setBusy(true); setError("");
-    try { await api.backup.export(path, pw, hint || undefined); reset(); onDone(t("backups.made", { file: path.split(/[\\/]/).pop() })); }
+    try {
+      const out = await api.backup.export(path, pw, hint || undefined);
+      reset();
+      const made = t("backups.made", { file: path.split(/[\\/]/).pop() });
+      onDone(out.document_files_left_out ? `${made} ${t("backups.filesLeftOut")}` : made);
+    }
     catch (err) { setError(errorText(err)); } finally { setBusy(false); }
   };
   return (

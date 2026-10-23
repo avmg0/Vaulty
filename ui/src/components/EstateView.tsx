@@ -46,7 +46,7 @@ export function EstateDoc({ estate: e, owner, letter }: { estate: Estate; owner:
     <><div className="font-medium">{h.name}</div>{h.notes && <div className="text-muted-foreground text-xs whitespace-pre-line print:text-black">{h.notes}</div>}</>,
     [h.institution, kindLabel(h.kind)].filter(Boolean).join(" · "), money(h.amount, h.currency),
   ]);
-  const empty = !e.accounts.length && !e.debts.length && !e.investments.length && !e.cards.length && !e.people.length && !e.regular.length;
+  const empty = !e.accounts.length && !e.debts.length && !e.investments.length && !e.cards.length && !e.people.length && !e.regular.length && !e.documents.length;
   return (
     <article className="space-y-6">
       <header>
@@ -86,6 +86,16 @@ export function EstateDoc({ estate: e, owner, letter }: { estate: Estate; owner:
               <><div className="font-medium">{r.name}</div>{r.account && <div className="text-muted-foreground text-xs print:text-black">{r.account}</div>}</>,
               [t(`estate.freq.${r.frequency}`, { count: r.every, defaultValue: r.frequency }), r.next_date && t("estate.next", { date: formatDate(r.next_date, { day: "numeric", month: "short", year: "numeric" }) })].filter(Boolean).join(" · "),
               `${r.kind === "income" ? "+" : ""}${money(r.amount, r.currency)}`,
+            ])} />
+        </Section>
+      )}
+      {e.documents.length > 0 && (
+        <Section title={t("estate.documents")} hint={t("estate.documentsHint")}>
+          <Table head={[t("estate.name"), t("estate.number"), t("estate.keptAt")]}
+            rows={e.documents.map((d) => [
+              <><div className="font-medium">{d.title}</div><div className="text-muted-foreground text-xs print:text-black">{[d.holder, d.issuer, d.expires_on && t("estate.expires", { date: formatDate(d.expires_on) })].filter(Boolean).join(" · ")}</div></>,
+              d.number ?? "—",
+              <span key="k" className="whitespace-pre-line">{d.kept_at ?? "—"}{d.files > 0 && <span className="text-muted-foreground block text-xs print:text-black">{t("estate.scans", { count: d.files })}</span>}</span>,
             ])} />
         </Section>
       )}

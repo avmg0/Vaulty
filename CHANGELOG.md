@@ -36,6 +36,8 @@ What changed in each version, for people using Vaulty. Newest first.
   any two of whom can get you back in if you lose your password and recovery key.
 - Nominee: name someone who, with their printed card and one helper after a waiting period you can
   cancel, sees a read-only "In case of emergency" summary of your money and a letter from you.
+- Documents: passports, IDs, insurance policies, property papers and wills, with encrypted scans,
+  where each original is kept, and reminders before they expire. Included in encrypted backups.
 
 ### Fixed
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.

@@ -53,6 +53,20 @@ pub struct Regular {
 }
 
 #[derive(Debug, Serialize)]
+pub struct DocumentLine {
+    pub title: String,
+    pub kind: String,
+    pub holder: Option<String>,
+    pub number: Option<String>,
+    pub issuer: Option<String>,
+    pub expires_on: Option<String>,
+    /// Where the paper original is kept.
+    pub kept_at: Option<String>,
+    /// How many files (scans) Vaulty holds for it.
+    pub files: usize,
+}
+
+#[derive(Debug, Serialize)]
 pub struct Total { pub currency: String, pub owned: f64, pub owed: f64, pub net: f64 }
 
 #[derive(Debug, Serialize)]
@@ -67,6 +81,8 @@ pub struct Estate {
     pub people: Vec<PersonLine>,
     /// Bills and income that come round regularly (to claim, keep paying, or stop).
     pub regular: Vec<Regular>,
+    /// Papers: policies, IDs, property documents, wills, with where the originals are.
+    pub documents: Vec<DocumentLine>,
     /// Per currency: owned (accounts and investments), owed (debts and money owed to people).
     pub totals: Vec<Total>,
 }
@@ -109,6 +125,11 @@ pub fn summary(conn: &Connection, today: NaiveDate) -> Result<Estate> {
         every: r["every"].as_i64().unwrap_or(1), next_date: s(&r, "next_due_date"), account: s(&r, "account_name"),
     }).collect();
 
+    let documents = crate::documents::list(conn, today)?.into_iter().map(|d| DocumentLine {
+        title: s(&d, "title").unwrap_or_default(), kind: s(&d, "kind").unwrap_or_default(), holder: s(&d, "holder"), number: s(&d, "number"),
+        issuer: s(&d, "issuer"), expires_on: s(&d, "expires_on"), kept_at: s(&d, "kept_at"), files: d["files"].as_array().map_or(0, Vec::len),
+    }).collect();
+
     let mut by: BTreeMap<String, (f64, f64)> = BTreeMap::new();
     for h in accounts.iter().chain(&investments) { by.entry(h.currency.clone()).or_default().0 += h.amount; }
     for h in &debts { by.entry(h.currency.clone()).or_default().1 += h.amount; }
@@ -118,5 +139,5 @@ pub fn summary(conn: &Connection, today: NaiveDate) -> Result<Estate> {
     }
     let round = |x: f64| (x * 100.0).round() / 100.0;
     let totals = by.into_iter().map(|(currency, (owned, owed))| Total { net: round(owned - owed), owned: round(owned), owed: round(owed), currency }).collect();
-    Ok(Estate { as_of: today.to_string(), accounts, debts, investments, cards, people, regular, totals })
+    Ok(Estate { as_of: today.to_string(), accounts, debts, investments, cards, people, regular, documents, totals })
 }

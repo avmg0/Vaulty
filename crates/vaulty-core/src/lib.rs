@@ -10,6 +10,7 @@ mod crypto;
 pub use crypto::Key;
 pub mod db;
 pub mod demo;
+pub mod documents;
 pub mod error;
 pub mod estate;
 pub mod export;

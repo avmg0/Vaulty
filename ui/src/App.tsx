@@ -32,6 +32,7 @@ import { CalendarPage } from "@/pages/Calendar";
 import { Reports } from "@/pages/Reports";
 import { PeoplePage } from "@/pages/People";
 import { TasksPage } from "@/pages/Tasks";
+import { DocumentsPage } from "@/pages/Documents";
 import { LockedReminderListener, ReminderWatcher } from "@/components/Reminders";
 import { HotkeysProvider, useHotkey } from "@/hooks/hotkeys";
 import { applySenior } from "@/lib/senior";
@@ -41,7 +42,7 @@ import { VaultSplash } from "@/components/UnlockSplash";
 
 const LAST_USER_KEY = "vaulty.lastUser";
 /** Pages that reload themselves after an undo (so changes animate in place instead of the page re-mounting). */
-const SELF_RELOADING = new Set<PageId>(["history", "transactions", "dashboard", "cards", "calendar", "reports", "people", "tasks"]);
+const SELF_RELOADING = new Set<PageId>(["history", "transactions", "dashboard", "cards", "calendar", "reports", "people", "tasks", "documents"]);
 
 export function App() {
   const [user, setUser] = useState<User | null | undefined>(undefined);
@@ -149,7 +150,7 @@ function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => v
   useHotkey("go_import", () => setPage("import"));
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
-  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, reports: <Reports />, people: <PeoplePage />, tasks: <TasksPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, history: <History /> }[page as string];
+  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => setPage("settings")} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, reports: <Reports />, people: <PeoplePage />, tasks: <TasksPage />, documents: <DocumentsPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, history: <History /> }[page as string];
 
   return (
     <div className="flex h-screen overflow-hidden">

@@ -30,6 +30,10 @@ The file is JSON:
 - **Plaintext:** Vaulty's normal JSON backup (`"version": 2`): every table of the profile (accounts,
   categories, ledger entries and postings, cards, recurring payments and more), with money in
   integer minor units (paise, cents).
+- **Document files:** the plaintext may also have `"document_files"`: an object from each file's id
+  (as in the `vault_document_files` table) to its contents in standard base64. Files are left out
+  when they add up to more than 60 MB; their details are still in the tables. Plain (unencrypted)
+  JSON exports never contain document files.
 
 Only the hint and the date are readable without the password. Choose a hint that means nothing to anyone else.
 

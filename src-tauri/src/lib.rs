@@ -219,6 +219,8 @@ impl AppState {
                 for t in &made { let _ = household.publish(&user_id, t); }
             }
         }
+        // Empty the documents trash (best effort).
+        let _ = vaulty_core::documents::purge(&conn, &self.documents_dir(&user_id));
         let recovery_key = keys.new_recovery_key.take();
         let failed_attempts = self.registry(|r| r.take_failure_notice(&user_id))?;
         let helped = self.registry(|r| r.take_helper_notices(&user_id))?;
@@ -229,7 +231,19 @@ impl AppState {
         Ok(SignedIn { user, recovery_key, failed_attempts, helped, nominee_request })
     }
 
+    fn documents_dir(&self, user_id: &str) -> PathBuf {
+        self.data_dir.join("documents").join(user_id)
+    }
+
+    /// Runs `f` with the member's database and keys together (one lock).
+    fn data_with_keys<T>(&self, f: impl FnOnce(&Connection, &Unlocked) -> Result<T>) -> Result<T> {
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = live(&mut guard)?;
+        f(&s.conn, &s.keys)
+    }
+
     fn delete_user_files(&self, user_id: &str) {
+        let _ = std::fs::remove_dir_all(self.documents_dir(user_id));
         let path = self.user_db_path(user_id);
         for suffix in ["", "-wal", "-shm"] {
             db::shred(std::path::Path::new(&format!("{}{suffix}", path.display())));
@@ -380,6 +394,51 @@ fn sign_in_helpers(s: S, user_id: String, new_password: String, code: Option<Str
     };
     let keys = s.registry(|r| r.recover_with_helpers(&user_id, &shares, &new_password, code.as_deref()))?;
     s.start_session(keys)
+}
+
+// ============================================================ documents
+
+#[tauri::command]
+fn documents_list(s: S) -> Result<Vec<Value>> { s.data(|c| vaulty_core::documents::list(c, today())) }
+#[tauri::command]
+fn documents_create(s: S, document: Value) -> Result<Value> { limits::check(&document)?; s.act("document.create", |c| vaulty_core::documents::create(c, &document, today())) }
+#[tauri::command]
+fn documents_update(s: S, id: String, document: Value) -> Result<Value> { limits::check(&document)?; s.act("document.update", |c| vaulty_core::documents::update(c, &id, &document, today())) }
+#[tauri::command]
+fn documents_delete(s: S, id: String) -> Result<()> { s.act("document.delete", |c| vaulty_core::documents::delete(c, &id)) }
+#[tauri::command]
+fn documents_remove_file(s: S, file_id: String) -> Result<()> { s.act("document.file_remove", |c| vaulty_core::documents::remove_file(c, &file_id)) }
+
+/// Attaches a file the person chose (a PDF or photo), encrypted.
+#[tauri::command]
+fn documents_add_file(s: S, document_id: String, path: String) -> Result<Value> {
+    s.chosen(&path)?;
+    let bytes = read_limited(&path, vaulty_core::documents::MAX_FILE as u64)?;
+    let me = s.current_user()?;
+    let dir = s.documents_dir(&me.id);
+    s.data_with_keys(|c, k| vaulty_core::history::record(c, "document.file_add", |c| vaulty_core::documents::add_file(c, &k.data_key, &dir, &document_id, &path, &bytes)))
+}
+
+/// A photo, for previewing in the window (base64). PDFs are saved and opened outside Vaulty.
+#[tauri::command]
+fn documents_preview(s: S, file_id: String) -> Result<Value> {
+    use base64::Engine;
+    let me = s.current_user()?;
+    let dir = s.documents_dir(&me.id);
+    let (name, mime, bytes) = s.data_with_keys(|c, k| vaulty_core::documents::read_file(c, &k.data_key, &dir, &file_id))?;
+    if !mime.starts_with("image/") { return Err(Error::Invalid("only photos can be shown here; save a copy to open a PDF".into())); }
+    Ok(json!({ "name": name, "mime": mime, "data": base64::engine::general_purpose::STANDARD.encode(bytes) }))
+}
+
+/// Saves a decrypted copy where the person chose.
+#[tauri::command]
+fn documents_save_file(s: S, file_id: String, path: String) -> Result<()> {
+    s.chosen(&path)?;
+    let me = s.current_user()?;
+    let dir = s.documents_dir(&me.id);
+    let (_, _, bytes) = s.data_with_keys(|c, k| vaulty_core::documents::read_file(c, &k.data_key, &dir, &file_id))?;
+    std::fs::write(path, bytes)?;
+    Ok(())
 }
 
 // ------------------------------------------------------------ nominee
@@ -686,7 +745,7 @@ fn biometric_disable(s: S) -> Result<()> {
 /// What a file dialog is for. The kind decides the file types offered and whether it opens or saves.
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport }
+enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport, Document, SaveDocument }
 
 impl AppState {
     /// Refuses a path the person didn't choose in a file dialog this run.
@@ -699,9 +758,11 @@ impl AppState {
 /// Opens the system file dialog and returns what the person chose (nothing if they cancelled).
 /// `label` names the file types in the dialog, in the interface's language.
 #[tauri::command]
-async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String) -> Result<Option<String>> {
+async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String, name: Option<String>) -> Result<Option<String>> {
     use tauri_plugin_dialog::DialogExt;
     limits::text("label", &label, 100)?;
+    // A suggested file name (for saving a copy of a document): the last path part only.
+    let suggested: String = name.as_deref().and_then(|n| std::path::Path::new(n).file_name()).and_then(|n| n.to_str()).unwrap_or("document").chars().take(120).collect();
     let stamp = chrono::Local::now().format("%Y-%m-%d").to_string();
     let (tx, rx) = tokio::sync::oneshot::channel();
     let d = app.dialog().file();
@@ -713,6 +774,8 @@ async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String) -
         Pick::Calendar => d.add_filter(label, &["ics"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveCalendar => d.add_filter(label, &["ics"]).set_file_name(format!("vaulty-calendar-{stamp}.ics")).save_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveReport => d.add_filter(label, &["xlsx"]).set_file_name(format!("vaulty-report-{stamp}.xlsx")).save_file(move |p| { let _ = tx.send(p); }),
+        Pick::Document => d.add_filter(label, &["pdf", "png", "jpg", "jpeg", "webp"]).pick_file(move |p| { let _ = tx.send(p); }),
+        Pick::SaveDocument => d.set_file_name(suggested).save_file(move |p| { let _ = tx.send(p); }),
     }
     let Some(chosen) = rx.await.ok().flatten() else { return Ok(None) };
     let path = chosen.into_path().map_err(|_| Error::Invalid("that location can't be used".into()))?.to_string_lossy().into_owned();
@@ -1023,12 +1086,18 @@ fn export_csv(s: S, path: String) -> Result<usize> {
 }
 /// Writes a password-protected backup (`.vaulty`, see docs/BACKUP_FORMAT.md).
 #[tauri::command]
-fn backup_export(s: S, path: String, password: String, hint: Option<String>) -> Result<()> {
+fn backup_export(s: S, path: String, password: String, hint: Option<String>) -> Result<Value> {
     s.chosen(&path)?;
     s.guard_export()?;
-    let bytes = s.data(|c| vaulty_core::backup::encrypt(c, &password, hint.as_deref()))?;
-    std::fs::write(path, bytes)?;
-    Ok(())
+    let me = s.current_user()?;
+    let dir = s.documents_dir(&me.id);
+    let (mut data, files) = s.data_with_keys(|c, k| Ok((export::to_json(c)?, vaulty_core::documents::files_for_backup(c, &k.data_key, &dir)?)))?;
+    let has_files = s.data(|c| Ok(c.query_row("SELECT EXISTS(SELECT 1 FROM vault_document_files)", [], |r| r.get::<_, bool>(0))?))?;
+    let included = files.is_some();
+    if let Some(f) = files { data["document_files"] = f; }
+    std::fs::write(path, vaulty_core::backup::encrypt_value(&data, &password, hint.as_deref())?)?;
+    // Too many document files to carry: the backup has their details, and the window says so.
+    Ok(json!({ "document_files_left_out": has_files && !included }))
 }
 
 /// What a backup file is, before restoring: encrypted (with its hint and date) or plain JSON.
@@ -1077,7 +1146,12 @@ fn restore_backup(s: &AppState, data: Value) -> Result<Value> {
         h.republish_all(me, &transactions::shareable(c)?)?;
         Ok(counts)
     })?;
-    Ok(serde_json::to_value(counts)?)
+    // Document files carried by an encrypted backup, re-encrypted with this member's key.
+    let dir = s.documents_dir(&me.id);
+    let files = s.data_with_keys(|c, k| vaulty_core::documents::restore_files(c, &k.data_key, &dir, &data["document_files"]))?;
+    let mut out = serde_json::to_value(counts)?;
+    out["document_files"] = json!(files);
+    Ok(out)
 }
 #[tauri::command] fn cards_list(s: S) -> Result<Vec<Value>> { s.data(vaulty_core::cards::list) }
 /// Card commands never receive a full card number: only network, last 4 and the other details.
@@ -1481,7 +1555,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
+            pick_file, tasks_list, tasks_create, tasks_update, tasks_set_done, tasks_delete, subscriptions_detect, subscriptions_dismiss, subscriptions_rises, people_list, people_totals, people_history, people_create, people_update, people_delete, reports_overview, reports_forecast, reports_safe_to_spend, documents_list, documents_create, documents_update, documents_delete, documents_remove_file, documents_add_file, documents_preview, documents_save_file, nominee_for, nominee_start, sign_in_nominee, nominee_mine, nominee_set, nominee_remove, nominee_answer, estate_preview, helpers_for, helpers_approve_member, helpers_approve_card, helpers_cancel, sign_in_helpers, helpers_mine, helpers_set, helpers_remove, reports_low_balances, reports_export_xlsx, print_window, reminders_take, notify_permission, notify_show, calendar_range, calendar_events, calendar_event_create, calendar_event_update, calendar_event_delete,
             calendar_export, calendar_import_preview, calendar_import, users_set_senior, session_touch, hotkeys_list, hotkeys_set, hotkeys_reset, update_check, update_auto, update_install,
             app_info, users_list, session_current, setup_first_admin, claim_profile,
             hidden_status, hidden_unlock, hidden_unlock_biometric, hidden_lock, transactions_set_hidden,

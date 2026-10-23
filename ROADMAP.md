@@ -288,7 +288,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 
 ### Phase 3: Planning and reminders (v0.6)
 - [x] Calendar: bills and income, card due and statement dates, paid bills, own events and reminders, holidays (fixed national ones built in; the rest added or imported, since festival and state bank holidays vary); due dates on bank-closed days show the day to pay by; `.ics` import and export (amounts left out unless asked)
-- [ ] Calendar: document expiry (once Documents exists)
+- [x] Documents: passports, IDs, policies, property papers, wills; scans encrypted file by file; where the original is kept; expiry on the calendar and reminded ahead (7–180 days); in encrypted backups (up to 60 MB of files) and in the nominee's summary
 - [x] OS notifications: bills (each bill's own "remind N days before"), card payments 3 days ahead, overdue bills, budgets at 80% and 100%; amounts off by default; optional dates-only reminders while locked
 - [x] Low-balance alerts: a level per bank or cash account; reminded when below it, or when a bill in the next two weeks would take it there
 - [ ] Cards: statements, minimum due, benefits tracker, best card for today
@@ -489,7 +489,7 @@ Builds on decision 8 (business workspaces on the ledger) and the Phase 4 list. S
 
 ### Family life
 - [x] Senior mode: large text, fewer menus, bigger buttons; a family member can help set it up (Phase 2, top pick).
-- [ ] Document expiry reminders: passport, driving licence, vehicle insurance, PUC, health policy, FD maturity; on the calendar with advance reminders (Phase 2, top pick).
+- [x] Document expiry reminders: passport, driving licence, vehicle insurance, PUC, health policy; on the calendar with advance reminders (done with Documents). FD maturity to follow with deposits.
 - [ ] Medical expenses and insurance claims: bills, claim status, reimbursements, remaining tax-saving health cover (Phase 3).
 
 ### Security

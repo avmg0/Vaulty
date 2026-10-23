@@ -39,6 +39,13 @@ the profile locks for 30 seconds, doubling each time up to 15 minutes. Two-step 
 second factor. Recovery keys (24 characters) are as strong as a random key. Admins *cannot* open
 adults' data; parents hold a sealed recovery copy for children only.
 
+**Documents.** Scans and photos are encrypted one file at a time (XChaCha20-Poly1305, under a key
+derived from the member's data key, with the file id as associated data so files can't be swapped)
+and checked against a SHA-256 fingerprint when opened. Only PDFs and images are accepted (checked by
+their first bytes). Photos are shown in the window; PDFs are never rendered inside Vaulty, only saved
+as a copy where the member chooses. *Not covered:* a copy the member saves is a normal, unencrypted
+file.
+
 **Family helpers (optional).** An adult can choose three helpers, any two of whom can let them back
 in. A random 128-bit secret is split with Shamir's scheme (2 of 3); one share reveals nothing about
 it. A family member's share is sealed to their own key pair, so they approve by entering their own

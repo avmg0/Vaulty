@@ -17,7 +17,7 @@ pub struct Due {
     /// Stable id: the same reminder is never shown twice.
     pub key: String,
     /// bill, income, transfer, card, budget, price (went up), owed (someone owes you; `days` since you
-    /// last dealt), task, low (an account below, or heading below, its low-balance level; `amount` is
+    /// last dealt), task, expiry (a document), low (an account below, or heading below, its low-balance level; `amount` is
     /// the balance now or the lowest coming)
     pub kind: String,
     pub name: String,
@@ -93,6 +93,17 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
         out.push(Due {
             key: format!("task:{}:{due}:{}", t["id"].as_str().unwrap_or_default(), if days == 0 { "today" } else { "overdue" }), kind: "task".into(),
             name: t["title"].as_str().unwrap_or_default().into(), date: due.to_string(), days, amount: None, currency: None, percent: None, previous: None, detail: None,
+        });
+    }
+    // Documents: once when expiry comes within the member's chosen days, and once on or after the
+    // day (for up to 30 days after it).
+    for d in crate::documents::list(conn, today)? {
+        let (Some(exp), Some(days)) = (d["expires_on"].as_str(), d["days_left"].as_i64()) else { continue };
+        let ahead = d["remind_days"].as_i64().unwrap_or(30);
+        let stage = if (-30..=0).contains(&days) { "due" } else if (1..=ahead).contains(&days) { "soon" } else { continue };
+        out.push(Due {
+            key: format!("expiry:{}:{exp}:{stage}", d["id"].as_str().unwrap_or_default()), kind: "expiry".into(),
+            name: d["title"].as_str().unwrap_or_default().into(), date: exp.into(), days, amount: None, currency: None, percent: None, previous: None, detail: None,
         });
     }
     // Price rises in the last 30 days: subscriptions Vaulty spotted and recurring payments.
