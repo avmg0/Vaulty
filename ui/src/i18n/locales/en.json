@@ -540,6 +540,9 @@
         "claim_add": "Added a claim",
         "claim_update": "Changed a claim",
         "claim_delete": "Deleted a claim"
+      },
+      "nominee": {
+        "set": "Changed a nominee"
       }
     },
     "check": {
@@ -658,7 +661,11 @@
       "below": "Below your minimum of {{amount}}",
       "heading": "{{payment}} on {{date}} takes it below {{amount}}",
       "headingPlain": "Goes below {{amount}} on {{date}}"
-    }
+    },
+    "openingDate": "Balance as of (optional)",
+    "openingDateHint": "The date that balance was right on. Net worth over time counts the account from then.",
+    "nominee": "Nominee (optional)",
+    "nomineeHint": "As registered with the bank"
   },
   "tx": {
     "untitled": "Untitled",
@@ -1559,6 +1566,7 @@
     "e4477c240": "that transaction is already linked to a payment",
     "e67f096c7": "this data can't be opened with the key provided",
     "ee1a42587": "no bill lines were found; add the items by hand",
+    "e1600c7cc": "the nominee is too long (up to 200 characters)",
     "e58c5c5f4": "setup code expired; ask an admin for a new one",
     "e689d772c": "give your nominee's name (up to 60 characters)",
     "ea5bff745": "expected a language tag such as en-US or hi-IN",
@@ -2469,7 +2477,12 @@
     "keptAt": "Original kept at",
     "expires": "expires {{date}}",
     "scans_one": "1 scan in Vaulty",
-    "scans_other": "{{count}} scans in Vaulty"
+    "scans_other": "{{count}} scans in Vaulty",
+    "nominee": "Nominee: {{name}}",
+    "policies": "Insurance",
+    "policiesHint": "Claim these with the insurer; the nominee and policy number are needed.",
+    "cover": "Cover",
+    "policyNo": "Policy {{no}}"
   },
   "nominee": {
     "title": "Nominee",
@@ -2699,7 +2712,9 @@
     "updateNow": "Update now",
     "noFundsToPrice": "There are no funds with an ISIN to price yet.",
     "pricesUpdated_one": "{{count}} fund updated to the prices of {{date}}.",
-    "pricesUpdated_other": "{{count}} funds updated to the prices of {{date}}."
+    "pricesUpdated_other": "{{count}} funds updated to the prices of {{date}}.",
+    "nominee": "Nominee",
+    "nomineeHint": "As registered with the fund house or depository"
   },
   "projects": {
     "accountName": "Name on account",
@@ -3379,5 +3394,22 @@
       "you_owe": "You owe people"
     },
     "note": "Balances start from each account's opening date. Investments use the units and price known on each date; ones typed in without history count at today's value throughout."
+  },
+  "nominees": {
+    "tabs": "Documents and nominees",
+    "tabPapers": "Papers",
+    "tabNominees": "Nominees",
+    "none": "Add bank accounts, investments or policies to note who their nominee is.",
+    "allSet": "Every account, investment and policy has a nominee noted.",
+    "missing_one": "{{count}} has no nominee noted",
+    "missing_other": "{{count}} have no nominee noted",
+    "why": "Without a registered nominee, a family may need a succession certificate to claim the money. Note who's registered here, and check it with the bank, fund house or insurer.",
+    "kinds": {
+      "account": "Account",
+      "holding": "Investment",
+      "policy": "Policy"
+    },
+    "placeholder": "Name, and share if more than one",
+    "saved": "Saved"
   }
 }

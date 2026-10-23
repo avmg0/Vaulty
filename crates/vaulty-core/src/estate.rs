@@ -19,6 +19,22 @@ pub struct Holding {
     pub currency: String,
     pub amount: f64,
     pub notes: Option<String>,
+    /// Who is registered to receive it.
+    pub nominee: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PolicyLine {
+    pub name: String,
+    pub kind: String,
+    pub insurer: Option<String>,
+    pub policy_no: Option<String>,
+    pub currency: String,
+    /// Sum assured or cover.
+    pub cover: Option<f64>,
+    pub covers: Option<String>,
+    pub nominee: Option<String>,
+    pub contact: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -77,6 +93,8 @@ pub struct Estate {
     /// Credit cards and loans: what's owed on them.
     pub debts: Vec<Holding>,
     pub investments: Vec<Holding>,
+    /// Active insurance policies: what to claim, from whom, and who the nominee is.
+    pub policies: Vec<PolicyLine>,
     pub cards: Vec<CardLine>,
     pub people: Vec<PersonLine>,
     /// Bills and income that come round regularly (to claim, keep paying, or stop).
@@ -97,7 +115,7 @@ pub fn summary(conn: &Connection, today: NaiveDate) -> Result<Estate> {
             name: s(&a, "name").unwrap_or_default(), kind: s(&a, "type").unwrap_or_default(), institution: s(&a, "institution"),
             currency: s(&a, "currency").unwrap_or_else(|| main.clone()),
             amount: if a["ledger_kind"] == "liability" { -a["current_balance"].as_f64().unwrap_or(0.0) } else { a["current_balance"].as_f64().unwrap_or(0.0) },
-            notes: s(&a, "notes"),
+            notes: s(&a, "notes"), nominee: s(&a, "nominee"),
         };
         if a["ledger_kind"] == "liability" { if h.amount.abs() > 0.004 { debts.push(h) } } else { accounts.push(h) }
     }
@@ -106,8 +124,12 @@ pub fn summary(conn: &Connection, today: NaiveDate) -> Result<Estate> {
         .map(|i| Holding {
             name: s(&i, "name").unwrap_or_default(), kind: s(&i, "kind").unwrap_or_default(),
             institution: Some([s(&i, "provider"), s(&i, "folio").map(|f| format!("folio {f}")), s(&i, "symbol")].into_iter().flatten().collect::<Vec<_>>().join(", ")).filter(|x| !x.is_empty()),
-            currency: s(&i, "currency").unwrap_or_else(|| main.clone()), amount: i["value"].as_f64().unwrap_or(0.0), notes: s(&i, "notes"),
+            currency: s(&i, "currency").unwrap_or_else(|| main.clone()), amount: i["value"].as_f64().unwrap_or(0.0), notes: s(&i, "notes"), nominee: s(&i, "nominee"),
         }).collect();
+    let policies = crate::insurance::list(conn, today)?.into_iter().filter(|p| p["status"] == "active").map(|p| PolicyLine {
+        name: s(&p, "name").unwrap_or_default(), kind: s(&p, "kind").unwrap_or_default(), insurer: s(&p, "insurer"), policy_no: s(&p, "policy_no"),
+        currency: s(&p, "currency").unwrap_or_else(|| main.clone()), cover: p["cover"].as_f64(), covers: s(&p, "covers"), nominee: s(&p, "nominee"), contact: s(&p, "contact"),
+    }).collect();
     let cards = crate::cards::list(conn)?.into_iter().map(|c| CardLine {
         name: s(&c, "name").unwrap_or_default(), kind: s(&c, "kind").unwrap_or_default(),
         issuer: s(&c, "issuer_name").or(s(&c, "institution")), network: s(&c, "network"), last4: s(&c, "last4"),
@@ -138,5 +160,5 @@ pub fn summary(conn: &Connection, today: NaiveDate) -> Result<Estate> {
     }
     let round = |x: f64| (x * 100.0).round() / 100.0;
     let totals = by.into_iter().map(|(currency, (owned, owed))| Total { net: round(owned - owed), owned: round(owned), owed: round(owed), currency }).collect();
-    Ok(Estate { as_of: today.to_string(), accounts, debts, investments, cards, people, regular, documents, totals })
+    Ok(Estate { as_of: today.to_string(), accounts, debts, investments, policies, cards, people, regular, documents, totals })
 }

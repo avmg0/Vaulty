@@ -53,7 +53,7 @@ fn flow(kind: &str, amount_minor: Option<i64>) -> Option<i64> {
     }
 }
 
-const COLS: &str = "id, kind, name, isin, symbol, folio, provider, registrar, currency, units_e4, price_e4, price_date, cost_minor, source, statement_to, notes, created_at, updated_at";
+const COLS: &str = "id, kind, name, isin, symbol, folio, provider, registrar, currency, units_e4, price_e4, price_date, cost_minor, source, statement_to, notes, nominee, created_at, updated_at";
 
 fn decorate(conn: &Connection, mut h: Value, today: NaiveDate) -> Result<Value> {
     let cur = h["currency"].as_str().unwrap_or("INR").to_string();
@@ -219,6 +219,7 @@ pub fn create(conn: &Connection, v: &Value, today: NaiveDate) -> Result<Value> {
         "INSERT INTO holdings (id, kind, name, isin, symbol, folio, provider, currency, units_e4, price_e4, price_date, cost_minor, notes)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params![id, kind, name, isin, symbol, folio, provider, currency, units, price, price_date.or(Some(today.to_string())), cost, notes]).map_err(unique)?;
+    crate::nominees::from_input(conn, "holding", &id, v)?;
     get(conn, &id, today)
 }
 
@@ -230,6 +231,7 @@ pub fn update(conn: &Connection, id: &str, v: &Value, today: NaiveDate) -> Resul
         "UPDATE holdings SET kind = ?, name = ?, isin = ?, symbol = ?, folio = ?, provider = ?, currency = ?, units_e4 = ?, price_e4 = ?,
                 price_date = ?, cost_minor = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         params![kind, name, isin, symbol, folio, provider, currency, units, price, price_date, cost, notes, id]).map_err(unique)?;
+    crate::nominees::from_input(conn, "holding", id, v)?;
     get(conn, id, today)
 }
 

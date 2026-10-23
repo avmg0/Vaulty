@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, Award, BadgeCheck, BookUser, Car, Download, FileText, HeartPulse, House, IdCard, ImageIcon, Loader2, Paperclip, Plus, Receipt, ScrollText, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Segmented } from "@/components/Segmented";
+import { NomineesPanel } from "@/components/NomineesPanel";
 import { api, DATA_RESTORED, DOC_KINDS, errorText, type Doc, type DocFile, type DocInput, type DocKind } from "@/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +30,7 @@ function ExpiryBadge({ doc }: { doc: Doc }) {
   return <span className="text-muted-foreground text-xs">{t("documents.validTill", { date })}</span>;
 }
 
-export function DocumentsPage() {
+function Papers() {
   const { t } = useTranslation();
   const { hideBalances } = useTheme();
   const [docs, setDocs] = useState<Doc[] | null>(null);
@@ -226,5 +228,22 @@ function DocumentDialog({ doc: initial, onClose }: { doc: Doc | null; onClose: (
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Papers (documents with scans and expiry) and nominees (who receives each account, investment and policy). */
+export function DocumentsPage() {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<"papers" | "nominees">("papers");
+  const [missing, setMissing] = useState<number | null>(null);
+  useEffect(() => { api.nominees.list().then((d) => setMissing(d.missing)).catch(() => {}); }, []);
+  return (
+    <div className="max-w-5xl space-y-4">
+      <Segmented role="tablist" label={t("nominees.tabs")} value={tab} onChange={setTab} options={[
+        { value: "papers", label: t("nominees.tabPapers") },
+        { value: "nominees", label: <>{t("nominees.tabNominees")}{!!missing && <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-semibold text-white">{missing}</span>}</> },
+      ]} />
+      {tab === "papers" ? <Papers /> : <NomineesPanel onCount={setMissing} />}
+    </div>
   );
 }

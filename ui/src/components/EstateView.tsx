@@ -43,10 +43,10 @@ export function EstateDoc({ estate: e, owner, letter }: { estate: Estate; owner:
   const { t } = useTranslation();
   const money = (n: number, cur: string) => formatMoney(n, cur);
   const holdings = (list: EstateHolding[]) => list.map((h) => [
-    <><div className="font-medium">{h.name}</div>{h.notes && <div className="text-muted-foreground text-xs whitespace-pre-line print:text-black">{h.notes}</div>}</>,
+    <><div className="font-medium">{h.name}</div>{h.nominee && <div className="text-xs">{t("estate.nominee", { name: h.nominee })}</div>}{h.notes && <div className="text-muted-foreground text-xs whitespace-pre-line print:text-black">{h.notes}</div>}</>,
     [h.institution, kindLabel(h.kind)].filter(Boolean).join(" · "), money(h.amount, h.currency),
   ]);
-  const empty = !e.accounts.length && !e.debts.length && !e.investments.length && !e.cards.length && !e.people.length && !e.regular.length && !e.documents.length;
+  const empty = !e.accounts.length && !(e.policies?.length) && !e.debts.length && !e.investments.length && !e.cards.length && !e.people.length && !e.regular.length && !e.documents.length;
   return (
     <article className="space-y-6">
       <header>
@@ -66,6 +66,17 @@ export function EstateDoc({ estate: e, owner, letter }: { estate: Estate; owner:
       )}
       {e.accounts.length > 0 && <Section title={t("estate.accounts")} hint={t("estate.accountsHint")}><Table head={[t("estate.name"), t("estate.where"), t("estate.balance")]} rows={holdings(e.accounts)} /></Section>}
       {e.investments.length > 0 && <Section title={t("estate.investments")}><Table head={[t("estate.name"), t("estate.where"), t("estate.value")]} rows={holdings(e.investments)} /></Section>}
+      {(e.policies?.length ?? 0) > 0 && (
+        <Section title={t("estate.policies")} hint={t("estate.policiesHint")}>
+          <Table head={[t("estate.name"), t("estate.where"), t("estate.cover")]} rows={e.policies!.map((p) => [
+            <><div className="font-medium">{p.name}</div>
+              <div className="text-xs">{[p.policy_no && t("estate.policyNo", { no: p.policy_no }), p.covers].filter(Boolean).join(" · ")}</div>
+              {p.nominee && <div className="text-xs">{t("estate.nominee", { name: p.nominee })}</div>}</>,
+            <>{p.insurer}{p.contact && <div className="text-muted-foreground text-xs print:text-black">{p.contact}</div>}</>,
+            p.cover != null ? money(p.cover, p.currency) : "",
+          ])} />
+        </Section>
+      )}
       {e.debts.length > 0 && <Section title={t("estate.debts")} hint={t("estate.debtsHint")}><Table head={[t("estate.name"), t("estate.where"), t("estate.owedAmount")]} rows={holdings(e.debts)} /></Section>}
       {e.cards.length > 0 && (
         <Section title={t("estate.cards")} hint={t("estate.cardsHint")}>

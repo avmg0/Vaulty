@@ -170,14 +170,14 @@ export function InvestmentsPage() {
   );
 }
 
-const EMPTY: HoldingInput = { kind: "mutual_fund", name: "", isin: "", symbol: "", folio: "", provider: "", units: "", price: "", price_date: "", cost: "", notes: "" };
+const EMPTY: HoldingInput = { kind: "mutual_fund", name: "", isin: "", symbol: "", folio: "", provider: "", units: "", price: "", price_date: "", cost: "", notes: "", nominee: "" };
 
 function HoldingDialog({ holding, onClose }: { holding: Holding | null; onClose: () => void }) {
   const { t } = useTranslation();
   const { hideBalances } = useTheme();
   const [v, setV] = useState<HoldingInput>(() => holding ? {
     kind: holding.kind, name: holding.name, isin: holding.isin ?? "", symbol: holding.symbol ?? "", folio: holding.folio ?? "", provider: holding.provider ?? "",
-    currency: holding.currency, units: String(holding.units), price: String(holding.price), price_date: holding.price_date ?? "", cost: String(holding.cost), notes: holding.notes ?? "",
+    currency: holding.currency, units: String(holding.units), price: String(holding.price), price_date: holding.price_date ?? "", cost: String(holding.cost), notes: holding.notes ?? "", nominee: holding.nominee ?? "",
   } : EMPTY);
   const [txns, setTxns] = useState<HoldingTxn[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -233,6 +233,7 @@ function HoldingDialog({ holding, onClose }: { holding: Holding | null; onClose:
             {field("price_date", t("investments.priceDate"), { type: "date" })}
             {field("cost", t("investments.invested"), { inputMode: "decimal", autoComplete: "off" })}
           </div>
+          {field("nominee", t("investments.nominee"), { maxLength: 200, placeholder: t("investments.nomineeHint") })}
           <div className="grid gap-1.5"><Label htmlFor="inv-notes">{t("investments.notes")}</Label>
             <textarea id="inv-notes" rows={2} maxLength={2000} value={v.notes ?? ""} onChange={(e) => set({ notes: e.target.value })}
               className="border-input dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 rounded-md border bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-[3px]" /></div>

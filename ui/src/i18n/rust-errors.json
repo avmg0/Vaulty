@@ -328,6 +328,10 @@
   "re": "^no bill lines were found; add the items by hand$"
  },
  {
+  "id": "e1600c7cc",
+  "re": "^the nominee is too long \\(up to 200 characters\\)$"
+ },
+ {
   "id": "e58c5c5f4",
   "re": "^setup code expired; ask an admin for a new one$"
  },

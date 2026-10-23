@@ -67,6 +67,8 @@ export function Accounts() {
         name: String(f.get("name")), type: String(f.get("type")),
         currency: currency.toUpperCase(), initial_balance: String(f.get("balance") || "0"),
         institution_id: showInstitution ? institution?.id ?? null : null,
+        ...(f.get("opening_date") ? { opening_date: String(f.get("opening_date")) } : {}),
+        ...(f.get("nominee") ? { nominee: String(f.get("nominee")) } : {}),
       });
       setOpen(false); setError(""); setNewType("checking"); setInstitution(null);
       load();
@@ -99,6 +101,14 @@ export function Accounts() {
                 <Input id="balance" name="balance" type="number" step="0.01" min={isCard ? "0" : undefined} defaultValue="0" />
                 {isCard && <p className="text-muted-foreground text-xs">{t("accounts.cardNote")}</p>}
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="opening_date">{t("accounts.openingDate")}</Label>
+                <Input id="opening_date" name="opening_date" type="date" max={new Date().toISOString().slice(0, 10)} />
+                <p className="text-muted-foreground text-xs">{t("accounts.openingDateHint")}</p>
+              </div>
+              {["checking", "investment", "business", "other"].includes(newType) && (
+                <div className="grid gap-2"><Label htmlFor="nominee">{t("accounts.nominee")}</Label><Input id="nominee" name="nominee" maxLength={200} placeholder={t("accounts.nomineeHint")} /></div>
+              )}
               {error && <p className="text-destructive text-sm">{error}</p>}
               <DialogFooter><Button type="submit">{t("accounts.create")}</Button></DialogFooter>
             </form>

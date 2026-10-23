@@ -39,6 +39,7 @@ pub mod calc;
 pub mod goals;
 pub mod insurance;
 pub mod networth;
+pub mod nominees;
 pub mod people;
 pub mod profiles;
 pub mod quick;

@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$", "^insurance_(create|update|delete|pay|payment_delete|claim_(add|update|delete))$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$", "^nominees_set$", "^insurance_(create|update|delete|pay|payment_delete|claim_(add|update|delete))$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -94,11 +94,11 @@ export type FileLink = { item_id?: string | null; payment_id?: string | null };
 export type LinkSuggestion = { payment_id: string; candidates: { id: string; date: string; merchant: string | null; description: string | null; account: string | null; named: boolean }[] };
 export const HOLDING_KINDS = ["mutual_fund", "stock", "etf", "bond", "deposit", "gold", "other"] as const;
 export type HoldingKind = (typeof HOLDING_KINDS)[number];
-export type HoldingInput = { kind: HoldingKind; name: string; isin?: string; symbol?: string; folio?: string; provider?: string; currency?: string; units?: string; price?: string; price_date?: string; cost?: string; notes?: string };
+export type HoldingInput = { kind: HoldingKind; name: string; isin?: string; symbol?: string; folio?: string; provider?: string; currency?: string; units?: string; price?: string; price_date?: string; cost?: string; notes?: string; nominee?: string };
 export type Holding = {
   id: string; kind: HoldingKind; name: string; isin: string | null; symbol: string | null; folio: string | null; provider: string | null; registrar: string | null;
   currency: string; units: number; price: number; price_date: string | null; cost: number; value: number; gain: number; gain_percent: number | null;
-  dividends: number; xirr: number | null; transactions: number; closed: boolean; source: "manual" | "cas"; statement_to: string | null; notes: string | null;
+  dividends: number; xirr: number | null; transactions: number; closed: boolean; source: "manual" | "cas"; statement_to: string | null; notes: string | null; nominee: string | null;
 };
 export type HoldingTxn = { id: string; date: string; kind: string; description: string; amount: number | null; units: number | null; price: number | null; balance: number | null };
 export type InvestmentTotal = { currency: string; holdings: number; value: number; cost: number; gain: number; gain_percent: number | null; xirr: number | null };
@@ -112,10 +112,11 @@ export type Doc = DocInput & { id: string; created_at: string; updated_at: strin
 /** A nominee's request for access (times are Unix seconds). */
 export type NomineeRequest = { started_at: number; ready_at: number; allowed: boolean; ready: boolean };
 export type NomineeStatus = { set_up: boolean; name: string | null; wait_days: number; has_letter: boolean; request: NomineeRequest | null };
-export type EstateHolding = { name: string; kind: string; institution: string | null; currency: string; amount: number; notes: string | null };
+export type EstateHolding = { name: string; kind: string; institution: string | null; currency: string; amount: number; notes: string | null; nominee: string | null };
+export type EstatePolicy = { name: string; kind: string; insurer: string | null; policy_no: string | null; currency: string; cover: number | null; covers: string | null; nominee: string | null; contact: string | null };
 /** "In case of emergency": what a nominee sees. */
 export type Estate = {
-  as_of: string; accounts: EstateHolding[]; debts: EstateHolding[]; investments: EstateHolding[];
+  as_of: string; accounts: EstateHolding[]; debts: EstateHolding[]; investments: EstateHolding[]; policies?: EstatePolicy[];
   cards: { name: string; kind: string; issuer: string | null; network: string | null; last4: string | null }[];
   people: { name: string; phone: string | null; currency: string; amount: number }[];
   regular: { name: string; kind: string; amount: number; currency: string; frequency: string; every: number; next_date: string | null; account: string | null }[];
@@ -169,6 +170,7 @@ export type PolicyInput = Partial<Omit<Policy, "cover" | "premium" | "payments" 
 export type InsuranceTotal = { currency: string; life_cover: number; health_cover: number; premiums_yearly: number; income_year: number; life_multiple: number | null };
 export type NetWorthPoint = { date: string; cash: number; investments: number; owed_to_you: number; debts: number; you_owe: number; net: number };
 export type NetWorth = { currency: string; points: NetWorthPoint[]; net: number; change_month: number | null; change_period: number; since: string | null };
+export type NomineeItem = { kind: "account" | "holding" | "policy"; id: string; name: string; detail: string; provider: string | null; currency: string; nominee: string | null };
 export type GoalStatus = "done" | "reached" | "on_track" | "behind" | "overdue" | "no_date";
 export type GoalLink = { account_id: string | null; holding_id: string | null; share: number; name: string; value: number; over: boolean };
 export type Goal = {
@@ -236,7 +238,7 @@ export type Account = {
 };
 export type NewAccount = {
   name: string; type: string; currency: string; initial_balance?: string | number; color?: string; icon?: string;
-  institution_id?: string | null; logo?: string | null;
+  institution_id?: string | null; logo?: string | null; opening_date?: string; nominee?: string | null;
   /** Amount as text; "" removes the level. */
   low_balance?: string | number | null;
 };
@@ -588,6 +590,10 @@ export const api = {
     addClaim: (policyId: string, claim: Record<string, unknown>) => invoke<{ id: string }>("insurance_claim_add", { policyId, claim }),
     updateClaim: (id: string, claim: Record<string, unknown>) => invoke<void>("insurance_claim_update", { id, claim }),
     deleteClaim: (id: string) => invoke<void>("insurance_claim_delete", { id }),
+  },
+  nominees: {
+    list: () => invoke<{ items: NomineeItem[]; missing: number }>("nominees_list"),
+    set: (kind: NomineeItem["kind"], id: string, nominee: string | null) => invoke<void>("nominees_set", { kind, id, nominee }),
   },
   calc: { run: <T = Record<string, unknown>>(kind: string, input: Record<string, unknown>) => invoke<T>("calc_run", { kind, input }) },
   investments: {

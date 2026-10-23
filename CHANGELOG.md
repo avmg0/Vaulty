@@ -83,6 +83,10 @@ What changed in each version, for people using Vaulty. Newest first.
   Claims track what was asked for and paid out. Life cover is shown against a year's income.
 - Net worth over time in Reports: month by month for 1, 3 or 10 years, with bank and cash,
   investments and money owed to you above the line, cards, loans and money you owe below it.
+- Nominees on bank accounts, investments and policies: noted when adding them, and listed
+  together under Documents → Nominees with missing ones first. They appear in the emergency
+  summary, which now also lists insurance policies with the insurer's contact.
+- New accounts can take the date their opening balance was right on.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

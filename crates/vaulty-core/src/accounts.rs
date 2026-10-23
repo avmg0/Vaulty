@@ -171,6 +171,7 @@ pub fn create(conn: &Connection, a: &Value) -> Result<Value> {
             )?;
         }
         set_opening(tx, &id, &ledger_id, &currency, opening, str_field(a, "opening_date"))?;
+        crate::nominees::from_input(tx, "account", &id, a)?;
         Ok(())
     })?;
     get(conn, &id)
@@ -250,6 +251,7 @@ pub fn update(conn: &Connection, id: &str, a: &Value) -> Result<Value> {
         if let Some(opening) = opening_minor(a, &currency, kind)? {
             set_opening(tx, id, &ledger_id, &currency, opening, str_field(a, "opening_date"))?;
         }
+        crate::nominees::from_input(tx, "account", id, a)?;
         Ok(())
     })?;
     get(conn, id)

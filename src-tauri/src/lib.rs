@@ -446,6 +446,12 @@ fn cards_best(s: S, amount: Option<Value>, category_id: Option<String>, place: O
 #[tauri::command] fn insurance_claim_delete(s: S, id: String) -> Result<()> { s.act("policy.claim_delete", |c| vaulty_core::insurance::delete_claim(c, &id)) }
 /// Net worth at each month end and today, per currency.
 #[tauri::command] fn networth_timeline(s: S, months: u32) -> Result<Vec<Value>> { s.data(|c| vaulty_core::networth::timeline(c, months, today())) }
+/// Nominees on accounts, investments and policies, missing ones first.
+#[tauri::command] fn nominees_list(s: S) -> Result<Value> { s.data(|c| vaulty_core::nominees::overview(c, today())) }
+#[tauri::command] fn nominees_set(s: S, kind: String, id: String, nominee: Option<String>) -> Result<()> {
+    if let Some(n) = &nominee { limits::text("nominee", n, 200)?; }
+    s.act("nominee.set", |c| vaulty_core::nominees::set(c, &kind, &id, nominee.as_deref()))
+}
 /// A money calculator (SIP, EMI, FD …); nothing is read or kept.
 #[tauri::command] fn calc_run(kind: String, input: Value) -> Result<Value> { limits::check(&input)?; vaulty_core::calc::run(&kind, &input) }
 #[tauri::command]
@@ -1921,7 +1927,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, transactions_bulk, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, form16_read, form16_apply, goals_list, goals_summary, goals_create, goals_update, goals_set_done, goals_delete, calc_run, networth_timeline, insurance_list, insurance_summary, insurance_create, insurance_update, insurance_delete, insurance_pay, insurance_payment_delete, insurance_claim_add, insurance_claim_update, insurance_claim_delete, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, form16_read, form16_apply, goals_list, goals_summary, goals_create, goals_update, goals_set_done, goals_delete, calc_run, networth_timeline, nominees_list, nominees_set, insurance_list, insurance_summary, insurance_create, insurance_update, insurance_delete, insurance_pay, insurance_payment_delete, insurance_claim_add, insurance_claim_update, insurance_claim_delete, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
         ])
         .build(tauri::generate_context!())
         .expect("error while running Vaulty")
