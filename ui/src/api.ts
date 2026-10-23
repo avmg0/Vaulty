@@ -167,6 +167,8 @@ export type Policy = {
 };
 export type PolicyInput = Partial<Omit<Policy, "cover" | "premium" | "payments" | "claims">> & { cover?: string; premium?: string };
 export type InsuranceTotal = { currency: string; life_cover: number; health_cover: number; premiums_yearly: number; income_year: number; life_multiple: number | null };
+export type NetWorthPoint = { date: string; cash: number; investments: number; owed_to_you: number; debts: number; you_owe: number; net: number };
+export type NetWorth = { currency: string; points: NetWorthPoint[]; net: number; change_month: number | null; change_period: number; since: string | null };
 export type GoalStatus = "done" | "reached" | "on_track" | "behind" | "overdue" | "no_date";
 export type GoalLink = { account_id: string | null; holding_id: string | null; share: number; name: string; value: number; over: boolean };
 export type Goal = {
@@ -644,6 +646,7 @@ export const api = {
     forecast: (days: number) => invoke<Forecast>("reports_forecast", { days }),
     safeToSpend: () => invoke<SafeToSpend>("reports_safe_to_spend"),
     lowBalances: () => invoke<LowBalance[]>("reports_low_balances"),
+    netWorth: (months: number) => invoke<NetWorth[]>("networth_timeline", { months }),
     exportXlsx: (path: string, from: string, to: string, labels: Record<string, string>) => invoke<void>("reports_export_xlsx", { path, from, to, labels }),
   },
   people: {

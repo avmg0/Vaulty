@@ -3355,5 +3355,29 @@
     "settled": "Paid out",
     "settledOn": "Paid on",
     "claimRef": "Claim number"
+  },
+  "networth": {
+    "title": "Net worth",
+    "desc": "What you have, less what you owe, at the end of each month.",
+    "period": "Period",
+    "year": "1 year",
+    "years_one": "{{count}} year",
+    "years_other": "{{count}} years",
+    "empty": "Add accounts or investments to see how your net worth changes.",
+    "inCurrency": "Net worth in {{currency}}",
+    "now": "Today",
+    "today": "Today",
+    "thisMonth": "This month",
+    "overPeriod": "Since {{date}}",
+    "net": "Net worth",
+    "chartLabel": "Net worth by month: what you have above the line, what you owe below, the net as a line",
+    "parts": {
+      "cash": "Bank and cash",
+      "investments": "Investments",
+      "owed_to_you": "Owed to you",
+      "debts": "Cards and loans",
+      "you_owe": "You owe people"
+    },
+    "note": "Balances start from each account's opening date. Investments use the units and price known on each date; ones typed in without history count at today's value throughout."
   }
 }

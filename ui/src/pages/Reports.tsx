@@ -7,6 +7,7 @@ import { Donut } from "@/components/charts/Donut";
 import { LineChart } from "@/components/charts/LineChart";
 import { CHART_COLORS, INCOME_COLOR, LINE_COLOR, SPENDING_COLOR } from "@/components/charts/palette";
 import { Segmented } from "@/components/Segmented";
+import { NetWorthCard } from "@/components/NetWorthCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { NativeSelect } from "@/components/ui/input";
@@ -98,7 +99,7 @@ export function Reports() {
       </div>
       {error && <p className="text-destructive text-sm">{error}</p>}
 
-      <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <Card>
           <CardHeader><CardTitle>{t("reports.safe.title")}</CardTitle><CardDescription>{t("reports.safe.desc")}</CardDescription></CardHeader>
           <CardContent className="space-y-3">
@@ -123,7 +124,7 @@ export function Reports() {
           <CardHeader className="flex-row flex-wrap items-start justify-between gap-2">
             <div className="space-y-1.5"><CardTitle>{t("reports.forecast.title")}</CardTitle>
               <CardDescription>{forecast && t("reports.forecast.desc", { amount: money(forecast.typical_day) })}</CardDescription></div>
-            <div className="print-hide"><Segmented value={typical ? "typical" : "scheduled"} onChange={(v) => setTypical(v === "typical")} label={t("reports.forecast.title")}
+            <div className="print-hide max-w-full overflow-x-auto"><Segmented value={typical ? "typical" : "scheduled"} onChange={(v) => setTypical(v === "typical")} label={t("reports.forecast.title")}
               options={[{ value: "typical", label: t("reports.forecast.typical") }, { value: "scheduled", label: t("reports.forecast.scheduledOnly") }]} /></div>
           </CardHeader>
           <CardContent>
@@ -143,6 +144,8 @@ export function Reports() {
           </CardContent>
         </Card>
       </div>
+
+      <NetWorthCard />
 
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
         <h2 className="text-lg font-semibold">{t("reports.period.heading")}</h2>

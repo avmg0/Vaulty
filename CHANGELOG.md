@@ -81,6 +81,8 @@ What changed in each version, for people using Vaulty. Newest first.
   period, shown on the calendar, and recorded with one click (optionally as a transaction),
   moving the due date on. Premiums paid fill the tax planner (health and parents' health, life).
   Claims track what was asked for and paid out. Life cover is shown against a year's income.
+- Net worth over time in Reports: month by month for 1, 3 or 10 years, with bank and cash,
+  investments and money owed to you above the line, cards, loans and money you owe below it.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 
