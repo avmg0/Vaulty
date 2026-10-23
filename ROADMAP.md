@@ -313,7 +313,8 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Daily fund prices (AMFI NAVs), opt-in
 - [ ] Goals and calculators; insurance; net-worth timeline
 - [ ] Nominee tracking on each account, policy and investment; journal (documents vault and the emergency summary are done, Phase 3)
-- [ ] Tax planner filled from transactions; TDS and advance tax; HRA rent receipts; Form 16 import
+- [x] Tax planner filled from transactions; TDS and advance tax with reminders; HRA rent receipts
+- [ ] Form 16 and AIS import
 - [ ] Second country's tax pack
 - [x] PDF statement import (password-protected too)
 - [ ] Anomaly detection (unusual amounts, new merchants, double charges)

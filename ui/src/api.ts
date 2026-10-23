@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -143,6 +143,16 @@ export type TaxEstimate = {
   deductions: { id: string; label: string; claimed: number; allowed: number; cap: number | null }[];
   bands: { from: number; upto: number | null; rate: number; taxed: number; tax: number }[];
 };
+export type HraInput = { salary?: string; received?: string; monthly_rent?: string; metro?: boolean; from?: string; to?: string; landlord?: string; landlord_pan?: string; address?: string; tenant?: string };
+export type TaxPayment = { id: string; kind: "tds" | "advance" | "self_assessment"; date: string; amount: number; note: string | null };
+export type TaxLink = { id: string; category_id: string; target: string; category_name: string; category_icon: string | null; category_type: "income" | "expense" };
+export type TaxPlan = {
+  id: string; country: string; currency: string; year: { id: string; label: string; start: string; end: string };
+  input: Partial<TaxInput>; regime: string | null; hra: HraInput; hra_result: { months: number; rent: number; exempt: number; pan_needed: boolean };
+  records: { by: Record<string, number>; elss: number }; links: TaxLink[]; payments: TaxPayment[]; comparison: TaxComparison;
+  used: string; total: number; tds: number; paid: number; balance: number; advance_note: string | null;
+  advance: { date: string; percent: number; needed: number; paid: number; short: number; past: boolean }[];
+};
 export type TaxComparison = {
   country: string; currency: string; year: { id: string; label: string }; estimates: TaxEstimate[];
   recommended: string | null; saving: number; sources: string[]; last_checked: string; notes?: string;
@@ -254,7 +264,7 @@ export type UserSettings = { locale: string; currency: string; date_format: stri
 /** A keyboard shortcut: `keys` like "Mod+Shift+K" ("" = off). */
 export type Hotkey = { action: string; keys: string; default: string; custom: boolean };
 
-export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday" | "task" | "expiry";
+export type CalendarKind = "bill" | "income" | "transfer" | "paid" | "card_due" | "statement" | "event" | "reminder" | "holiday" | "task" | "expiry" | "tax";
 /** One thing on the calendar. `pay_by` is set when banks are closed on the due date. */
 export type CalendarItem = { kind: CalendarKind; date: string; title: string; time?: string; amount?: number; currency?: string; icon?: string; source_id?: string; overdue: boolean; pay_by?: string };
 export type CalendarEventInput = { title: string; date: string; time: string; type: "custom" | "reminder" | "holiday"; repeat: "none" | "monthly" | "yearly"; amount: string; icon: string; notes: string };
@@ -262,7 +272,7 @@ export type CalendarEvent = { id: string; title: string; date: string; time: str
 export type IcsEvent = { uid: string | null; title: string; date: string; time: string | null; repeat: string | null; notes: string | null };
 
 /** A reminder due now (see crates/vaulty-core/src/reminders.rs). `days` < 0 means overdue. */
-export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low" | "expiry"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
+export type Reminder = { key: string; kind: "bill" | "income" | "transfer" | "card" | "budget" | "price" | "owed" | "task" | "low" | "expiry" | "tax"; name: string; date: string; days: number; amount: number | null; currency: string | null; percent: number | null; previous: number | null; detail: string | null };
 /** An account below its low-balance level, or a scheduled payment in the next 14 days that would take it there. */
 export type LowBalance = { account_id: string; name: string; currency: string; balance: number; level: number; now: boolean; date: string; because: string | null; lowest: number };
 
@@ -663,6 +673,11 @@ export const api = {
     countries: () => invoke<string[]>("tax_countries"),
     describe: (country: string) => invoke<TaxPack>("tax_describe", { country }),
     compare: (country: string, input: TaxInput, year?: string) => invoke<TaxComparison>("tax_compare", { country, year, input }),
+    plan: (country: string, year: string) => invoke<TaxPlan>("tax_plan_get", { country, year }),
+    savePlan: (country: string, year: string, plan: { input: TaxInput; regime: string | null; hra: HraInput }) => invoke<void>("tax_plan_save", { country, year, plan }),
+    addPayment: (country: string, year: string, payment: { kind: TaxPayment["kind"]; date: string; amount: string; note?: string }) => invoke<{ id: string }>("tax_payment_add", { country, year, payment }),
+    deletePayment: (id: string) => invoke<void>("tax_payment_delete", { id }),
+    setLinks: (country: string, year: string, links: { category_id: string; target: string }[]) => invoke<TaxLink[]>("tax_links_set", { country, year, links }),
   },
   institutions: {
     search: (query: string, currency?: string, limit = 20) => invoke<Institution[]>("institutions_search", { query, currency, limit }),

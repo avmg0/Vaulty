@@ -484,6 +484,10 @@
   "re": "^a category name needs 1 to 40 characters$"
  },
  {
+  "id": "e0968e6f7",
+  "re": "^that date is before the tax year starts$"
+ },
+ {
   "id": "e459887d7",
   "re": "^use a password of at least 8 characters$"
  },
@@ -542,6 +546,10 @@
  {
   "id": "e8c461b02",
   "re": "^remind 0 to 365 days before it expires$"
+ },
+ {
+  "id": "e9869f8b3",
+  "re": "^that category can't count towards that$"
  },
  {
   "id": "ecbe5189c",
@@ -980,6 +988,10 @@
   "re": "^that column can't be renamed$"
  },
  {
+  "id": "e27d23f0e",
+  "re": "^link at most 200 categories$"
+ },
+ {
   "id": "e302b8037",
   "re": "^that PDF has too many pages$"
  },
@@ -994,6 +1006,10 @@
  {
   "id": "e568ad47a",
   "re": "^that column can't be hidden$"
+ },
+ {
+  "id": "e698c948a",
+  "re": "^unknown kind of tax payment$"
  },
  {
   "id": "e75c44dab",
@@ -1342,6 +1358,10 @@
  {
   "id": "ea34d898e",
   "re": "^month out of range$"
+ },
+ {
+  "id": "eb4ca2be9",
+  "re": "^unknown tax regime$"
  },
  {
   "id": "e05ed483b",

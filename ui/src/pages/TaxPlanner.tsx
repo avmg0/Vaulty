@@ -1,7 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { Calculator, Info, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Calculator, Info, Link2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, errorText, type TaxComparison, type TaxEstimate, type TaxInput, type TaxPack } from "@/api";
+import { api, errorText, type HraInput, type TaxComparison, type TaxEstimate, type TaxInput, type TaxPack, type TaxPlan } from "@/api";
+import { Button } from "@/components/ui/button";
+import { TaxPaidCard } from "@/components/tax/TaxPaid";
+import { HraCard } from "@/components/tax/Hra";
+import { LinksDialog } from "@/components/tax/LinksDialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,7 +23,8 @@ const WHOLE: Intl.NumberFormatOptions = { maximumFractionDigits: 0, minimumFract
 const EMPTY: TaxInput = { age: 35, salary: "", other_income: "", deductions: {}, alt: [] };
 const SELECT = "border-input dark:bg-input/30 h-9 rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]";
 
-/** Compares a country's tax regimes for the figures the person enters. Nothing here is saved. */
+/** Plans a tax year: the figures (filled from linked categories if wanted), the regime, tax
+ *  paid and advance-tax instalments, and HRA with rent receipts. Kept per country and year. */
 export function TaxPlanner() {
   const { t } = useTranslation();
   const { country: myCountry } = useLocale();
@@ -28,26 +33,55 @@ export function TaxPlanner() {
   const [country, setCountry] = useState(myCountry);
   const [pack, setPack] = useState<TaxPack | null>(null);
   const [year, setYear] = useState<string>();
-  const [input, setInput] = useState<TaxInput>(EMPTY);
-  const [result, setResult] = useState<TaxComparison | null>(null);
+  const [input, setInputRaw] = useState<TaxInput>(EMPTY);
+  const [regime, setRegimeRaw] = useState<string | null>(null);
+  const [hra, setHraRaw] = useState<HraInput>({});
+  const [plan, setPlan] = useState<TaxPlan | null>(null);
+  const [linking, setLinking] = useState(false);
   const [error, setError] = useState("");
+  // Only the person's own edits are saved, not what was just loaded.
+  const dirty = useRef(false);
+  const setInput = (i: TaxInput) => { dirty.current = true; setInputRaw(i); };
+  const setRegime = (r: string | null) => { dirty.current = true; setRegimeRaw(r); };
+  const setHra = (h: HraInput) => { dirty.current = true; setHraRaw(h); };
 
   useEffect(() => { api.tax.countries().then(setCountries).catch((e) => setError(errorText(e))); }, []);
   const supported = countries?.includes(country) ?? false;
 
   useEffect(() => {
     if (!supported) { setPack(null); return; }
-    api.tax.describe(country).then((p) => { setPack(p); setYear(p.years.at(-1)?.id); setInput(EMPTY); }).catch((e) => setError(errorText(e)));
+    api.tax.describe(country).then((p) => { setPack(p); setYear(p.years.at(-1)?.id); }).catch((e) => setError(errorText(e)));
   }, [country, supported]);
 
-  // Recalculate shortly after the person stops typing.
+  const refresh = useCallback(() => {
+    if (!pack || !year) return Promise.resolve();
+    return api.tax.plan(pack.country, year).then((p) => { setPlan(p); setError(""); }).catch((e) => setError(errorText(e)));
+  }, [pack, year]);
+
+  // Load the kept plan for the year.
   useEffect(() => {
     if (!pack || !year) return;
+    let live = true;
+    dirty.current = false;
+    api.tax.plan(pack.country, year).then((p) => {
+      if (!live) return;
+      setPlan(p);
+      setInputRaw({ ...EMPTY, ...p.input, deductions: { ...(p.input.deductions ?? {}) }, alt: p.input.alt ?? [] });
+      setRegimeRaw(p.regime);
+      setHraRaw(p.hra ?? {});
+      setError("");
+    }).catch((e) => setError(errorText(e)));
+    return () => { live = false; };
+  }, [pack, year]);
+
+  // Save and recalculate shortly after the person stops typing.
+  useEffect(() => {
+    if (!pack || !year || !dirty.current) return;
     const id = setTimeout(() => {
-      api.tax.compare(pack.country, input, year).then((r) => { setResult(r); setError(""); }).catch((e) => setError(errorText(e)));
-    }, 250);
+      api.tax.savePlan(pack.country, year, { input, regime, hra }).then(refresh).catch((e) => setError(errorText(e)));
+    }, 300);
     return () => clearTimeout(id);
-  }, [pack, year, input]);
+  }, [pack, year, input, regime, hra, refresh]);
 
   if (countries === null) return null;
   if (!supported) return (
@@ -65,6 +99,7 @@ export function TaxPlanner() {
   if (!pack) return null;
 
   const yr = pack.years.find((y) => y.id === year) ?? pack.years[0];
+  const hasHra = yr.regimes.some((r) => r.deductions.some((d) => d.id === "hra"));
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end gap-4">
@@ -81,20 +116,42 @@ export function TaxPlanner() {
         <p className="text-muted-foreground ms-auto max-w-sm text-xs">{t("tax.private")}</p>
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
-        <InputsCard pack={pack} regimes={yr.regimes} input={input} onChange={setInput} />
-        <div className="space-y-6 lg:sticky lg:top-0">
-          {error && <p className="text-destructive text-sm">{error}</p>}
-          {result && <Results result={result} />}
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+        <InputsCard pack={pack} regimes={yr.regimes} input={input} onChange={setInput} plan={plan} onLink={() => setLinking(true)} />
+        <div className="min-w-0 space-y-6">
+          {error && <p role="alert" className="text-destructive text-sm">{error}</p>}
+          {plan && <Results result={plan.comparison} regime={regime} onRegime={setRegime} />}
+          {plan && <TaxPaidCard plan={plan} onChange={refresh} />}
+          {plan && hasHra && <HraCard plan={plan} hra={hra} onChange={setHra}
+            onUse={(amount) => setInput({ ...input, deductions: { ...input.deductions, hra: amount } })} claimed={input.deductions.hra ?? ""} />}
+          {plan && <Disclaimer result={plan.comparison} />}
         </div>
       </div>
+      {linking && plan && <LinksDialog plan={plan} regimes={yr.regimes} onClose={(changed) => { setLinking(false); if (changed) void refresh(); }} />}
     </div>
   );
 }
 
-function InputsCard({ pack, regimes, input, onChange }: { pack: TaxPack; regimes: TaxPack["years"][number]["regimes"]; input: TaxInput; onChange: (i: TaxInput) => void }) {
+/** "From your records: ₹X · Use", when linked categories add up to something else. */
+function FromRecords({ amount, value, cur, onUse }: { amount: number | undefined; value: string; cur: string; onUse: (v: string) => void }) {
+  const { t } = useTranslation();
+  const { hideBalances } = useTheme();
+  if (!amount || amount <= 0) return null;
+  const v = String(Math.round(amount));
+  const same = Number(value || 0) === Math.round(amount);
+  return (
+    <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
+      <span>{t("tax.fromRecords", { amount: formatMoney(amount, cur, hideBalances, WHOLE) })}</span>
+      {!same && <button type="button" className="text-primary font-medium underline-offset-2 hover:underline" onClick={() => onUse(v)}>{t("tax.use")}</button>}
+    </div>
+  );
+}
+
+function InputsCard({ pack, regimes, input, onChange, plan, onLink }: { pack: TaxPack; regimes: TaxPack["years"][number]["regimes"]; input: TaxInput; onChange: (i: TaxInput) => void; plan: TaxPlan | null; onLink: () => void }) {
   const { t } = useTranslation();
   const cur = pack.currency;
+  const rec = plan?.records.by ?? {};
+  const linked = (plan?.links.length ?? 0) > 0;
   const senior = input.age >= 60;
   // Each deduction once, noting which regimes allow it.
   const deductions = useMemo(() => {
@@ -112,6 +169,13 @@ function InputsCard({ pack, regimes, input, onChange }: { pack: TaxPack; regimes
     <Card>
       <CardHeader><CardTitle>{t("tax.yourYear")}</CardTitle><CardDescription>{t("tax.yourYearDesc")}</CardDescription></CardHeader>
       <CardContent className="space-y-5">
+        <div className="bg-muted/50 flex items-start gap-3 rounded-lg p-3 text-xs">
+          <Link2 className="text-muted-foreground mt-0.5 size-4 shrink-0" />
+          <div className="space-y-1.5">
+            <p>{linked ? t("tax.linkedN", { count: plan!.links.length }) : t("tax.linkHint")}</p>
+            <Button type="button" size="sm" variant="outline" onClick={onLink} disabled={!plan}>{linked ? t("tax.editLinks") : t("tax.linkCategories")}</Button>
+          </div>
+        </div>
         <div className="grid grid-cols-[5rem_1fr] gap-3">
           <div className="space-y-1.5"><Label htmlFor="age">{t("tax.age")}</Label>
             <Input id="age" type="number" min={18} max={120} value={input.age} onChange={(e) => set({ age: Math.max(0, Number(e.target.value) || 0) })} />
@@ -120,8 +184,10 @@ function InputsCard({ pack, regimes, input, onChange }: { pack: TaxPack; regimes
             <Input id="salary" inputMode="decimal" placeholder="0" value={input.salary} onChange={(e) => set({ salary: amount(e.target.value) })} />
           </div>
         </div>
+        <FromRecords amount={rec.salary} value={input.salary} cur={cur} onUse={(v) => set({ salary: v })} />
         <div className="space-y-1.5"><Label htmlFor="other">{t("tax.other")}</Label>
           <Input id="other" inputMode="decimal" placeholder="0" value={input.other_income} onChange={(e) => set({ other_income: amount(e.target.value) })} />
+          <FromRecords amount={rec.other_income} value={input.other_income} cur={cur} onUse={(v) => set({ other_income: v })} />
           <p className="text-muted-foreground text-xs">{t("tax.otherHint")}</p>
         </div>
         <Separator />
@@ -138,6 +204,7 @@ function InputsCard({ pack, regimes, input, onChange }: { pack: TaxPack; regimes
                 </div>
                 <Input id={`d-${d.id}`} inputMode="decimal" placeholder="0" value={input.deductions[d.id] ?? ""}
                   onChange={(e) => set({ deductions: { ...input.deductions, [d.id]: amount(e.target.value) } })} />
+                <FromRecords amount={rec[d.id]} value={input.deductions[d.id] ?? ""} cur={cur} onUse={(v) => set({ deductions: { ...input.deductions, [d.id]: v } })} />
                 <div className="text-muted-foreground text-xs">
                   {cap != null && <span>{t("tax.upTo", { amount: formatMoney(cap, cur, false, WHOLE) })}{d.hint ? ". " : ""}</span>}{d.hint}
                 </div>
@@ -157,7 +224,7 @@ function InputsCard({ pack, regimes, input, onChange }: { pack: TaxPack; regimes
   );
 }
 
-function Results({ result }: { result: TaxComparison }) {
+function Results({ result, regime, onRegime }: { result: TaxComparison; regime: string | null; onRegime: (r: string | null) => void }) {
   const { t } = useTranslation();
   const { hideBalances } = useTheme();
   const cur = result.currency;
@@ -177,13 +244,36 @@ function Results({ result }: { result: TaxComparison }) {
                 : t("tax.same")}
             </div>
             {anyIncome && best && <p className="text-muted-foreground text-sm">{t("tax.choiceNote")}</p>}
+            {anyIncome && regime && regime !== result.recommended && result.saving > 0 && (
+              <p className="text-sm">{t("tax.chosenCosts", { regime: result.estimates.find((e) => e.regime === regime)?.name, amount: money(result.saving) })}</p>
+            )}
           </div>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 text-sm" role="radiogroup" aria-label={t("tax.planUnder")}>
+          <span className="text-muted-foreground me-1">{t("tax.planUnder")}</span>
+          {[null, ...result.estimates.map((e) => e.regime)].map((r) => {
+            const on = (regime ?? null) === r;
+            return (
+              <button key={r ?? "auto"} type="button" role="radio" aria-checked={on} onClick={() => onRegime(r)}
+                className={cn("rounded-full border px-3 py-1 text-xs transition-colors", on ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent")}>
+                {r === null ? t("tax.whicheverLower") : result.estimates.find((e) => e.regime === r)?.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         {result.estimates.map((e) => <RegimeCard key={e.regime} e={e} best={anyIncome && e.regime === result.recommended && result.saving > 0} money={money} cur={cur} />)}
       </div>
+    </>
+  );
+}
+
+function Disclaimer({ result }: { result: TaxComparison }) {
+  const { t } = useTranslation();
+  return (
+    <>
 
       <div className="text-muted-foreground flex gap-2 text-xs leading-relaxed">
         <Info className="mt-0.5 size-3.5 shrink-0" />

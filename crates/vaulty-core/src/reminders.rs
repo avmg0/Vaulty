@@ -117,6 +117,15 @@ pub fn due(conn: &Connection, today: NaiveDate) -> Result<Vec<Due>> {
             name: d["title"].as_str().unwrap_or_default().into(), date: exp.into(), days, amount: None, currency: None, percent: None, previous: None, detail: None,
         });
     }
+    // Advance tax instalments with something still to pay: a week ahead, on the day, and late.
+    for (label, date, short, cur) in crate::tax_plan::advance_due(conn, today)? {
+        let days = (date - today).num_days();
+        if !(-15..=7).contains(&days) { continue; }
+        out.push(Due {
+            key: format!("tax:{label}:{date}:{}", stage(days)), kind: "tax".into(), name: label, date: date.to_string(), days,
+            amount: Some(money::to_decimal(short, &cur)), currency: Some(cur), percent: None, previous: None, detail: None,
+        });
+    }
     // Price rises in the last 30 days: subscriptions Vaulty spotted and recurring payments.
     let recent = |date: &str| NaiveDate::parse_from_str(date, "%Y-%m-%d").is_ok_and(|d| (today - d).num_days() <= 30);
     let rise = |key: String, name: &str, cur: &str, c: &crate::subscriptions::PriceChange| Due {

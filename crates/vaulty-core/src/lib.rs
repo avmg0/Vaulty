@@ -33,6 +33,7 @@ pub mod project_export;
 pub mod project_share;
 pub mod invoice;
 pub mod ocr;
+pub mod tax_plan;
 pub mod people;
 pub mod profiles;
 pub mod quick;

@@ -29,7 +29,20 @@ pub struct Year {
     pub end: String,
     #[serde(default)] pub rounding: Rounding,
     pub regimes: Vec<Regime>,
+    /// When tax is paid ahead during the year, if the country has that.
+    #[serde(default)] pub advance_tax: Option<AdvanceTax>,
 }
+
+/// Tax paid in instalments during the year: by each date (MM-DD, in the year's order), at least
+/// `percent` of the year's tax (after tax deducted at source), once that is `threshold` or more.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdvanceTax {
+    pub threshold: i64,
+    pub instalments: Vec<Instalment>,
+    #[serde(default)] pub note: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Instalment { pub date: String, pub percent: f64 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Rounding { #[serde(default)] pub taxable: i64, #[serde(default)] pub tax: i64 }
@@ -243,7 +256,7 @@ pub fn estimate(year: &Year, r: &Regime, input: &Input, currency: &str) -> Estim
     }
 }
 
-fn year_of<'a>(p: &'a Pack, year: Option<&str>) -> Result<&'a Year> {
+pub fn year_of<'a>(p: &'a Pack, year: Option<&str>) -> Result<&'a Year> {
     match year {
         Some(id) => p.years.iter().find(|y| y.id == id).ok_or_else(|| Error::Invalid(format!("tax year {id}"))),
         None => p.years.iter().max_by(|a, b| a.start.cmp(&b.start)).ok_or_else(|| Error::Invalid("tax year".into())),

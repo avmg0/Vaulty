@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { CalendarClock, ChevronLeft, ChevronRight, Download, Plus, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { api, DATA_RESTORED, errorText, type CalendarEventInput, type CalendarItem, type CalendarKind, type IcsEvent } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,7 +32,10 @@ const KIND: Record<CalendarKind, { dot: string; icon: string }> = {
   reminder: { dot: "bg-teal-500", icon: "⏰" },
   task: { dot: "bg-indigo-500", icon: "☑️" },
   expiry: { dot: "bg-orange-500", icon: "🪪" },
+  tax: { dot: "bg-red-600", icon: "🏛️" },
 };
+/** Advance tax items carry the tax year as their title. */
+const itemTitle = (it: { kind: CalendarKind; title: string }) => it.kind === "tax" ? i18n.t("calendar.taxTitle", { year: it.title }) : it.title;
 const OWN: CalendarKind[] = ["event", "reminder", "holiday"];
 
 export function CalendarPage() {
@@ -136,7 +140,7 @@ export function CalendarPage() {
                   </span>
                   {shown.slice(0, 3).map((it, i) => (
                     <span key={i} className={cn("flex items-center gap-1 truncate text-[11px] leading-tight", it.kind === "paid" && "text-muted-foreground line-through", it.overdue && "font-medium text-red-700 dark:text-red-400")}>
-                      <span className={cn("size-1.5 shrink-0 rounded-full", KIND[it.kind].dot)} />{it.title}
+                      <span className={cn("size-1.5 shrink-0 rounded-full", KIND[it.kind].dot)} />{itemTitle(it)}
                     </span>
                   ))}
                   {shown.length > 3 && <span className="text-muted-foreground text-[10px]">{t("calendar.more", { count: shown.length - 3 })}</span>}
@@ -176,8 +180,8 @@ function AgendaRow({ item: it, showDate, canPay, onPay, onOpen }: { item: Calend
     <div className="flex items-start gap-2.5 rounded-md py-2">
       <span className="bg-secondary grid size-8 shrink-0 place-items-center rounded-md text-sm" aria-hidden>{it.icon || KIND[it.kind].icon}</span>
       <div className="min-w-0 flex-1">
-        {editable ? <button type="button" onClick={onOpen} className="block max-w-full truncate text-left text-sm font-medium hover:underline">{it.title}</button>
-          : <div className={cn("truncate text-sm font-medium", it.kind === "paid" && "text-muted-foreground")}>{it.title}</div>}
+        {editable ? <button type="button" onClick={onOpen} className="block max-w-full truncate text-left text-sm font-medium hover:underline">{itemTitle(it)}</button>
+          : <div className={cn("truncate text-sm font-medium", it.kind === "paid" && "text-muted-foreground")}>{itemTitle(it)}</div>}
         <div className="text-muted-foreground text-xs">
           {showDate && `${formatDate(it.date, { weekday: "short", day: "numeric", month: "short" })}${it.time ? ` ${it.time}` : ""} · `}
           <span className={cn(it.overdue && "text-destructive font-medium")}>{it.overdue ? t("calendar.overdueOne") : t(`calendar.kinds.${it.kind}`)}</span>

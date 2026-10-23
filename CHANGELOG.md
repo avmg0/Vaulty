@@ -64,6 +64,12 @@ What changed in each version, for people using Vaulty. Newest first.
   borrow, with your spending adjusted to your own share; recording again adds only what changed.
   An item's warranty date adds it to Documents with a reminder before it ends, and a project that
   improves a property shows its cost by financial year, for capital gains when the property is sold.
+- Tax planner keeps each year's figures. Categories can be linked to salary, other income or a
+  deduction so the year's transactions (and ELSS fund purchases) fill them in. Record TDS, advance
+  and self-assessment tax to see what's still to pay or coming back, with India's advance-tax
+  instalments (15 Jun, 15 Sep, 15 Dec, 15 Mar) on the calendar and as reminders. The HRA
+  calculator works out the exempt part of house rent allowance and prints a rent receipt for each
+  month.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

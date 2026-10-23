@@ -14,7 +14,10 @@
       "label": "2026-27 (April to March)",
       "start": "2026-04-01",
       "end": "2027-03-31",
-      "rounding": { "taxable": 10, "tax": 10 },
+      "rounding": {
+        "taxable": 10,
+        "tax": 10
+      },
       "regimes": [
         {
           "id": "new",
@@ -22,20 +25,76 @@
           "default": true,
           "description": "Lower rates, few deductions. Applies unless you choose the old regime when filing.",
           "slabs": [
-            { "age_min": 0, "bands": [
-              { "upto": 400000, "rate": 0 }, { "upto": 800000, "rate": 5 }, { "upto": 1200000, "rate": 10 },
-              { "upto": 1600000, "rate": 15 }, { "upto": 2000000, "rate": 20 }, { "upto": 2400000, "rate": 25 },
-              { "upto": null, "rate": 30 }
-            ] }
+            {
+              "age_min": 0,
+              "bands": [
+                {
+                  "upto": 400000,
+                  "rate": 0
+                },
+                {
+                  "upto": 800000,
+                  "rate": 5
+                },
+                {
+                  "upto": 1200000,
+                  "rate": 10
+                },
+                {
+                  "upto": 1600000,
+                  "rate": 15
+                },
+                {
+                  "upto": 2000000,
+                  "rate": 20
+                },
+                {
+                  "upto": 2400000,
+                  "rate": 25
+                },
+                {
+                  "upto": null,
+                  "rate": 30
+                }
+              ]
+            }
           ],
-          "standard_deduction": { "amount": 75000, "applies_to": "salary" },
-          "rebate": { "income_limit": 1200000, "max": 60000, "marginal_relief": true },
-          "surcharge": { "marginal_relief": true, "bands": [
-            { "above": 5000000, "rate": 10 }, { "above": 10000000, "rate": 15 }, { "above": 20000000, "rate": 25 }
-          ] },
-          "cess": { "name": "Health and education cess", "rate": 4 },
+          "standard_deduction": {
+            "amount": 75000,
+            "applies_to": "salary"
+          },
+          "rebate": {
+            "income_limit": 1200000,
+            "max": 60000,
+            "marginal_relief": true
+          },
+          "surcharge": {
+            "marginal_relief": true,
+            "bands": [
+              {
+                "above": 5000000,
+                "rate": 10
+              },
+              {
+                "above": 10000000,
+                "rate": 15
+              },
+              {
+                "above": 20000000,
+                "rate": 25
+              }
+            ]
+          },
+          "cess": {
+            "name": "Health and education cess",
+            "rate": 4
+          },
           "deductions": [
-            { "id": "employer_nps", "label": "Employer's contribution to NPS", "hint": "Up to 14% of basic salary; enter the eligible amount." }
+            {
+              "id": "employer_nps",
+              "label": "Employer's contribution to NPS",
+              "hint": "Up to 14% of basic salary; enter the eligible amount."
+            }
           ]
         },
         {
@@ -43,36 +102,182 @@
           "name": "Old regime",
           "description": "Higher rates, but most deductions and exemptions are allowed.",
           "slabs": [
-            { "age_min": 0, "bands": [
-              { "upto": 250000, "rate": 0 }, { "upto": 500000, "rate": 5 }, { "upto": 1000000, "rate": 20 }, { "upto": null, "rate": 30 }
-            ] },
-            { "age_min": 60, "bands": [
-              { "upto": 300000, "rate": 0 }, { "upto": 500000, "rate": 5 }, { "upto": 1000000, "rate": 20 }, { "upto": null, "rate": 30 }
-            ] },
-            { "age_min": 80, "bands": [
-              { "upto": 500000, "rate": 0 }, { "upto": 1000000, "rate": 20 }, { "upto": null, "rate": 30 }
-            ] }
+            {
+              "age_min": 0,
+              "bands": [
+                {
+                  "upto": 250000,
+                  "rate": 0
+                },
+                {
+                  "upto": 500000,
+                  "rate": 5
+                },
+                {
+                  "upto": 1000000,
+                  "rate": 20
+                },
+                {
+                  "upto": null,
+                  "rate": 30
+                }
+              ]
+            },
+            {
+              "age_min": 60,
+              "bands": [
+                {
+                  "upto": 300000,
+                  "rate": 0
+                },
+                {
+                  "upto": 500000,
+                  "rate": 5
+                },
+                {
+                  "upto": 1000000,
+                  "rate": 20
+                },
+                {
+                  "upto": null,
+                  "rate": 30
+                }
+              ]
+            },
+            {
+              "age_min": 80,
+              "bands": [
+                {
+                  "upto": 500000,
+                  "rate": 0
+                },
+                {
+                  "upto": 1000000,
+                  "rate": 20
+                },
+                {
+                  "upto": null,
+                  "rate": 30
+                }
+              ]
+            }
           ],
-          "standard_deduction": { "amount": 50000, "applies_to": "salary" },
-          "rebate": { "income_limit": 500000, "max": 12500, "marginal_relief": false },
-          "surcharge": { "marginal_relief": true, "bands": [
-            { "above": 5000000, "rate": 10 }, { "above": 10000000, "rate": 15 }, { "above": 20000000, "rate": 25 }, { "above": 50000000, "rate": 37 }
-          ] },
-          "cess": { "name": "Health and education cess", "rate": 4 },
+          "standard_deduction": {
+            "amount": 50000,
+            "applies_to": "salary"
+          },
+          "rebate": {
+            "income_limit": 500000,
+            "max": 12500,
+            "marginal_relief": false
+          },
+          "surcharge": {
+            "marginal_relief": true,
+            "bands": [
+              {
+                "above": 5000000,
+                "rate": 10
+              },
+              {
+                "above": 10000000,
+                "rate": 15
+              },
+              {
+                "above": 20000000,
+                "rate": 25
+              },
+              {
+                "above": 50000000,
+                "rate": 37
+              }
+            ]
+          },
+          "cess": {
+            "name": "Health and education cess",
+            "rate": 4
+          },
           "deductions": [
-            { "id": "hra", "label": "House rent allowance exemption", "hint": "The exempt part of your HRA, as worked out by your employer." },
-            { "id": "investments", "label": "Tax-saving investments", "hint": "EPF, PPF, ELSS, life insurance premiums, home loan principal, children's tuition fees.", "cap": 150000 },
-            { "id": "nps_own", "label": "Your extra NPS contribution", "cap": 50000 },
-            { "id": "health_self", "label": "Health insurance for you and your family", "cap": 25000, "cap_senior": 50000 },
-            { "id": "health_parents", "label": "Health insurance for your parents", "hint": "The higher limit applies when a parent is 60 or older.", "cap": 25000, "cap_alt": 50000, "alt_label": "A parent is 60 or older" },
-            { "id": "home_loan_interest", "label": "Home loan interest (home you live in)", "cap": 200000 },
-            { "id": "savings_interest", "label": "Interest on savings accounts", "hint": "Seniors can include interest on deposits too.", "cap": 10000, "cap_senior": 50000 },
-            { "id": "education_loan", "label": "Education loan interest" },
-            { "id": "donations", "label": "Eligible donations", "hint": "The deductible amount after the 50% or 100% rule for each charity." },
-            { "id": "employer_nps", "label": "Employer's contribution to NPS", "hint": "Up to 14% of basic salary; enter the eligible amount." }
+            {
+              "id": "hra",
+              "label": "House rent allowance exemption",
+              "hint": "The exempt part of your HRA, as worked out by your employer."
+            },
+            {
+              "id": "investments",
+              "label": "Tax-saving investments",
+              "hint": "EPF, PPF, ELSS, life insurance premiums, home loan principal, children's tuition fees.",
+              "cap": 150000
+            },
+            {
+              "id": "nps_own",
+              "label": "Your extra NPS contribution",
+              "cap": 50000
+            },
+            {
+              "id": "health_self",
+              "label": "Health insurance for you and your family",
+              "cap": 25000,
+              "cap_senior": 50000
+            },
+            {
+              "id": "health_parents",
+              "label": "Health insurance for your parents",
+              "hint": "The higher limit applies when a parent is 60 or older.",
+              "cap": 25000,
+              "cap_alt": 50000,
+              "alt_label": "A parent is 60 or older"
+            },
+            {
+              "id": "home_loan_interest",
+              "label": "Home loan interest (home you live in)",
+              "cap": 200000
+            },
+            {
+              "id": "savings_interest",
+              "label": "Interest on savings accounts",
+              "hint": "Seniors can include interest on deposits too.",
+              "cap": 10000,
+              "cap_senior": 50000
+            },
+            {
+              "id": "education_loan",
+              "label": "Education loan interest"
+            },
+            {
+              "id": "donations",
+              "label": "Eligible donations",
+              "hint": "The deductible amount after the 50% or 100% rule for each charity."
+            },
+            {
+              "id": "employer_nps",
+              "label": "Employer's contribution to NPS",
+              "hint": "Up to 14% of basic salary; enter the eligible amount."
+            }
           ]
         }
-      ]
+      ],
+      "advance_tax": {
+        "threshold": 10000,
+        "instalments": [
+          {
+            "date": "06-15",
+            "percent": 15
+          },
+          {
+            "date": "09-15",
+            "percent": 45
+          },
+          {
+            "date": "12-15",
+            "percent": 75
+          },
+          {
+            "date": "03-15",
+            "percent": 100
+          }
+        ],
+        "note": "Advance tax is due when the year's tax, after TDS, is ₹10,000 or more. People aged 60 or more with no business income don't pay advance tax."
+      }
     }
   ]
 }

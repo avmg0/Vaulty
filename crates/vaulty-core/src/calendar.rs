@@ -135,6 +135,15 @@ pub fn range(conn: &Connection, from: &str, to: &str, country: &str, today: Naiv
         it.source_id = d["id"].as_str().map(str::to_string);
         out.push(it);
     }
+    // Advance tax instalments still to pay.
+    for (label, date, short, cur) in crate::tax_plan::advance_due(conn, today)? {
+        if date < from || date > to { continue; }
+        let mut it = Item::new("tax", date, &label);
+        it.amount = Some(crate::money::to_decimal(short, &cur));
+        it.currency = Some(cur);
+        it.overdue = date < today;
+        out.push(it);
+    }
     let holidays: Vec<NaiveDate> = out.iter().filter(|i| i.kind == "holiday").filter_map(|i| day(&i.date).ok()).collect();
 
     // Bills and income still to come (overdue ones start before today).

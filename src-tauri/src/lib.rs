@@ -1643,6 +1643,13 @@ fn snapshots_restore(s: S, name: String) -> Result<()> {
 
 /// Countries with tax rules, the rules themselves, and an estimate comparing every regime.
 #[tauri::command] fn tax_countries() -> Result<Vec<String>> { vaulty_core::tax::countries() }
+/// The kept tax plan for a year: figures, records, payments, estimate, what's left, instalments.
+#[tauri::command] fn tax_plan_get(s: S, country: String, year: String) -> Result<Value> { s.data(|c| vaulty_core::tax_plan::plan(c, &country, &year, today())) }
+/// Saves the planner's figures as they're typed (not an undoable step each time).
+#[tauri::command] fn tax_plan_save(s: S, country: String, year: String, plan: Value) -> Result<()> { limits::check(&plan)?; s.data(|c| vaulty_core::tax_plan::save(c, &country, &year, &plan)) }
+#[tauri::command] fn tax_payment_add(s: S, country: String, year: String, payment: Value) -> Result<Value> { limits::check(&payment)?; s.act("tax.payment_add", |c| vaulty_core::tax_plan::add_payment(c, &country, &year, &payment)) }
+#[tauri::command] fn tax_payment_delete(s: S, id: String) -> Result<()> { s.act("tax.payment_delete", |c| vaulty_core::tax_plan::delete_payment(c, &id)) }
+#[tauri::command] fn tax_links_set(s: S, country: String, year: String, links: Value) -> Result<Vec<Value>> { limits::check(&links)?; s.act("tax.links", |c| vaulty_core::tax_plan::set_links(c, &country, &year, &links)) }
 #[tauri::command] fn tax_describe(country: String) -> Result<Value> { vaulty_core::tax::describe(&country) }
 #[tauri::command] fn tax_compare(country: String, year: Option<String>, input: Value) -> Result<Value> { limits::check(&input)?;
     vaulty_core::tax::compare(&country, year.as_deref(), &input)
@@ -1883,7 +1890,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, transactions_bulk, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
         ])
         .build(tauri::generate_context!())
         .expect("error while running Vaulty")
