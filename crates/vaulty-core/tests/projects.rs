@@ -356,3 +356,44 @@ fn sharing_a_project_as_a_file_and_back() {
     assert!(share::peek(&jane, &json!({ "format": "something" })).is_err());
     assert!(share::peek(&jane, &json!({ "format": "vaulty-project", "version": 99, "share_id": "x" })).unwrap_err().to_string().contains("newer"));
 }
+
+#[test]
+fn recording_the_split_in_lend_and_borrow() {
+    use vaulty_core::people;
+    let c = setup();
+    let today = chrono::NaiveDate::from_ymd_opt(2026, 5, 6).unwrap();
+    let p = pr::create(&c, &json!({ "name": "Goa trip", "kind": "group" })).unwrap();
+    let id = p["id"].as_str().unwrap();
+    let ms = pr::set_members(&c, id, &json!([{ "name": "Jane", "is_me": true }, { "name": "John" }, { "name": "Jenny" }])).unwrap();
+    let john = ms[1]["id"].as_str().unwrap().to_string();
+    let acct = accounts::create(&c, &json!({ "name": "Savings", "type": "savings", "currency": "INR", "initial_balance": "50000" })).unwrap();
+    let food = categories::get_all(&c).unwrap().into_iter().find(|x| x["type"] == "expense").unwrap();
+    // I paid ₹30,000 (recorded in my transactions); each share is ₹10,000.
+    pr::add_payment(&c, id, &json!({ "date": "2026-05-01", "amount": "30000", "vendor": "Hotel", "mode": "card", "record": { "account_id": acct["id"], "category_id": food["id"] } })).unwrap();
+    let existing = people::create(&c, &json!({ "name": "John Doe" })).unwrap();
+
+    let pre = pr::settle_preview(&c, id).unwrap();
+    assert_eq!(pre.iter().map(|r| (r["name"].as_str().unwrap(), r["change"].as_f64().unwrap())).collect::<Vec<_>>(), [("John", 10000.0), ("Jenny", 10000.0)]);
+    let made = history::record(&c, "project.settle", |c| pr::record_settlement(c, id, &json!({ "category_id": food["id"], "people": { john.clone(): existing["id"] } }), today)).unwrap();
+    assert_eq!(made, 2);
+    let list = people::list(&c).unwrap();
+    let owed = |n: &str| list.iter().find(|p| p["name"] == n).unwrap()["balances"][0]["amount"].as_f64();
+    assert_eq!((owed("John Doe"), owed("Jenny")), (Some(10000.0), Some(10000.0)), "Jenny was added as a new person");
+    // My food spending is now my share: 30,000 − 20,000.
+    let spent: i64 = c.query_row("SELECT sum(p.amount_minor) FROM postings p JOIN ledger_accounts l ON l.id = p.ledger_account_id WHERE l.category_id = ?", [food["id"].as_str()], |r| r.get(0)).unwrap();
+    assert_eq!(spent, 1_000_000);
+    assert!(pr::settle_preview(&c, id).unwrap().iter().all(|r| r["change"].as_f64() == Some(0.0)), "nothing left to record");
+    assert_eq!(pr::record_settlement(&c, id, &json!({}), today).unwrap(), 0);
+
+    // John pays ₹6,000 for dinner: shares are now ₹12,000; John owes ₹6,000, Jenny ₹12,000.
+    pr::add_payment(&c, id, &json!({ "date": "2026-05-03", "amount": "6000", "mode": "cash", "paid_by": john })).unwrap();
+    let pre = pr::settle_preview(&c, id).unwrap();
+    assert_eq!(pre.iter().map(|r| r["change"].as_f64().unwrap()).collect::<Vec<_>>(), [-4000.0, 2000.0]);
+    history::record(&c, "project.settle", |c| pr::record_settlement(c, id, &json!({ "category_id": food["id"] }), today)).unwrap();
+    let list = people::list(&c).unwrap();
+    let owed = |n: &str| list.iter().find(|p| p["name"] == n).unwrap()["balances"][0]["amount"].as_f64();
+    assert_eq!((owed("John Doe"), owed("Jenny")), (Some(6000.0), Some(12000.0)), "only the difference is added, to the same people");
+    // Undo takes a recording back out.
+    history::undo_last(&c).unwrap();
+    assert_eq!(pr::settle_preview(&c, id).unwrap()[0]["change"].as_f64(), Some(-4000.0));
+}

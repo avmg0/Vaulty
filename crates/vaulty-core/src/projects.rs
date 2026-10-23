@@ -861,3 +861,81 @@ pub fn split(conn: &Connection, project_id: &str) -> Result<Value> {
     }
     Ok(json!({ "members": people, "settle": settle, "total": money::to_decimal(total, &cur) }))
 }
+
+// ---------------------------------------------------------------- recording the split
+
+/// Signed amount between you and each other member in the settle-up (positive: they owe you).
+fn with_me(split: &Value, cur: &str) -> std::collections::HashMap<String, i64> {
+    let mut out = std::collections::HashMap::new();
+    let ids: std::collections::HashMap<String, String> = split["members"].as_array().into_iter().flatten()
+        .map(|m| (m["name"].as_str().unwrap_or_default().to_string(), m["id"].as_str().unwrap_or_default().to_string())).collect();
+    for s in split["settle"].as_array().into_iter().flatten() {
+        let amt = money::parse_minor(&json!(s["amount"].as_f64().map(|a| format!("{a:.4}")).unwrap_or_default()), cur).unwrap_or(0);
+        let (from, to) = (s["from"].as_str().unwrap_or_default(), s["to"].as_str().unwrap_or_default());
+        if s["to_me"] == true { *out.entry(ids.get(from).cloned().unwrap_or_default()).or_insert(0) += amt; }
+        if s["from_me"] == true { *out.entry(ids.get(to).cloned().unwrap_or_default()).or_insert(0) -= amt; }
+    }
+    out
+}
+
+/// What recording the split in Lend & borrow would do, per other member: the amount between you
+/// now, what's recorded already, the difference, and the person they're linked to.
+pub fn settle_preview(conn: &Connection, project_id: &str) -> Result<Vec<Value>> {
+    let cur = currency_of(conn, project_id)?;
+    let split = split(conn, project_id)?;
+    let now = with_me(&split, &cur);
+    let rows = query(conn, "SELECT m.id, m.name, m.person_id, m.recorded_minor, p.name AS person_name FROM project_members m LEFT JOIN people p ON p.id = m.person_id AND p.is_active = 1
+                            WHERE m.project_id = ? AND m.is_me = 0 ORDER BY m.position", &[json!(project_id)])?;
+    Ok(rows.into_iter().map(|r| {
+        let id = r["id"].as_str().unwrap_or_default();
+        let (owed, done) = (*now.get(id).unwrap_or(&0), r["recorded_minor"].as_i64().unwrap_or(0));
+        json!({ "member_id": id, "name": r["name"], "person_id": r["person_name"].as_str().and(r["person_id"].as_str()), "person_name": r["person_name"],
+                "owed": money::to_decimal(owed, &cur), "recorded": money::to_decimal(done, &cur), "change": money::to_decimal(owed - done, &cur) })
+    }).collect())
+}
+
+/// Records the split in Lend & borrow: for each other member, what they owe you (or you owe
+/// them) beyond what's recorded already, as an entry on their person (`people` maps member ids to
+/// a person id, or "new" to add them). The other side is your spending in `category_id` (or
+/// uncategorised): you paid more than your share, or less. Returns how many entries were made.
+pub fn record_settlement(conn: &Connection, project_id: &str, v: &Value, today: NaiveDate) -> Result<usize> {
+    let (name, cur): (String, String) = conn.query_row("SELECT name, currency FROM projects WHERE id = ?", [project_id], |r| Ok((r.get(0)?, r.get(1)?))).optional()?.ok_or_else(|| bad("no such project"))?;
+    let date = date(v, "date")?.unwrap_or_else(|| today.to_string());
+    let split = split(conn, project_id)?;
+    let now = with_me(&split, &cur);
+    atomic(conn, |tx| {
+        let other = match v["category_id"].as_str().filter(|s| !s.is_empty()) {
+            Some(c) => {
+                let (l, k) = crate::ledger::for_category(tx, c)?;
+                if k != crate::ledger::Kind::Expense { return Err(bad("choose a spending category")); }
+                l
+            }
+            None => crate::ledger::system_account(tx, crate::ledger::PERSONAL_WORKSPACE, crate::ledger::System::UncategorizedExpense)?,
+        };
+        let members = query(tx, "SELECT id, name, person_id, recorded_minor FROM project_members WHERE project_id = ? AND is_me = 0", &[json!(project_id)])?;
+        let mut made = 0;
+        for m in members {
+            let mid = m["id"].as_str().unwrap_or_default().to_string();
+            let change = now.get(&mid).copied().unwrap_or(0) - m["recorded_minor"].as_i64().unwrap_or(0);
+            if change == 0 { continue; }
+            let person = match v["people"][&mid].as_str().or(m["person_id"].as_str()) {
+                Some("new") | None => {
+                    let existing: Option<String> = tx.query_row("SELECT id FROM people WHERE lower(name) = lower(?) AND is_active = 1", [m["name"].as_str()], |r| r.get(0)).optional()?;
+                    match existing { Some(p) => p, None => crate::people::create(tx, &json!({ "name": m["name"] }))?["id"].as_str().unwrap_or_default().to_string() }
+                }
+                Some(p) => p.to_string(),
+            };
+            let person_ledger = crate::ledger::for_person(tx, &person)?;
+            let entry = new_id();
+            tx.execute("INSERT INTO entries (id, kind, date, merchant, description) VALUES (?, 'adjustment', ?, ?, ?)",
+                params![entry, date, name, format!("Split: {}", m["name"].as_str().unwrap_or_default())])?;
+            crate::ledger::post(tx, &entry, &[
+                crate::ledger::Posting { ledger_account_id: person_ledger, amount_minor: change, currency: cur.clone(), memo: None },
+                crate::ledger::Posting { ledger_account_id: other.clone(), amount_minor: -change, currency: cur.clone(), memo: None },
+            ])?;
+            tx.execute("UPDATE project_members SET person_id = ?, recorded_minor = recorded_minor + ? WHERE id = ?", params![person, change, mid])?;
+            made += 1;
+        }
+        Ok(made)
+    })
+}

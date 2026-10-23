@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowRight, Copy, FileUp, Loader2, Plus, Send, Trash2 } from "lucide-react";
+import { ArrowRight, BookUser, Copy, FileUp, Loader2, Plus, Send, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { api, errorText, type ProjectDetail, type ProjectMember, type ProjectSplit, type SharePeek } from "@/api";
+import { api, errorText, type Category, type Person, type ProjectDetail, type ProjectMember, type ProjectSplit, type SettleLine, type SharePeek } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -21,6 +21,7 @@ export function SplitPanel({ project, onChanged }: { project: ProjectDetail; onC
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const [recording, setRecording] = useState(false);
   const [n, setN] = useState(0);
   useEffect(() => { api.projects.split(project.id).then(setSplit).catch((e) => setError(errorText(e))); }, [project.id, n]);
   const money = (x: number) => formatMoney(x, project.currency, hideBalances);
@@ -95,6 +96,7 @@ export function SplitPanel({ project, onChanged }: { project: ProjectDetail; onC
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-muted-foreground min-w-0 flex-1 text-sm">{t("projects.splitBasis", { total: money(split.total) })}</p>
         <Button variant="outline" onClick={copy}><Copy />{t("projects.copySummary")}</Button>
+        <Button variant="outline" onClick={() => setRecording(true)}><BookUser />{t("projects.recordLend")}</Button>
         <Button variant="outline" onClick={startEditing}>{t("projects.editPeople")}</Button>
       </div>
       {note && <p className="text-sm whitespace-pre-line" role="status">{note}</p>}
@@ -142,7 +144,73 @@ export function SplitPanel({ project, onChanged }: { project: ProjectDetail; onC
           </ul>
         )}
       </section>
+      {recording && <SettleDialog project={project} onClose={(done) => { setRecording(false); if (done) { setNote(t("projects.recorded", { count: done })); onChanged(); } }} />}
     </div>
+  );
+}
+
+/** Puts what each person owes you (or you owe them) from the split into Lend & borrow. */
+function SettleDialog({ project, onClose }: { project: ProjectDetail; onClose: (done: number) => void }) {
+  const { t } = useTranslation();
+  const { hideBalances } = useTheme();
+  const [lines, setLines] = useState<SettleLine[] | null>(null);
+  const [people, setPeople] = useState<Person[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [pick, setPick] = useState<Record<string, string>>({});
+  const [category, setCategory] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    Promise.all([api.projects.settlePreview(project.id), api.people.list(), api.categories.getAll()]).then(([l, ps, cs]) => {
+      setLines(l); setPeople(ps); setCategories(cs.filter((c) => c.type === "expense"));
+      setPick(Object.fromEntries(l.map((x) => [x.member_id, x.person_id ?? ps.find((p) => p.name.toLowerCase() === x.name.toLowerCase())?.id ?? "new"])));
+    }).catch((e) => setError(errorText(e)));
+  }, [project.id]);
+  const money = (x: number) => formatMoney(x, project.currency, hideBalances);
+  const todo = (lines ?? []).filter((l) => Math.abs(l.change) >= 0.005);
+  const save = async () => {
+    setBusy(true); setError("");
+    try { onClose(await api.projects.settleRecord(project.id, { category_id: category || undefined, people: pick })); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+  };
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(0); }}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{t("projects.recordTitle")}</DialogTitle>
+          <DialogDescription>{t("projects.recordDesc")}</DialogDescription>
+        </DialogHeader>
+        {lines && todo.length === 0 ? <p className="text-sm">{t("projects.nothingToRecord")}</p> : (
+          <ul className="grid gap-2">
+            {todo.map((l) => (
+              <li key={l.member_id} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-center">
+                <div className="text-sm">
+                  <p className="font-medium">{l.change > 0 ? t("projects.theyOweYou", { name: l.name, amount: money(l.change) }) : t("projects.youOweThem", { name: l.name, amount: money(-l.change) })}</p>
+                  {Math.abs(l.recorded) >= 0.005 && <p className="text-muted-foreground text-xs">{t("projects.alreadyRecorded", {
+                    what: l.recorded > 0 ? t("projects.theyOweYou", { name: l.name, amount: money(l.recorded) }) : t("projects.youOweThem", { name: l.name, amount: money(-l.recorded) }) })}</p>}
+                </div>
+                <NativeSelect aria-label={t("projects.inLendAs", { name: l.name })} value={pick[l.member_id] ?? "new"} onChange={(e) => setPick({ ...pick, [l.member_id]: e.target.value })}>
+                  <option value="new">{t("projects.addAsNew", { name: l.name })}</option>
+                  {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </NativeSelect>
+              </li>
+            ))}
+          </ul>
+        )}
+        {todo.length > 0 && (
+          <div className="grid gap-1.5"><Label htmlFor="st-cat">{t("projects.spendingCategory")}</Label>
+            <NativeSelect id="st-cat" value={category} onChange={(e) => setCategory(e.target.value)} aria-describedby="st-cat-hint">
+              <option value="">{t("projects.uncategorised")}</option>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ""}{c.name}</option>)}
+            </NativeSelect>
+            <p id="st-cat-hint" className="text-muted-foreground text-xs">{t("projects.spendingCategoryHelp")}</p></div>
+        )}
+        {error && <p className="text-destructive text-sm" role="alert">{error}</p>}
+        <DialogFooter className="gap-2">
+          <Button type="button" variant="outline" onClick={() => onClose(0)}>{t("common.cancel")}</Button>
+          <Button onClick={save} disabled={busy || todo.length === 0}>{busy && <Loader2 className="animate-spin" />}{t("projects.recordN", { count: todo.length })}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

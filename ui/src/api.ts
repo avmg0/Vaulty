@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import))$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -84,6 +84,7 @@ export type ProjectSplit = {
   members: { id: string; name: string; is_me: boolean; share: number; paid: number; owes: number; balance: number }[];
   settle: { from: string; from_me: boolean; to: string; to_me: boolean; amount: number }[];
 };
+export type SettleLine = { member_id: string; name: string; person_id: string | null; person_name: string | null; owed: number; recorded: number; change: number };
 export type SharePeek = {
   name: string; currency: string; sent_by: string | null; exported_at: string | null; members: { id: string; name: string }[];
   items: number; payments: number; files: number; files_left_out: number | null; billed: number; paid: number; updates: { id: string; name: string } | null;
@@ -513,6 +514,8 @@ export const api = {
     members: (id: string) => invoke<ProjectMember[]>("projects_members", { id }),
     setMembers: (id: string, members: ProjectMember[]) => invoke<ProjectMember[]>("projects_members_set", { id, members }),
     split: (id: string) => invoke<ProjectSplit>("projects_split", { id }),
+    settlePreview: (id: string) => invoke<SettleLine[]>("projects_settle_preview", { id }),
+    settleRecord: (id: string, settle: { date?: string; category_id?: string; people: Record<string, string> }) => invoke<number>("projects_settle_record", { id, settle }),
     shareExport: (id: string, path: string, password: string, withFiles: boolean) => invoke<{ files: number; files_left_out: number }>("projects_share_export", { id, path, password, withFiles }),
     sharePeek: (path: string, password: string) => invoke<SharePeek>("projects_share_peek", { path, password }),
     shareImport: (path: string, password: string, me: string | null) => invoke<{ id: string; updated: boolean; files: number }>("projects_share_import", { path, password, me }),

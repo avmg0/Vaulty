@@ -413,7 +413,8 @@
         "items_add": "Added items from a bill",
         "members": "Changed who shares a project",
         "share": "Shared a project",
-        "share_open": "Opened a shared project"
+        "share_open": "Opened a shared project",
+        "settle": "Recorded a split in Lend & borrow"
       }
     },
     "check": {
@@ -2819,6 +2820,21 @@
     "back": "Back",
     "update": "Update my copy",
     "open": "Open",
-    "shareProject": "Share as a file"
+    "shareProject": "Share as a file",
+    "recordLend": "Record in Lend & borrow",
+    "recordTitle": "Record in Lend & borrow",
+    "recordDesc": "Adds what each person owes you, or you owe them, to Lend & borrow, so it's tracked until it's paid. Recording again later adds only what changed.",
+    "nothingToRecord": "Everything from this split is already in Lend & borrow.",
+    "theyOweYou": "{{name}} owes you {{amount}}",
+    "youOweThem": "You owe {{name}} {{amount}}",
+    "alreadyRecorded": "Already recorded: {{what}}. This adds the change.",
+    "inLendAs": "{{name}} in Lend & borrow",
+    "addAsNew": "New person: {{name}}",
+    "spendingCategory": "Spending category",
+    "spendingCategoryHelp": "Your spending there changes to your own share: down when you paid more than your share, up when others paid for you.",
+    "recordN_one": "Record {{count}}",
+    "recordN_other": "Record {{count}}",
+    "recorded_one": "Recorded {{count}} in Lend & borrow.",
+    "recorded_other": "Recorded {{count}} in Lend & borrow."
   }
 }
