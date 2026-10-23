@@ -312,7 +312,7 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [x] Investments: holdings, transactions, XIRR, allocation; CAMS/KFintech CAS import
 - [ ] Daily fund prices (AMFI NAVs), opt-in
 - [ ] Goals and calculators; insurance; net-worth timeline
-- [ ] Emergency kit, nominee tracking, documents vault, journal
+- [ ] Nominee tracking on each account, policy and investment; journal (documents vault and the emergency summary are done, Phase 3)
 - [ ] Tax planner filled from transactions; TDS and advance tax; HRA rent receipts; Form 16 import
 - [ ] Second country's tax pack
 - [ ] PDF statement import; anomaly detection
@@ -438,15 +438,15 @@ Each idea is tagged with the phase it fits best. ⭐ marks the top picks; quick 
 - [ ] Natural-language and voice entry in your own language, e.g. "कल स्विगी 250" for ₹250 on Swiggy yesterday (Phase 3).
 
 ### Cards
-- [ ] Benefits tracker: reward points and their expiry, lounge visits left, spend still needed for the annual fee waiver (Phase 2).
-- [ ] Best card for today: the card whose billing cycle gives the longest interest-free period for a purchase made now (Phase 2).
+- [x] Benefits tracker: reward points and their expiry, lounge visits left, spend still needed for the annual fee waiver (Phase 2).
+- [x] Best card for today: the card whose billing cycle gives the longest interest-free period for a purchase made now (Phase 2).
 
 ### Family and safety
-- [ ] Emergency kit: a printable, password-protected summary for a spouse or nominee with accounts, policies, nominees and who to contact (Phase 3, top pick).
+- [x] Emergency kit: a printable, password-protected summary for a spouse or nominee with accounts, policies, nominees and who to contact (Phase 3, top pick).
 - [ ] Nominee tracking on every account, policy and investment, flagging the ones without a nominee (Phase 3).
 
 ### For the project
-- [ ] Demo mode with John Doe sample data, so screenshots, testing and new contributors never touch real data (Phase 1).
+- [x] Demo mode with John Doe sample data, so screenshots, testing and new contributors never touch real data (Phase 1).
 - [ ] Import from other apps: Money Manager, Walnut, YNAB and similar (Phase 2).
 - [x] Accessibility check: screen readers and keyboard-only use, with older family members in mind (Phase 2).
 
