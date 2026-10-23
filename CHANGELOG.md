@@ -69,7 +69,8 @@ What changed in each version, for people using Vaulty. Newest first.
   and self-assessment tax to see what's still to pay or coming back, with India's advance-tax
   instalments (15 Jun, 15 Sep, 15 Dec, 15 Mar) on the calendar and as reminders. The HRA
   calculator works out the exempt part of house rent allowance and prints a rent receipt for each
-  month.
+  month. A Form 16 PDF (password-protected too) fills in salary, exemptions, deductions, the
+  regime and TDS for each quarter, next to what the plan already has, so you pick what to use.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

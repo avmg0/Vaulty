@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Calculator, Info, Link2, Sparkles } from "lucide-react";
+import { Calculator, FileText, Info, Link2, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { api, errorText, type HraInput, type TaxComparison, type TaxEstimate, type TaxInput, type TaxPack, type TaxPlan } from "@/api";
 import { Button } from "@/components/ui/button";
 import { TaxPaidCard } from "@/components/tax/TaxPaid";
 import { HraCard } from "@/components/tax/Hra";
 import { LinksDialog } from "@/components/tax/LinksDialog";
+import { Form16Dialog } from "@/components/tax/Form16Dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,8 @@ export function TaxPlanner() {
   const [hra, setHraRaw] = useState<HraInput>({});
   const [plan, setPlan] = useState<TaxPlan | null>(null);
   const [linking, setLinking] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [reload, setReload] = useState(0);
   const [error, setError] = useState("");
   // Only the person's own edits are saved, not what was just loaded.
   const dirty = useRef(false);
@@ -72,7 +75,7 @@ export function TaxPlanner() {
       setError("");
     }).catch((e) => setError(errorText(e)));
     return () => { live = false; };
-  }, [pack, year]);
+  }, [pack, year, reload]);
 
   // Save and recalculate shortly after the person stops typing.
   useEffect(() => {
@@ -113,6 +116,7 @@ export function TaxPlanner() {
             {pack.years.map((y) => <option key={y.id} value={y.id}>{y.label}</option>)}
           </select>
         </div>
+        {pack.country === "IN" && <Button variant="outline" onClick={() => setReading(true)}><FileText />{t("tax.form16.open")}</Button>}
         <p className="text-muted-foreground ms-auto max-w-sm text-xs">{t("tax.private")}</p>
       </div>
 
@@ -127,6 +131,7 @@ export function TaxPlanner() {
           {plan && <Disclaimer result={plan.comparison} />}
         </div>
       </div>
+      {reading && <Form16Dialog pack={pack} onClose={(y) => { setReading(false); if (y) { if (y !== year) setYear(y); else setReload((n) => n + 1); } }} />}
       {linking && plan && <LinksDialog plan={plan} regimes={yr.regimes} onClose={(changed) => { setLinking(false); if (changed) void refresh(); }} />}
     </div>
   );

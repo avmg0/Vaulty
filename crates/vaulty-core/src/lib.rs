@@ -34,6 +34,7 @@ pub mod project_share;
 pub mod invoice;
 pub mod ocr;
 pub mod tax_plan;
+pub mod form16;
 pub mod people;
 pub mod profiles;
 pub mod quick;

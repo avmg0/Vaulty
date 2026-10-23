@@ -314,7 +314,8 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [ ] Goals and calculators; insurance; net-worth timeline
 - [ ] Nominee tracking on each account, policy and investment; journal (documents vault and the emergency summary are done, Phase 3)
 - [x] Tax planner filled from transactions; TDS and advance tax with reminders; HRA rent receipts
-- [ ] Form 16 and AIS import
+- [x] Form 16 import (PDF, password-protected too)
+- [ ] AIS / Form 26AS import (needs a real download to match its layout)
 - [ ] Second country's tax pack
 - [x] PDF statement import (password-protected too)
 - [ ] Anomaly detection (unusual amounts, new merchants, double charges)

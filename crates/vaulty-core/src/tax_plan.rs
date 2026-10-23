@@ -236,3 +236,29 @@ pub fn advance_due(conn: &Connection, today: NaiveDate) -> Result<Vec<(String, N
     }
     Ok(out)
 }
+
+/// Fills the plan from a Form 16 in one step: `input` (the figures as they should now be),
+/// `regime` (when given) and `payments` (TDS by quarter: `date`, `amount`, `note`). A TDS payment
+/// already recorded on the same date for the same amount isn't added again.
+pub fn apply_form16(conn: &Connection, country: &str, year_id: &str, v: &Value) -> Result<Value> {
+    let (p, _) = year(country, year_id)?;
+    let id = plan_id(country, year_id);
+    let list = v["payments"].as_array().cloned().unwrap_or_default();
+    if list.len() > 12 { return Err(bad("a Form 16 has at most four quarters")); }
+    atomic(conn, |tx| {
+        let (input, regime, hra) = stored(tx, &id)?.unwrap_or((json!({}), None, json!({})));
+        let regime = match v.get("regime") { Some(Value::String(r)) => Some(r.clone()), Some(Value::Null) => None, _ => regime };
+        save(tx, country, year_id, &json!({ "input": v.get("input").cloned().unwrap_or(input), "regime": regime, "hra": hra }))?;
+        let mut added = 0;
+        for pay in &list {
+            let amount = money::parse_minor(pay.get("amount").unwrap_or(&Value::Null), &p.currency)?;
+            let date = pay["date"].as_str().unwrap_or_default();
+            let seen: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM tax_payments WHERE plan_id = ? AND kind = 'tds' AND date = ? AND amount_minor = ?)",
+                params![id, date, amount], |r| r.get(0))?;
+            if seen { continue; }
+            add_payment(tx, country, year_id, &json!({ "kind": "tds", "date": date, "amount": pay["amount"], "note": pay["note"] }))?;
+            added += 1;
+        }
+        Ok(json!({ "payments": added }))
+    })
+}

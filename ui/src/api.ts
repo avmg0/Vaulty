@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -152,6 +152,12 @@ export type TaxPlan = {
   records: { by: Record<string, number>; elss: number }; links: TaxLink[]; payments: TaxPayment[]; comparison: TaxComparison;
   used: string; total: number; tds: number; paid: number; balance: number; advance_note: string | null;
   advance: { date: string; percent: number; needed: number; paid: number; short: number; past: boolean }[];
+};
+export type Form16Offer = {
+  year: string | null; assessment_year: string | null; employer: string | null; tan: string | null; employee: string | null; pan: string | null;
+  tds: number; paid: number; regime: "old" | "new" | null; standard_deduction: number | null; professional_tax: number | null; taxable: number | null; tax: number | null;
+  fields: { field: "salary" | "other_income" | "deduction"; id?: string; amount: number }[];
+  payments: { quarter: number; date: string; amount: number }[];
 };
 export type TaxComparison = {
   country: string; currency: string; year: { id: string; label: string }; estimates: TaxEstimate[];
@@ -478,7 +484,7 @@ export const api = {
     exportCsv: (path: string) => invoke<number>("export_csv", { path }),
   },
   /** Opens the system file dialog from the app itself; file commands only accept paths chosen here. */
-  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document" | "fund_statement" | "save_project" | "project_share" | "save_project_share", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
+  files: { pick: (kind: "statement" | "backup" | "save_backup" | "save_csv" | "calendar" | "save_calendar" | "save_report" | "document" | "save_document" | "fund_statement" | "save_project" | "project_share" | "save_project_share" | "tax_form", label: string, name?: string) => invoke<string | null>("pick_file", { kind, label, name: name ?? null }) },
   /** This computer: the tray icon, the quick-add shortcut, keeping Vaulty running when closed. */
   device: {
     get: () => invoke<DeviceSettings>("app_settings_get"),
@@ -677,6 +683,8 @@ export const api = {
     savePlan: (country: string, year: string, plan: { input: TaxInput; regime: string | null; hra: HraInput }) => invoke<void>("tax_plan_save", { country, year, plan }),
     addPayment: (country: string, year: string, payment: { kind: TaxPayment["kind"]; date: string; amount: string; note?: string }) => invoke<{ id: string }>("tax_payment_add", { country, year, payment }),
     deletePayment: (id: string) => invoke<void>("tax_payment_delete", { id }),
+    readForm16: (path: string, password?: string) => invoke<Form16Offer>("form16_read", { path, password: password || null }),
+    applyForm16: (country: string, year: string, data: { input: TaxInput; regime?: string | null; payments: { date: string; amount: number; note: string }[] }) => invoke<{ payments: number }>("form16_apply", { country, year, data }),
     setLinks: (country: string, year: string, links: { category_id: string; target: string }[]) => invoke<TaxLink[]>("tax_links_set", { country, year, links }),
   },
   institutions: {

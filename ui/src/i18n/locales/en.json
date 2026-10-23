@@ -285,7 +285,36 @@
     "receiptBody": "Received {{amount}} from {{tenant}} as rent for {{address}} for the month of {{month}}.",
     "receiptDate": "Date: {{date}}",
     "revenueStamp": "Revenue stamp if paid in cash over ₹5,000",
-    "landlordSignature": "Landlord's signature"
+    "landlordSignature": "Landlord's signature",
+    "form16": {
+      "open": "Read Form 16",
+      "name": "Form 16",
+      "files": "Form 16 (PDF)",
+      "title": "Read a Form 16",
+      "desc": "The certificate your employer gives for tax taken from your salary. Vaulty reads the salary, exemptions, deductions and TDS for each quarter.",
+      "choose": "Choose the PDF",
+      "chooseOther": "Choose another",
+      "password": "Password, if it has one",
+      "passwordHint": "Employers often lock it with your PAN, date of birth or employee number; their email says which.",
+      "stays": "The file is read on this device and not kept; only the figures you choose are saved.",
+      "read": "Read it",
+      "unknownEmployer": "Employer not found on the form",
+      "ay": "assessment year {{year}}",
+      "noYear": "This Form 16 is for assessment year {{year}}, which Vaulty doesn't have tax rules for yet.",
+      "forYear": "Fills in {{year}}. Untick anything you don't want to use.",
+      "use": "Use this",
+      "line": "On the form",
+      "now": "In your plan",
+      "onForm": "Form 16",
+      "tds_one": "TDS for {{count}} quarter, added to tax paid",
+      "tds_other": "TDS for {{count}} quarters, added to tax paid",
+      "regime": "Plan under {{regime}}, as your employer did",
+      "twoEmployers": "Had more than one employer this year? Read each Form 16, then add the salaries together; TDS from each is kept.",
+      "professionalTax": "Professional tax of {{amount}} isn't counted by the planner yet.",
+      "employerTax": "Your employer worked out {{amount}} of tax for the year.",
+      "back": "Back",
+      "fill": "Fill in"
+    }
   },
   "ticker": {
     "label": "Market prices",
@@ -491,7 +520,8 @@
       "tax": {
         "payment_add": "Recorded tax paid",
         "payment_delete": "Removed a tax payment",
-        "links": "Changed which categories count for tax"
+        "links": "Changed which categories count for tax",
+        "form16": "Filled the tax planner from a Form 16"
       }
     },
     "check": {
@@ -1585,6 +1615,7 @@
     "e3d60c603": "the hint can't contain the password",
     "e483a4390": "choose one of the shortcuts offered",
     "e6f8ca333": "the spreadsheet couldn't be written",
+    "e8f3d9f6b": "a Form 16 has at most four quarters",
     "e9a7d3a6b": "a page of that PDF couldn't be read",
     "e9f153355": "a share is a number, such as 1 or 2",
     "eb1012afa": "choose the account it was paid from",
@@ -1623,6 +1654,7 @@
     "ee28277c5": "image must be a JPEG, PNG or WebP",
     "ef27838aa": "dimming must be between 0 and 0.8",
     "e17ee79ad": "the quantity must be more than 0",
+    "e19ad937f": "this doesn't look like a Form 16",
     "e41369c2d": "the end date is before the start",
     "e4df0b146": "two different helpers are needed",
     "e5d1046fe": "the request is nested too deeply",

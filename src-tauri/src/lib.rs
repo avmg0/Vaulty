@@ -967,7 +967,7 @@ fn biometric_disable(s: S) -> Result<()> {
 /// What a file dialog is for. The kind decides the file types offered and whether it opens or saves.
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport, Document, SaveDocument, FundStatement, SaveProject, ProjectShare, SaveProjectShare }
+enum Pick { Statement, Backup, SaveBackup, SaveCsv, Calendar, SaveCalendar, SaveReport, Document, SaveDocument, FundStatement, SaveProject, ProjectShare, SaveProjectShare, TaxForm }
 
 impl AppState {
     /// Refuses a path the person didn't choose in a file dialog this run.
@@ -998,7 +998,7 @@ async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String, n
         Pick::SaveReport => d.add_filter(label, &["xlsx"]).set_file_name(format!("vaulty-report-{stamp}.xlsx")).save_file(move |p| { let _ = tx.send(p); }),
         Pick::Document => d.add_filter(label, &["pdf", "png", "jpg", "jpeg", "webp"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveDocument => d.set_file_name(suggested).save_file(move |p| { let _ = tx.send(p); }),
-        Pick::FundStatement => d.add_filter(label, &["pdf"]).pick_file(move |p| { let _ = tx.send(p); }),
+        Pick::FundStatement | Pick::TaxForm => d.add_filter(label, &["pdf"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::ProjectShare => d.add_filter(label, &["vaultyproject"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveProjectShare => d.add_filter(label, &["vaultyproject"]).set_file_name(format!("{}.vaultyproject", suggested.trim_end_matches(".vaultyproject"))).save_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveProject => d.add_filter(label, &["xlsx"]).set_file_name(format!("{}-{stamp}.xlsx", suggested.trim_end_matches(".xlsx"))).save_file(move |p| { let _ = tx.send(p); }),
@@ -1650,6 +1650,15 @@ fn snapshots_restore(s: S, name: String) -> Result<()> {
 #[tauri::command] fn tax_payment_add(s: S, country: String, year: String, payment: Value) -> Result<Value> { limits::check(&payment)?; s.act("tax.payment_add", |c| vaulty_core::tax_plan::add_payment(c, &country, &year, &payment)) }
 #[tauri::command] fn tax_payment_delete(s: S, id: String) -> Result<()> { s.act("tax.payment_delete", |c| vaulty_core::tax_plan::delete_payment(c, &id)) }
 #[tauri::command] fn tax_links_set(s: S, country: String, year: String, links: Value) -> Result<Vec<Value>> { limits::check(&links)?; s.act("tax.links", |c| vaulty_core::tax_plan::set_links(c, &country, &year, &links)) }
+/// What a Form 16 says, offered to the planner (nothing is kept from the file).
+#[tauri::command] fn form16_read(s: S, path: String, password: Option<String>) -> Result<Value> {
+    s.chosen(&path)?;
+    let bytes = read_limited(&path, vaulty_core::pdf_text::MAX_BYTES as u64)?;
+    let password = password.map(zeroize::Zeroizing::new);
+    vaulty_core::form16::offer(&vaulty_core::form16::read_pdf(&bytes, password.as_deref().map(String::as_str))?)
+}
+/// Fills the plan from a Form 16: the chosen figures, the regime and TDS by quarter, as one step.
+#[tauri::command] fn form16_apply(s: S, country: String, year: String, data: Value) -> Result<Value> { limits::check(&data)?; s.act("tax.form16", |c| vaulty_core::tax_plan::apply_form16(c, &country, &year, &data)) }
 #[tauri::command] fn tax_describe(country: String) -> Result<Value> { vaulty_core::tax::describe(&country) }
 #[tauri::command] fn tax_compare(country: String, year: Option<String>, input: Value) -> Result<Value> { limits::check(&input)?;
     vaulty_core::tax::compare(&country, year.as_deref(), &input)
@@ -1890,7 +1899,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, transactions_bulk, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, form16_read, form16_apply, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
         ])
         .build(tauri::generate_context!())
         .expect("error while running Vaulty")
