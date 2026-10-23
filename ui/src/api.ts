@@ -604,10 +604,10 @@ export const api = {
   },
   quick: { parse: (text: string) => invoke<QuickParsed>("quick_parse", { text }) },
   statements: {
-    inspect: (path: string, accountId: string) => invoke<StatementInfo>("statement_inspect", { path, accountId }),
-    preview: (path: string, accountId: string, mapping: ImportMapping) => invoke<ImportRow[]>("statement_preview", { path, accountId, mapping }),
-    import: (path: string, accountId: string, mapping: ImportMapping, skip: number[], include: number[]) =>
-      invoke<number>("statement_import", { path, accountId, mapping, skip, include }),
+    inspect: (path: string, accountId: string, password?: string) => invoke<StatementInfo>("statement_inspect", { path, accountId, password: password || null }),
+    preview: (path: string, accountId: string, mapping: ImportMapping, password?: string) => invoke<ImportRow[]>("statement_preview", { path, accountId, mapping, password: password || null }),
+    import: (path: string, accountId: string, mapping: ImportMapping, skip: number[], include: number[], password?: string) =>
+      invoke<number>("statement_import", { path, accountId, mapping, skip, include, password: password || null }),
   },
   recurring: {
     list: () => invoke<Recurring[]>("recurring_list"),

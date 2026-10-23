@@ -46,6 +46,8 @@ What changed in each version, for people using Vaulty. Newest first.
 - Investments: mutual funds, shares, deposits and gold, with value, gain, XIRR and allocation.
   Read the CAMS or KFintech consolidated account statement (password-protected PDF) to bring in
   every folio and transaction; reading a later statement adds only what's new.
+- Bank and card statements as PDF (including password-protected ones): the transaction table is read
+  by column position, narrations over two lines are joined, and repeated headers and footers are left out.
 - Daily mutual fund prices from AMFI's public NAV list (opt-in, in Settings or on Investments):
   fetched once a day, nothing about you is sent, and only newer prices replace older ones.
 - Projects: keep a renovation, wedding, trip or business set-up together, with sections and

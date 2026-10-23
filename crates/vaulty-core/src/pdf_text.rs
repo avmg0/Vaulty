@@ -110,8 +110,23 @@ fn page_pieces(doc: &Document, page_id: lopdf::ObjectId) -> Result<Vec<Piece>> {
     Ok(out)
 }
 
-/// Every page's lines, top to bottom.
-pub fn lines(doc: &Document) -> Result<Vec<Vec<String>>> {
+/// A run of text on a line: where it starts and (roughly) ends, and its text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Cell { pub x: f64, pub end: f64, pub text: String, /// The pieces it was joined from, each as drawn.
+    pub parts: Vec<(f64, f64, String)> }
+
+/// A line of a page: its height on the page (larger is higher), text size, and its cells. Pieces
+/// closer than about one character are one cell; wider gaps separate columns.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Line { pub y: f64, pub size: f64, pub cells: Vec<Cell> }
+
+impl Line {
+    /// The line as text, columns joined with two spaces.
+    pub fn text(&self) -> String { self.cells.iter().map(|c| c.text.as_str()).collect::<Vec<_>>().join("  ") }
+}
+
+/// Every page's lines with their positions, top to bottom.
+pub fn positioned(doc: &Document) -> Result<Vec<Vec<Line>>> {
     let mut pages = vec![];
     for (_, id) in doc.get_pages() {
         let mut pieces = page_pieces(doc, id)?;
@@ -126,20 +141,33 @@ pub fn lines(doc: &Document) -> Result<Vec<Vec<String>>> {
         let mut out = vec![];
         for mut row in rows {
             row.sort_by(|a, b| a.x.total_cmp(&b.x));
-            let mut line = String::new();
-            let mut end = f64::MIN;
+            let mut cells: Vec<Cell> = vec![];
             for p in &row {
-                if !line.is_empty() {
-                    let gap = p.x - end;
-                    line.push_str(if gap > p.size * 1.2 { "  " } else if gap > p.size * 0.1 || !line.ends_with(' ') { " " } else { "" });
+                let text = p.text.trim();
+                if text.is_empty() { continue; }
+                let end = p.x + text.chars().count() as f64 * p.size * 0.5;
+                match cells.last_mut() {
+                    Some(c) if p.x - c.end <= p.size * 1.2 => {
+                        let gap = p.x - c.end;
+                        if gap > p.size * 0.1 || !c.text.ends_with(' ') { c.text.push(' '); }
+                        c.text.push_str(text);
+                        c.end = end;
+                        c.parts.push((p.x, end, text.to_string()));
+                    }
+                    _ => cells.push(Cell { x: p.x, end, text: text.to_string(), parts: vec![(p.x, end, text.to_string())] }),
                 }
-                line.push_str(p.text.trim());
-                end = p.x + p.text.trim().chars().count() as f64 * p.size * 0.5;
             }
-            let line = line.trim().to_string();
-            if !line.is_empty() { out.push(line); }
+            if !cells.is_empty() {
+                let size = row.iter().map(|p| p.size).fold(0.0, f64::max);
+                out.push(Line { y: row[0].y, size, cells });
+            }
         }
         pages.push(out);
     }
     Ok(pages)
+}
+
+/// Every page's lines, top to bottom.
+pub fn lines(doc: &Document) -> Result<Vec<Vec<String>>> {
+    Ok(positioned(doc)?.into_iter().map(|p| p.into_iter().map(|l| l.text()).filter(|t| !t.is_empty()).collect()).collect())
 }

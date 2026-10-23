@@ -1162,7 +1162,7 @@
   "import": {
     "filesName": "Statements",
     "step1": "Choose a statement",
-    "step1Desc": "A CSV or Excel file downloaded from your bank or card. Nothing leaves this device.",
+    "step1Desc": "A CSV, Excel or PDF statement downloaded from your bank or card. Nothing leaves this device.",
     "into": "Import into",
     "chooseFile": "Choose file",
     "otherFile": "Choose another file",
@@ -1210,7 +1210,10 @@
     "doneBody": "The column layout is saved, so this bank's next statement imports straight away.",
     "another": "Import another",
     "undoInHistory": "Undo in History",
-    "dupOn": "Already in Vaulty from {{date}}"
+    "dupOn": "Already in Vaulty from {{date}}",
+    "pdfPassword": "Password of the PDF",
+    "pdfPasswordHint": "Banks protect statements with a password, often based on your name, date of birth or customer ID; the bank's email says which. It's used only to open the file.",
+    "open": "Open"
   },
   "rules": {
     "fromRule": "Picked from what you chose last time for this merchant.",
@@ -1355,6 +1358,7 @@
     "e914c1720": "to read photos of bills, install Tesseract (for example: sudo apt install tesseract-ocr)",
     "e9b81635c": "Windows has no text recognition for your language; add one in Settings → Time & language",
     "e27fb26b4": "this copy of Vaulty can't update itself; download new versions from the releases page",
+    "e3042f13e": "no transaction table was found in this PDF (a scanned statement has no text to read)",
     "eaeea473b": "that's a common password with a few characters added; choose something less obvious",
     "e17b75e38": "choose your family helpers first: the nominee card works together with one of them",
     "e558bf386": "can't switch between a card/loan and a bank/cash account once it has transactions",
@@ -1480,6 +1484,7 @@
     "efe023450": "multiple SQL statements are not allowed",
     "efff66e30": "the fund price list couldn't be fetched",
     "e0e041110": "the project can't end before it starts",
+    "e4f6e80cc": "no transactions were found in this PDF",
     "e541ff9dc": "logo must be a PNG, JPEG or WebP image",
     "e599a2669": "only expenses can be split with people",
     "e7c242647": "a transfer needs a destination account",

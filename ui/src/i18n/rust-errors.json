@@ -20,6 +20,10 @@
   "re": "^this copy of Vaulty can't update itself; download new versions from the releases page$"
  },
  {
+  "id": "e3042f13e",
+  "re": "^no transaction table was found in this PDF \\(a scanned statement has no text to read\\)$"
+ },
+ {
   "id": "eaeea473b",
   "re": "^that's a common password with a few characters added; choose something less obvious$"
  },
@@ -518,6 +522,10 @@
  {
   "id": "e0e041110",
   "re": "^the project can't end before it starts$"
+ },
+ {
+  "id": "e4f6e80cc",
+  "re": "^no transactions were found in this PDF$"
  },
  {
   "id": "e541ff9dc",

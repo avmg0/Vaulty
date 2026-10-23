@@ -989,7 +989,7 @@ async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String, n
     let (tx, rx) = tokio::sync::oneshot::channel();
     let d = app.dialog().file();
     match kind {
-        Pick::Statement => d.add_filter(label, &["csv", "txt", "xlsx", "xls", "xlsm", "ods"]).pick_file(move |p| { let _ = tx.send(p); }),
+        Pick::Statement => d.add_filter(label, &["csv", "txt", "xlsx", "xls", "xlsm", "ods", "pdf"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::Backup => d.add_filter(label, &["vaulty", "json"]).pick_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveBackup => d.add_filter(label, &["vaulty"]).set_file_name(format!("vaulty-backup-{stamp}.vaulty")).save_file(move |p| { let _ = tx.send(p); }),
         Pick::SaveCsv => d.add_filter(label, &["csv"]).set_file_name(format!("vaulty-transactions-{stamp}.csv")).save_file(move |p| { let _ = tx.send(p); }),
@@ -1012,11 +1012,14 @@ async fn pick_file(app: tauri::AppHandle, s: S<'_>, kind: Pick, label: String, n
 }
 
 /// Reads a statement the member picked, refusing anything over the size limit before loading it.
-fn read_statement(path: &str) -> Result<statements::Table> {
+fn read_statement(path: &str, password: Option<&str>) -> Result<statements::Table> {
     let p = std::path::Path::new(path);
     if std::fs::metadata(p)?.len() as usize > statements::MAX_BYTES { return Err(Error::Invalid("that file is larger than 20 MB".into())); }
+    if let Some(pw) = password { limits::text("password", pw, limits::PASSWORD)?; }
+    let bytes = std::fs::read(p)?;
+    if bytes.starts_with(b"%PDF") { return statements::read_pdf(&bytes, password.filter(|p| !p.is_empty())); }
     let name = p.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string();
-    statements::read(&std::fs::read(p)?, &name)
+    statements::read(&bytes, &name)
 }
 
 /// Day-first unless the profile reads dates month-first.
@@ -1027,24 +1030,24 @@ fn default_order(c: &Connection) -> Result<statements::DateOrder> {
 }
 
 #[tauri::command]
-fn statement_inspect(s: S, path: String, account_id: String) -> Result<Value> {
+fn statement_inspect(s: S, path: String, account_id: String, password: Option<String>) -> Result<Value> {
     s.chosen(&path)?;
-    let t = read_statement(&path)?;
+    let t = read_statement(&path, password.as_deref())?;
     s.data(|c| statements::inspect(c, &t, &account_id, default_order(c)?))
 }
 
 #[tauri::command]
-fn statement_preview(s: S, path: String, account_id: String, mapping: statements::Mapping) -> Result<Vec<statements::ParsedRow>> {
+fn statement_preview(s: S, path: String, account_id: String, mapping: statements::Mapping, password: Option<String>) -> Result<Vec<statements::ParsedRow>> {
     s.chosen(&path)?;
-    let t = read_statement(&path)?;
+    let t = read_statement(&path, password.as_deref())?;
     s.data(|c| statements::preview(c, &t, &mapping, &account_id))
 }
 
 /// Imports the chosen rows: `skip` lists new rows to leave out, `include` duplicates to add anyway.
 #[tauri::command]
-fn statement_import(s: S, path: String, account_id: String, mapping: statements::Mapping, skip: Vec<usize>, include: Vec<usize>) -> Result<usize> {
+fn statement_import(s: S, path: String, account_id: String, mapping: statements::Mapping, skip: Vec<usize>, include: Vec<usize>, password: Option<String>) -> Result<usize> {
     s.chosen(&path)?;
-    let t = read_statement(&path)?;
+    let t = read_statement(&path, password.as_deref())?;
     let me = s.current_user()?;
     s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "before-import")))?;
     s.act("statement.import", |c| statements::import(c, &t, &mapping, &account_id, &skip, &include))

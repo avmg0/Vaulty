@@ -315,7 +315,8 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - [ ] Nominee tracking on each account, policy and investment; journal (documents vault and the emergency summary are done, Phase 3)
 - [ ] Tax planner filled from transactions; TDS and advance tax; HRA rent receipts; Form 16 import
 - [ ] Second country's tax pack
-- [ ] PDF statement import; anomaly detection
+- [x] PDF statement import (password-protected too)
+- [ ] Anomaly detection (unusual amounts, new merchants, double charges)
 - **Done when:** net worth is complete and the tax planner fills itself in.
 
 ### Phase 6: Business (v1.x)

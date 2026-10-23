@@ -54,8 +54,9 @@ fn clip(s: &str) -> String {
 }
 
 /// Reads a statement. `name` (the file name) decides CSV versus spreadsheet; anything that isn't a
-/// spreadsheet is read as delimited text.
+/// spreadsheet is read as delimited text. PDFs go through `read_pdf` (they may need a password).
 pub fn read(bytes: &[u8], name: &str) -> Result<Table> {
+    if bytes.starts_with(b"%PDF") { return read_pdf(bytes, None); }
     if bytes.len() > MAX_BYTES { return Err(Error::Invalid("that file is larger than 20 MB".into())); }
     let lower = name.to_lowercase();
     let rows = if [".xlsx", ".xlsm", ".xls", ".xlsb", ".ods"].iter().any(|e| lower.ends_with(e)) { read_sheet(bytes)? } else { read_csv(bytes)? };
@@ -110,11 +111,99 @@ fn read_sheet(bytes: &[u8]) -> Result<Vec<Vec<String>>> {
     Ok(rows)
 }
 
+/// Reads a PDF statement (with its password, if it has one) into the same rows as a spreadsheet.
+/// The table's header row gives the columns; every piece of text below it goes to the column it
+/// sits under, so empty cells (a withdrawal with no deposit) stay empty. A line without a date
+/// that sits right under a row continues it (a narration over two lines). The header repeated on
+/// later pages, page headers and footers are left out.
+pub fn read_pdf(bytes: &[u8], password: Option<&str>) -> Result<Table> {
+    let doc = crate::pdf_text::open(bytes, password)?;
+    let pages = crate::pdf_text::positioned(&doc)?;
+    let texts = |l: &crate::pdf_text::Line| l.cells.iter().map(|c| c.text.clone()).collect::<Vec<_>>();
+    let Some(header) = pages.iter().flatten().take(200).find(|l| is_header(&texts(l))).cloned() else {
+        return Err(Error::Invalid("no transaction table was found in this PDF (a scanned statement has no text to read)".into()));
+    };
+    // Column names drawn close together can join into one cell: split a cell back into the
+    // pieces it was drawn as when more than one of them is a column name.
+    let known = |t: &str| [DATE_WORDS, DESC_WORDS, DEBIT_WORDS, CREDIT_WORDS, AMOUNT_WORDS, REF_WORDS, SIDE_WORDS, BALANCE_WORDS].iter().any(|w| matches(t, w));
+    let mut cols: Vec<crate::pdf_text::Cell> = vec![];
+    for c in &header.cells {
+        if c.parts.len() > 1 && c.parts.iter().filter(|p| known(&p.2)).count() >= 2 {
+            cols.extend(c.parts.iter().map(|p| crate::pdf_text::Cell { x: p.0, end: p.1, text: p.2.clone(), parts: vec![p.clone()] }));
+        } else {
+            cols.push(c.clone());
+        }
+    }
+    let head: Vec<String> = cols.iter().map(|c| c.text.clone()).collect();
+    let header_texts = texts(&header);
+    let cols = &cols;
+    let column = |c: &crate::pdf_text::Cell| -> usize {
+        let overlap = |h: &crate::pdf_text::Cell| (c.end.min(h.end) - c.x.max(h.x)).max(0.0);
+        let (best, ov) = cols.iter().enumerate().map(|(i, h)| (i, overlap(h))).fold((0, 0.0), |a, b| if b.1 > a.1 { b } else { a });
+        if ov > 0.0 { return best; }
+        cols.iter().enumerate().map(|(i, h)| (i, (c.x - h.end).abs().min((c.end - h.x).abs()).min(((c.x + c.end) - (h.x + h.end)).abs() / 2.0)))
+            .fold((0, f64::MAX), |a, b| if b.1 < a.1 { b } else { a }).0
+    };
+    let is_date = |s: &str| s.chars().any(|c| c.is_ascii_digit()) && s.len() <= 20 && [DateOrder::Dmy, DateOrder::Mdy, DateOrder::Ymd].iter().any(|o| parse_date(s, *o).is_some());
+    let date_col = head.iter().position(|h| matches(h, DATE_WORDS)).unwrap_or(0);
+    let mut rows: Vec<Vec<String>> = vec![head.iter().map(|h| clip(h)).collect()];
+    let mut started = false;
+    for page in &pages {
+        // On a page with the header, the table starts after it.
+        let from = page.iter().position(|l| texts(l) == header_texts).map(|i| i + 1);
+        if from.is_none() && !started { continue; }
+        started = true;
+        let mut last_y: Option<(f64, f64)> = None;
+        for line in &page[from.unwrap_or(0)..] {
+            let mut row = vec![String::new(); cols.len()];
+            // Each piece as drawn goes to its column, so two amounts drawn close together don't join.
+            for c in &line.cells {
+                let mut prev: Option<(usize, &str)> = None;
+                for p in &c.parts {
+                    let i = column(&crate::pdf_text::Cell { x: p.0, end: p.1, text: p.2.clone(), parts: vec![] });
+                    // Pieces of one word (drawn apart, e.g. for kerning) join without a space.
+                    let glued = prev.is_some_and(|(j, t)| j == i && c.text.contains(&format!("{t}{}", p.2)));
+                    if !row[i].is_empty() && !glued { row[i].push(' '); }
+                    row[i].push_str(&p.2);
+                    prev = Some((i, p.2.as_str()));
+                }
+            }
+            if is_date(row[date_col].trim()) {
+                rows.push(row.iter().map(|c| clip(c)).collect());
+                last_y = Some((line.y, line.size));
+                if rows.len() > MAX_ROWS { return Err(Error::Invalid(format!("the file has more than {MAX_ROWS} rows; split it into smaller statements"))); }
+                continue;
+            }
+            // A continuation sits close under the row and has no amounts of its own.
+            let close = last_y.is_some_and(|(y, size)| (y - line.y) > 0.0 && (y - line.y) <= size * 2.2);
+            let numbers = row.iter().enumerate().any(|(i, c)| i != date_col && parse_amount(c).is_some() && !c.chars().any(|ch| ch.is_alphabetic()) && c.contains('.'));
+            if close && !numbers && rows.len() > 1 {
+                let prev = rows.last_mut().expect("a row");
+                for (i, c) in row.iter().enumerate().filter(|(_, c)| !c.is_empty()) {
+                    let joined = if prev[i].is_empty() { c.clone() } else if prev[i].ends_with('-') { format!("{}{c}", prev[i]) } else { format!("{} {c}", prev[i]) };
+                    prev[i] = clip(&joined);
+                }
+                last_y = Some((line.y, line.size));
+            } else {
+                last_y = None;
+            }
+        }
+    }
+    if rows.len() < 2 { return Err(Error::Invalid("no transactions were found in this PDF".into())); }
+    Ok(Table { rows, header_row: 0 })
+}
+
+/// A header row: a date column and at least one other recognisable column.
+fn is_header(r: &[String]) -> bool {
+    r.iter().any(|c| matches(c, DATE_WORDS)) && r.iter().filter(|c| [DESC_WORDS, DEBIT_WORDS, CREDIT_WORDS, AMOUNT_WORDS].iter().any(|w| matches(c, w))).count() >= 1
+}
+
 const DATE_WORDS: &[&str] = &["date", "txn date", "transaction date", "tran date", "posting date", "value date", "value dt", "txn dt"];
 const DESC_WORDS: &[&str] = &["narration", "description", "particulars", "details", "transaction details", "remarks", "transaction remarks", "merchant", "payee", "memo"];
 const DEBIT_WORDS: &[&str] = &["withdrawal", "withdrawal amt", "withdrawal amount", "debit", "debit amount", "dr", "paid out", "money out", "withdrawals"];
 const CREDIT_WORDS: &[&str] = &["deposit", "deposit amt", "deposit amount", "credit", "credit amount", "cr", "paid in", "money in", "deposits"];
 const AMOUNT_WORDS: &[&str] = &["amount", "transaction amount", "amount inr", "txn amount", "amt"];
+const BALANCE_WORDS: &[&str] = &["balance", "closing balance", "running balance", "available balance", "value dt", "value date"];
 const SIDE_WORDS: &[&str] = &["dr cr", "drcr", "cr dr", "type", "debit credit", "transaction type", "txn type"];
 const REF_WORDS: &[&str] = &["ref", "ref no", "reference", "chq no", "chq ref no", "cheque no", "chq ref number", "reference no", "utr"];
 

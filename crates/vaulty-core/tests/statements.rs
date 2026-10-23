@@ -128,3 +128,38 @@ fn parsing_helpers() {
     assert_eq!(statements::merchant_from("UPI/412345678901/SWIGGY/swiggy@icici/Food"), "SWIGGY");
     assert!(statements::read(&vec![b'a'; statements::MAX_BYTES + 1], "big.csv").is_err());
 }
+
+#[test]
+fn pdf_bank_statement_with_password() {
+    let (c, acc) = setup();
+    let pdf = std::fs::read(format!("{}/tests/fixtures/statements/bank-aes256.pdf", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    assert!(statements::read(&pdf, "statement.pdf").unwrap_err().to_string().contains("needs its password"));
+    assert!(statements::read_pdf(&pdf, Some("wrong")).is_err());
+    let t = statements::read_pdf(&pdf, Some("Jane1990")).unwrap();
+    assert_eq!(t.headers(), ["Date", "Narration", "Chq./Ref.No.", "Value Dt", "Withdrawal Amt.", "Deposit Amt.", "Closing Balance"]);
+    assert_eq!(t.rows.len() - 1, 36, "every transaction, across the page break, without the repeated header");
+    // A narration over two lines is one cell; a deposit leaves the withdrawal empty.
+    assert_eq!(t.rows[1][1], "UPI-SWIGGY-swiggy@icici-ICIC0000103-627412345678-Payment for order");
+    assert_eq!((t.rows[2][4].as_str(), t.rows[2][5].as_str()), ("", "85,000.00"));
+    let m = statements::guess(&t, DateOrder::Mdy).unwrap();
+    assert_eq!((m.date, m.description, m.debit, m.credit, m.reference, m.date_order), (0, 1, Some(4), Some(5), Some(2), DateOrder::Dmy));
+    let rows = statements::preview(&c, &t, &m, &acc).unwrap();
+    assert_eq!(rows.iter().filter(|r| r.status == "new").count(), 36);
+    let salary = rows.iter().find(|r| r.description.starts_with("SALARY")).unwrap();
+    assert_eq!((salary.kind, salary.amount.as_deref(), salary.date.as_deref()), (Some("income"), Some("85000.00"), Some("2026-10-01")));
+    let wiring = rows.iter().find(|r| r.description.contains("Wiring advance")).unwrap();
+    assert_eq!((wiring.kind, wiring.amount.as_deref()), (Some("expense"), Some("15000.00")));
+    assert!(!rows.iter().any(|r| r.description.contains("Page")), "footers aren't rows or part of one");
+    let last = rows.last().unwrap();
+    assert_eq!((last.kind, last.amount.as_deref(), last.date.as_deref()), (Some("income"), Some("12000.00"), Some("2026-10-29")));
+}
+
+#[test]
+fn damaged_pdfs_are_refused_without_crashing() {
+    let pdf = std::fs::read(format!("{}/tests/fixtures/statements/bank-aes256.pdf", env!("CARGO_MANIFEST_DIR"))).unwrap();
+    for cut in [10, 200, pdf.len() / 2, pdf.len() - 30] { assert!(statements::read_pdf(&pdf[..cut], Some("Jane1990")).is_err()); }
+    let mut flipped = pdf.clone();
+    for i in (400..flipped.len()).step_by(97) { flipped[i] ^= 0x5A; }
+    let _ = statements::read_pdf(&flipped, Some("Jane1990"));
+    assert!(statements::read(b"%PDF-1.4 nonsense", "x.pdf").is_err());
+}

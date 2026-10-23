@@ -5,7 +5,7 @@ import { api, errorText, type Account, type ImportMapping, type ImportRow, type 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { NativeSelect } from "@/components/ui/input";
+import { Input, NativeSelect } from "@/components/ui/input";
 import { Segmented } from "@/components/Segmented";
 import { Badge } from "@/components/ui/badge";
 import { SuccessTick } from "@/components/SuccessTick";
@@ -29,6 +29,10 @@ export function ImportPage({ onOpenHistory }: { onOpenHistory?: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [done, setDone] = useState<number | null>(null);
+  // A password-protected PDF: the password in use, and what's being typed.
+  const [password, setPassword] = useState("");
+  const [typing, setTyping] = useState("");
+  const [needsPassword, setNeedsPassword] = useState(false);
 
   useEffect(() => { api.accounts.getAll().then((a) => { setAccounts(a); setAccountId((v) => v || a[0]?.id || ""); }); }, []);
   const account = accounts.find((a) => a.id === accountId);
@@ -38,24 +42,31 @@ export function ImportPage({ onOpenHistory }: { onOpenHistory?: () => void }) {
     const picked = await api.files.pick("statement", t("import.filesName"));
     if (!picked) return;
     setPath(picked); setInfo(null); setMapping(null); setRows(null); setFlipped(new Set()); setDone(null);
+    setPassword(""); setTyping(""); setNeedsPassword(false);
   };
 
   // Read the file (and any saved mapping) whenever the file or account changes.
   useEffect(() => {
     if (!path || !accountId) return;
     setBusy(true); setError("");
-    api.statements.inspect(path, accountId).then((i) => { setInfo(i); setMapping(i.mapping); })
-      .catch((e) => { setInfo(null); setError(errorText(e)); }).finally(() => setBusy(false));
-  }, [path, accountId]);
+    api.statements.inspect(path, accountId, password).then((i) => { setInfo(i); setMapping(i.mapping); setNeedsPassword(false); })
+      .catch((e) => {
+        setInfo(null);
+        const pw = /password/i.test(String(e));
+        if (pw) setNeedsPassword(true);
+        // Asking for the password says enough the first time; a wrong one gets the error.
+        setError(pw && !password ? "" : errorText(e));
+      }).finally(() => setBusy(false));
+  }, [path, accountId, password]);
 
   // Re-parse whenever the mapping changes.
   useEffect(() => {
     if (!path || !mapping || !accountId) return;
     const id = setTimeout(() => {
-      api.statements.preview(path, accountId, mapping).then((r) => { setRows(r); setError(""); }).catch((e) => { setRows(null); setError(errorText(e)); });
+      api.statements.preview(path, accountId, mapping, password).then((r) => { setRows(r); setError(""); }).catch((e) => { setRows(null); setError(errorText(e)); });
     }, 150);
     return () => clearTimeout(id);
-  }, [path, accountId, mapping]);
+  }, [path, accountId, mapping, password]);
 
   const counts = useMemo(() => {
     const c = { new: 0, duplicate: 0, error: 0, skipped: 0 };
@@ -72,7 +83,7 @@ export function ImportPage({ onOpenHistory }: { onOpenHistory?: () => void }) {
     setBusy(true); setError("");
     const skip = (rows ?? []).filter((r) => r.status === "new" && flipped.has(r.index)).map((r) => r.index);
     const include = (rows ?? []).filter((r) => r.status === "duplicate" && flipped.has(r.index)).map((r) => r.index);
-    try { setDone(await api.statements.import(path, accountId, mapping, skip, include)); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+    try { setDone(await api.statements.import(path, accountId, mapping, skip, include, password)); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
   const reset = () => { setPath(null); setInfo(null); setMapping(null); setRows(null); setDone(null); setFlipped(new Set()); };
   const fileName = path?.split(/[\\/]/).pop();
@@ -103,6 +114,14 @@ export function ImportPage({ onOpenHistory }: { onOpenHistory?: () => void }) {
           <Button onClick={choose} variant={path ? "outline" : "default"} disabled={!accounts.length}><FileSpreadsheet />{path ? t("import.otherFile") : t("import.chooseFile")}</Button>
           {fileName && <span className="text-muted-foreground flex items-center gap-1.5 text-sm">{busy && <Loader2 className="size-4 animate-spin" />}{fileName}{info && ` · ${t("import.rows", { count: info.row_count })}`}</span>}
           {!accounts.length && <p className="text-muted-foreground text-sm">{t("tx.needAccount")}</p>}
+          {needsPassword && (
+            <form className="flex w-full flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); setError(""); setPassword(typing); }}>
+              <div className="grid min-w-56 gap-2"><Label htmlFor="imp-pw">{t("import.pdfPassword")}</Label>
+                <Input id="imp-pw" type="password" autoComplete="off" autoFocus value={typing} onChange={(e) => setTyping(e.target.value)} aria-describedby="imp-pw-hint" /></div>
+              <Button disabled={!typing}>{t("import.open")}</Button>
+              <p id="imp-pw-hint" className="text-muted-foreground w-full text-xs">{t("import.pdfPasswordHint")}</p>
+            </form>
+          )}
         </CardContent>
       </Card>
 
