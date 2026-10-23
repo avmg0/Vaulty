@@ -35,6 +35,8 @@ pub mod invoice;
 pub mod ocr;
 pub mod tax_plan;
 pub mod form16;
+pub mod calc;
+pub mod goals;
 pub mod people;
 pub mod profiles;
 pub mod quick;

@@ -71,6 +71,11 @@ What changed in each version, for people using Vaulty. Newest first.
   calculator works out the exempt part of house rent allowance and prints a rent receipt for each
   month. A Form 16 PDF (password-protected too) fills in salary, exemptions, deductions, the
   regime and TDS for each quarter, next to what the plan already has, so you pick what to use.
+- Goals: a target and date (in today's money if you like, grown by inflation), money set aside
+  in accounts and investments (a share of each, with a warning when goals claim more than all of
+  it), the monthly saving needed, where your plan gets you by the date, and on track or behind.
+- Calculators: SIP with a yearly step-up, lump sum, loan EMI with extra payments, fixed and
+  recurring deposits, PPF, a goal, retirement and inflation.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 

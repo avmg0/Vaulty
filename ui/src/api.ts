@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -153,6 +153,19 @@ export type TaxPlan = {
   used: string; total: number; tds: number; paid: number; balance: number; advance_note: string | null;
   advance: { date: string; percent: number; needed: number; paid: number; short: number; past: boolean }[];
 };
+export type GoalStatus = "done" | "reached" | "on_track" | "behind" | "overdue" | "no_date";
+export type GoalLink = { account_id: string | null; holding_id: string | null; share: number; name: string; value: number; over: boolean };
+export type Goal = {
+  id: string; name: string; icon: string | null; currency: string; target_date: string | null; return_rate: number; inflation: number; priority: number;
+  done_on: string | null; notes: string | null; target: number; target_then: number; saved_by_hand: number; saved: number; monthly: number;
+  progress: number; months_left: number | null; needed_monthly: number | null; projected: number | null; status: GoalStatus; links: GoalLink[];
+};
+export type GoalInput = {
+  name: string; icon?: string | null; currency: string; target: string; target_date?: string | null; saved?: string; monthly?: string;
+  return_rate?: number | string; inflation?: number | string; priority?: number; notes?: string | null;
+  links?: { account_id?: string; holding_id?: string; share: number }[];
+};
+export type GoalTotal = { currency: string; target: number; saved: number; monthly: number; goals: number };
 export type Form16Offer = {
   year: string | null; assessment_year: string | null; employer: string | null; tan: string | null; employee: string | null; pan: string | null;
   tds: number; paid: number; regime: "old" | "new" | null; standard_deduction: number | null; professional_tax: number | null; taxable: number | null; tax: number | null;
@@ -540,6 +553,15 @@ export const api = {
     readBill: (id: string) => invoke<BillDraft>("projects_read_bill", { id }),
     addItems: (projectId: string, batch: { items: ItemInput[]; file_id?: string }) => invoke<ProjectItem[]>("projects_items_add", { projectId, batch }),
   },
+  goals: {
+    list: () => invoke<Goal[]>("goals_list"),
+    summary: () => invoke<GoalTotal[]>("goals_summary"),
+    create: (goal: GoalInput) => invoke<{ id: string }>("goals_create", { goal }),
+    update: (id: string, goal: GoalInput) => invoke<void>("goals_update", { id, goal }),
+    setDone: (id: string, done: boolean) => invoke<void>("goals_set_done", { id, done }),
+    delete: (id: string) => invoke<void>("goals_delete", { id }),
+  },
+  calc: { run: <T = Record<string, unknown>>(kind: string, input: Record<string, unknown>) => invoke<T>("calc_run", { kind, input }) },
   investments: {
     list: () => invoke<Holding[]>("investments_list"),
     summary: () => invoke<InvestmentTotal[]>("investments_summary"),

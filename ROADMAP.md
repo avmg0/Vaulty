@@ -311,7 +311,8 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 ### Phase 5: Wealth and tax (v1.0)
 - [x] Investments: holdings, transactions, XIRR, allocation; CAMS/KFintech CAS import
 - [x] Daily fund prices (AMFI NAVs), opt-in
-- [ ] Goals and calculators; insurance; net-worth timeline
+- [x] Goals and calculators
+- [ ] Insurance; net-worth timeline
 - [ ] Nominee tracking on each account, policy and investment; journal (documents vault and the emergency summary are done, Phase 3)
 - [x] Tax planner filled from transactions; TDS and advance tax with reminders; HRA rent receipts
 - [x] Form 16 import (PDF, password-protected too)

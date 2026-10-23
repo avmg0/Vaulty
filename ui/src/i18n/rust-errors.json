@@ -36,6 +36,10 @@
   "re": "^can't switch between a card/loan and a bank/cash account once it has transactions$"
  },
  {
+  "id": "ed9232d41",
+  "re": "^money for a goal is kept in a bank, cash or savings account, not a card or loan$"
+ },
+ {
   "id": "e42b7c0a6",
   "re": "^Unlock the Hidden section to export: the file will include hidden transactions$"
  },
@@ -464,12 +468,24 @@
   "re": "^the waiting period is 3, 7, 14 or 30 days$"
  },
  {
+  "id": "efc2b68b5",
+  "re": "^amounts must be between 0 and 10 trillion$"
+ },
+ {
   "id": "e4c7bc5f6",
   "re": "^use Change password for your own profile$"
  },
  {
   "id": "e9e875e68",
   "re": "^you already have this fund in that folio$"
+ },
+ {
+  "id": "ea38cae27",
+  "re": "^a PPF account runs for at least 15 years$"
+ },
+ {
+  "id": "eab00c3bc",
+  "re": "^that's in another currency than the goal$"
  },
  {
   "id": "eb093d3fb",
@@ -482,6 +498,10 @@
  {
   "id": "ec60de13d",
   "re": "^a category name needs 1 to 40 characters$"
+ },
+ {
+  "id": "ee6e14669",
+  "re": "^link at most 20 accounts and investments$"
  },
  {
   "id": "e0968e6f7",
@@ -584,6 +604,10 @@
   "re": "^a choice column needs 1 to 30 choices$"
  },
  {
+  "id": "ed23dd091",
+  "re": "^retirement age must be after your age$"
+ },
+ {
   "id": "edf7ff440",
   "re": "^no regional list for that country yet$"
  },
@@ -654,6 +678,10 @@
  {
   "id": "ef0497d8b",
   "re": "^that password doesn't open this PDF$"
+ },
+ {
+  "id": "e1f614b75",
+  "re": "^PPF takes at most ₹1,50,000 a year$"
  },
  {
   "id": "e3e764ef5",
@@ -756,6 +784,10 @@
   "re": "^pick a range of at most ten years$"
  },
  {
+  "id": "ed21d27b7",
+  "re": "^give the amount you're aiming for$"
+ },
+ {
   "id": "edf18e1e7",
   "re": "^text colour must be light or dark$"
  },
@@ -808,6 +840,14 @@
   "re": "^currency must be a 3-letter code$"
  },
  {
+  "id": "e99dc76a6",
+  "re": "^rates must be between 0% and 30%$"
+ },
+ {
+  "id": "ea180b6e6",
+  "re": "^rates must be between 0% and 50%$"
+ },
+ {
   "id": "ea7783106",
   "re": "^a split needs at least two parts$"
  },
@@ -818,6 +858,10 @@
  {
   "id": "ed687dc01",
   "re": "^no date column found; choose one$"
+ },
+ {
+  "id": "ef7b6e0b4",
+  "re": "^link an account or an investment$"
  },
  {
   "id": "efb9bd45c",
@@ -908,12 +952,20 @@
   "re": "^this shared project is damaged$"
  },
  {
+  "id": "e868fdde9",
+  "re": "^a share is between 1% and 100%$"
+ },
+ {
   "id": "e8d1e4900",
   "re": "^expected auto, dmy, mdy or ymd$"
  },
  {
   "id": "e8f35b17e",
   "re": "^colours must look like #1e3a8a$"
+ },
+ {
+  "id": "e963c44d6",
+  "re": "^one of the details is too long$"
  },
  {
   "id": "ea56748c5",
@@ -926,6 +978,10 @@
  {
   "id": "edf09116c",
   "re": "^pick a range of at most a year$"
+ },
+ {
+  "id": "ee99ac47f",
+  "re": "^plan for life after retirement$"
  },
  {
   "id": "e07a93728",
@@ -992,6 +1048,14 @@
   "re": "^`expiry_year` must be a year$"
  },
  {
+  "id": "eb9286315",
+  "re": "^you can keep up to 200 goals$"
+ },
+ {
+  "id": "ecfbc4f02",
+  "re": "^give each figure as a number$"
+ },
+ {
   "id": "ee3edea23",
   "re": "^that column can't be renamed$"
  },
@@ -1022,6 +1086,10 @@
  {
   "id": "e75c44dab",
   "re": "^unsupported backup settings$"
+ },
+ {
+  "id": "e8134de74",
+  "re": "^give the date as YYYY-MM-DD$"
  },
  {
   "id": "e83279581",
@@ -1192,6 +1260,10 @@
   "re": "^logo image is too large$"
  },
  {
+  "id": "e41c932f4",
+  "re": "^that period is too long$"
+ },
+ {
   "id": "e6ce43a3b",
   "re": "^give the benefit a name$"
  },
@@ -1230,6 +1302,10 @@
  {
   "id": "e25202f02",
   "re": "^only perks are counted$"
+ },
+ {
+  "id": "e27856b11",
+  "re": "^give the loan's length$"
  },
  {
   "id": "e4dd66e8b",
@@ -1296,6 +1372,10 @@
   "re": "^say what the item is$"
  },
  {
+  "id": "e3a50e25d",
+  "re": "^give the goal a name$"
+ },
+ {
   "id": "e4e781fde",
   "re": "^give the amount paid$"
  },
@@ -1322,6 +1402,10 @@
  {
   "id": "e88909ab8",
   "re": "^colours are missing$"
+ },
+ {
+  "id": "eb0139956",
+  "re": "^unknown compounding$"
  },
  {
   "id": "ec2addcf0",
@@ -1372,6 +1456,10 @@
   "re": "^unknown tax regime$"
  },
  {
+  "id": "eccc3232f",
+  "re": "^unknown calculator$"
+ },
+ {
   "id": "e05ed483b",
   "re": "^choose an account$"
  },
@@ -1392,6 +1480,10 @@
   "re": "^too many sections$"
  },
  {
+  "id": "eb859abce",
+  "re": "^choose a currency$"
+ },
+ {
   "id": "e17fd8ef4",
   "re": "^that isn't a PDF$"
  },
@@ -1406,6 +1498,10 @@
  {
   "id": "eb1b3496e",
   "re": "^unknown currency$"
+ },
+ {
+  "id": "ecf201646",
+  "re": "^unknown priority$"
  },
  {
   "id": "ed148f2d8",
@@ -1496,6 +1592,10 @@
   "re": "^no such item$"
  },
  {
+  "id": "ecbe407d7",
+  "re": "^no such goal$"
+ },
+ {
   "id": "e7b3dceaf",
   "re": "^bad labels$"
  },
@@ -1506,6 +1606,10 @@
  {
   "id": "ed97d349a",
   "re": "^tax year$"
+ },
+ {
+  "id": "ef497ea02",
+  "re": "^bad goal$"
  },
  {
   "id": "e24213819",
