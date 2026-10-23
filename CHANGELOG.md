@@ -43,6 +43,8 @@ What changed in each version, for people using Vaulty. Newest first.
 - Card benefits (rewards, spend milestones, perks) and "best card for today" for a purchase.
 - Menu bar (tray) icon with quick add, open, lock and quit; an optional shortcut to quick add from
   any app; and an option to keep Vaulty running when its window is closed.
+- Settings in sections (profile, security, language, appearance, reminders, backups, family
+  sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 
 ### Fixed
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.

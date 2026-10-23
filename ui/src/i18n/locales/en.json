@@ -162,6 +162,18 @@
       "violet": "Violet",
       "orange": "Orange",
       "rose": "Rose"
+    },
+    "tabs": {
+      "profile": "Profile",
+      "security": "Security",
+      "language": "Language & formats",
+      "appearance": "Appearance",
+      "reminders": "Reminders",
+      "backups": "Backups",
+      "family": "Family sharing",
+      "shortcuts": "Keyboard shortcuts",
+      "computer": "This computer",
+      "market": "Market prices"
     }
   },
   "currencyPicker": {

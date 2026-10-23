@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Skeleton } from "@/components/Skeleton";
 import { Check, Fingerprint, KeyRound, Loader2, LockKeyhole, Monitor, Moon, ShieldCheck, Sun, Timer } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -39,6 +39,7 @@ import { useTheme, type Accent, type Theme } from "@/hooks/theme";
 import { useSession } from "@/hooks/session";
 import { Logo } from "@/components/Logo";
 import { cn, formatDate, formatDateAs, formatMoney } from "@/lib/utils";
+import { initialSettingsTab, rememberSettingsTab, SETTINGS_TAB_EVENT, SETTINGS_TAB_ICON, SETTINGS_TABS, type SettingsTab } from "@/lib/settingsTabs";
 
 const THEMES: { id: Theme; icon: typeof Sun }[] = [{ id: "system", icon: Monitor }, { id: "light", icon: Sun }, { id: "dark", icon: Moon }];
 /** Names are `settings.accent.<id>` in the translation files. */
@@ -50,23 +51,69 @@ const ACCENTS: { id: Accent; swatch: string }[] = [
   { id: "rose", swatch: "bg-rose-600" },
 ];
 
+/** What each section of Settings holds. */
+const PANELS: Record<SettingsTab, () => ReactNode> = {
+  profile: () => <ProfileCard />,
+  security: () => <><SecurityCard /><HelpersSection /></>,
+  language: () => <><LanguageRegionCard /><FormatsCard /></>,
+  appearance: () => <AppearanceCard />,
+  reminders: () => <RemindersCard />,
+  backups: () => <><BackupsCard /><SnapshotsCard /></>,
+  family: () => <FamilySharingCard />,
+  shortcuts: () => <HotkeysCard />,
+  computer: () => <><DeviceCard /><UpdatesCard /></>,
+  market: () => <MarketCard />,
+};
+
+/** Settings in sections: a list of tabs down the side (across the top on narrow windows). */
 export function Settings() {
+  const { t } = useTranslation();
+  const [tab, setTab] = useState<SettingsTab>(initialSettingsTab);
+  const tabs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const show = (next: SettingsTab, focus = false) => {
+    setTab(next);
+    rememberSettingsTab(next);
+    if (focus) tabs.current[next]?.focus();
+  };
+  // On narrow windows the tabs scroll sideways: keep the chosen one in view.
+  useEffect(() => { tabs.current[tab]?.scrollIntoView({ block: "nearest", inline: "nearest" }); }, [tab]);
+  // Another part of the app asking for a section while Settings is open.
+  useEffect(() => {
+    const on = (e: Event) => { const next = (e as CustomEvent<SettingsTab>).detail; if (SETTINGS_TABS.includes(next)) show(next); };
+    window.addEventListener(SETTINGS_TAB_EVENT, on);
+    return () => window.removeEventListener(SETTINGS_TAB_EVENT, on);
+  }, []);
+  // Arrow keys move between tabs, as in any list of tabs.
+  const onKey = (e: React.KeyboardEvent) => {
+    const i = SETTINGS_TABS.indexOf(tab);
+    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+    if (step) { e.preventDefault(); show(SETTINGS_TABS[(i + step + SETTINGS_TABS.length) % SETTINGS_TABS.length], true); }
+    if (e.key === "Home") { e.preventDefault(); show(SETTINGS_TABS[0], true); }
+    if (e.key === "End") { e.preventDefault(); show(SETTINGS_TABS[SETTINGS_TABS.length - 1], true); }
+  };
   return (
-    <div className="max-w-3xl space-y-6">
-      <ProfileCard />
-      <LanguageRegionCard />
-      <FormatsCard />
-      <SecurityCard />
-      <HelpersSection />
-      <RemindersCard />
-      <BackupsCard />
-      <SnapshotsCard />
-      <FamilySharingCard />
-      <AppearanceCard />
-      <HotkeysCard />
-      <DeviceCard />
-      <MarketCard />
-      <UpdatesCard />
+    <div className="grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-6 md:grid-cols-[13rem_minmax(0,1fr)]">
+      <nav aria-label={t("nav.settings")} className="min-w-0 md:sticky md:top-0 md:self-start">
+        <div role="tablist" aria-orientation="vertical" aria-label={t("nav.settings")} onKeyDown={onKey}
+          className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 md:mx-0 md:flex-col md:overflow-visible md:px-0">
+          {SETTINGS_TABS.map((id) => {
+            const Icon = SETTINGS_TAB_ICON[id];
+            const on = id === tab;
+            return (
+              <button key={id} ref={(el) => { tabs.current[id] = el; }} role="tab" id={`settings-tab-${id}`} aria-selected={on} aria-controls="settings-panel"
+                tabIndex={on ? 0 : -1} onClick={() => show(id)}
+                className={cn("flex shrink-0 items-center gap-2.5 rounded-md px-3 py-2 text-left text-sm whitespace-nowrap transition-colors",
+                  on ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground")}>
+                <Icon className="size-4 shrink-0" aria-hidden />{t(`settings.tabs.${id}`)}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
+      <section id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`} className="max-w-3xl min-w-0 space-y-6">
+        <h2 className="sr-only">{t(`settings.tabs.${tab}`)}</h2>
+        {PANELS[tab]()}
+      </section>
     </div>
   );
 }

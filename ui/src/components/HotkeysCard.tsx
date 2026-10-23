@@ -62,7 +62,7 @@ export function HotkeysCard() {
                           {t("hotkeys.press")}
                         </button>
                       ) : (
-                        <button type="button" onClick={() => start(a)} aria-label={t("hotkeys.changeFor", { action: t(`hotkeys.actions.${a}`) })}
+                        <button type="button" onClick={() => start(a)} aria-label={`${now ? formatKeys(now) : t("hotkeys.none")}: ${t("hotkeys.changeFor", { action: t(`hotkeys.actions.${a}`) })}`}
                           className={cn("hover:bg-accent h-8 min-w-24 rounded-md border px-3 font-mono text-xs", !now && "text-muted-foreground font-sans")}>
                           {now ? formatKeys(now) : t("hotkeys.none")}
                         </button>

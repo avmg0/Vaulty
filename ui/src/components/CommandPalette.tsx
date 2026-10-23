@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, type Transaction } from "@/api";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ALL_ITEMS, type PageId } from "@/nav";
+import { requestSettingsTab, SETTINGS_TAB_ICON, SETTINGS_TABS } from "@/lib/settingsTabs";
 import { QUICK_ADD_EVENT } from "@/components/QuickAdd";
 import { useTheme } from "@/hooks/theme";
 import { rememberFocus, returnFocus } from "@/lib/focus";
@@ -46,11 +47,16 @@ export function CommandPalette({ onNavigate, onLock }: { onNavigate: (p: PageId)
       { id: "quick", label: t("quick.button"), hint: formatKeys(keys.quick_add), icon: Zap, group: t("palette.do"), run: () => { close(); window.dispatchEvent(new Event(QUICK_ADD_EVENT)); }, keywords: "add new transaction expense" },
       { id: "balances", label: hideBalances ? t("palette.showBalances") : t("palette.hideBalances"), hint: formatKeys(keys.hide_balances), icon: Eye, group: t("palette.do"), run: () => { close(); setHideBalances(!hideBalances); } },
       { id: "theme", label: t("palette.theme"), icon: Moon, group: t("palette.do"), run: () => { close(); setTheme(theme === "dark" ? "light" : "dark"); }, keywords: "dark light mode" },
-      { id: "backup", label: t("backups.make"), icon: ArrowRight, group: t("palette.do"), run: go("settings"), keywords: "export backup encrypted" },
+      { id: "backup", label: t("backups.make"), icon: ArrowRight, group: t("palette.do"), run: () => { requestSettingsTab("backups"); go("settings")(); }, keywords: "export backup encrypted" },
       { id: "import", label: t("import.step1"), icon: ArrowRight, group: t("palette.do"), run: go("import"), keywords: "csv statement bank excel" },
       { id: "lock", label: t("palette.lock"), hint: formatKeys(keys.lock), icon: Lock, group: t("palette.do"), run: () => { close(); onLock(); }, keywords: "sign out switch profile" },
     ];
-    return [...actions, ...pages];
+    // Each section of Settings, so "security" or "backups" finds it straight away.
+    const sections: Item[] = SETTINGS_TABS.map((id) => ({
+      id: `settings-${id}`, label: `${t("nav.settings")}: ${t(`settings.tabs.${id}`)}`, icon: SETTINGS_TAB_ICON[id], group: t("palette.go"),
+      run: () => { requestSettingsTab(id); go("settings")(); }, keywords: `settings ${id}`,
+    }));
+    return [...actions, ...pages, ...sections];
   }, [t, hideBalances, theme, keys]);
 
   const query = q.trim();

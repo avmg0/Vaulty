@@ -162,6 +162,18 @@
       "violet": "बैंगनी",
       "orange": "नारंगी",
       "rose": "गुलाबी"
+    },
+    "tabs": {
+      "profile": "प्रोफ़ाइल",
+      "security": "सुरक्षा",
+      "language": "भाषा और प्रारूप",
+      "appearance": "रूप-रंग",
+      "reminders": "रिमाइंडर",
+      "backups": "बैकअप",
+      "family": "परिवार के साथ साझा",
+      "shortcuts": "कीबोर्ड शॉर्टकट",
+      "computer": "यह कंप्यूटर",
+      "market": "बाज़ार भाव"
     }
   },
   "currencyPicker": {
