@@ -9,7 +9,7 @@ export const DATA_RESTORED = "vaulty:data-restored";
 /** Commands the app records in history (and so can undo). Keep in step with `s.act` in src-tauri/src/lib.rs. */
 const RECORDED = new RegExp([
   "^(accounts|categories|transactions|cards)_(create|update|delete|set_visibility)$", "^transactions_(set_hidden|bulk)$",
-  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$", "^nominees_set$", "^journal_(create|update|delete)$", "^insurance_(create|update|delete|pay|payment_delete|claim_(add|update|delete))$",
+  "^settings_update$", "^hotkeys_(set|reset)$", "^calendar_event_(create|update|delete)$", "^calendar_import$", "^people_(create|update|delete)$", "^tasks_(create|update|set_done|delete)$", "^documents_(create|update|delete|add_file|remove_file)$", "^investments_(create|update|set_price|delete)$", "^fund_prices_update$", "^projects_(create|update|delete|section_(add|update|delete|order)|item_(add|update|delete)|payment_(add|update|delete)|file_(add|link|remove)|items_add|members_set|share_(export|import)|settle_record)$", "^cas_import$", "^card_statement_(enter|forget)$", "^card_benefits_(create|update|delete|use)$", "^import_json$", "^backup_import$", "^statement_import$", "^budgets_set$", "^tax_(payment_(add|delete)|links_set)$", "^form16_apply$", "^goals_(create|update|set_done|delete)$", "^nominees_set$", "^journal_(create|update|delete)$", "^business_(update|owner_money)$", "^insurance_(create|update|delete|pay|payment_delete|claim_(add|update|delete))$",
   "^recurring_(create|update|delete|set_active|skip|pay)$", "^rules_(add|delete|apply)$",
 ].join("|"));
 
@@ -171,6 +171,12 @@ export type PolicyInput = Partial<Omit<Policy, "cover" | "premium" | "payments" 
 export type InsuranceTotal = { currency: string; life_cover: number; health_cover: number; premiums_yearly: number; income_year: number; life_multiple: number | null };
 export type NetWorthPoint = { date: string; cash: number; investments: number; owed_to_you: number; debts: number; you_owe: number; net: number };
 export type NetWorth = { currency: string; points: NetWorthPoint[]; net: number; change_month: number | null; change_period: number; since: string | null };
+export const BUSINESS_KINDS = ["sole_proprietor", "partnership", "llp", "company", "other"] as const;
+export type BusinessKind = (typeof BUSINESS_KINDS)[number];
+export type Business = { id: string; name: string; kind: BusinessKind; currency: string; gstin: string | null; pan: string | null; state_code: string | null; address: string | null;
+  fy_start_month: number; capital_account_id: string | null; capital_account_name: string | null; created_at: string; archived_at: string | null };
+export type BookInfo = { id: string; name: string; kind: BusinessKind; gstin: string | null; pan: string | null; state_code: string | null; address: string | null; fy_start_month: number };
+export type BusinessInput = { name: string; kind: BusinessKind; currency?: string; gstin?: string; pan?: string; address?: string; state_code?: string; fy_start_month?: number };
 export const MOODS = ["great", "good", "okay", "worried", "stressed"] as const;
 export type Mood = (typeof MOODS)[number];
 export type MonthFacts = {
@@ -603,6 +609,17 @@ export const api = {
     addClaim: (policyId: string, claim: Record<string, unknown>) => invoke<{ id: string }>("insurance_claim_add", { policyId, claim }),
     updateClaim: (id: string, claim: Record<string, unknown>) => invoke<void>("insurance_claim_update", { id, claim }),
     deleteClaim: (id: string) => invoke<void>("insurance_claim_delete", { id }),
+  },
+  business: {
+    list: () => invoke<Business[]>("businesses_list"),
+    current: () => invoke<BookInfo | null>("book_current"),
+    switchTo: async (id: string | null) => { const b = await invoke<BookInfo | null>("book_switch", { id }); window.dispatchEvent(new Event(DATA_RESTORED)); return b; },
+    create: async (business: BusinessInput) => { const b = await invoke<BookInfo | null>("business_create", { business }); window.dispatchEvent(new Event(DATA_RESTORED)); return b; },
+    update: (business: BusinessInput) => invoke<BookInfo | null>("business_update", { business }),
+    ownerMoney: (money: { direction: "in" | "out"; account_id: string; amount: string; date: string; note?: string; personal_account_id?: string }) => invoke<{ business_entry: string; personal_entry: string | null }>("business_owner_money", { money }),
+    ownerTotals: () => invoke<{ currency: string; capital: number; drawings: number; net: number }>("business_owner_totals"),
+    archive: (id: string, archived: boolean) => invoke<void>("business_archive", { id, archived }),
+    personalAccounts: () => invoke<Account[]>("personal_accounts"),
   },
   journal: {
     list: (search?: string, tag?: string) => invoke<{ entries: JournalEntry[]; tags: string[]; review_due: string | null }>("journal_list", { search: search || null, tag: tag || null }),

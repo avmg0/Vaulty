@@ -43,6 +43,7 @@ pub const DATA_MIGRATIONS: Migrations = &[
     ("0034_nominees", include_str!("../migrations/data/0034_nominees.sql")),
     ("0035_anomalies", include_str!("../migrations/data/0035_anomalies.sql")),
     ("0036_journal", include_str!("../migrations/data/0036_journal.sql")),
+    ("0037_businesses", include_str!("../migrations/data/0037_businesses.sql")),
 ];
 
 /// Device-level family sharing store.

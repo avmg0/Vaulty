@@ -48,6 +48,10 @@
   "re": "^no text was found in this photo; try a sharper, straighter photo in good light$"
  },
  {
+  "id": "e9bd8f882",
+  "re": "^that GSTIN doesn't look right \\(15 characters, with a check digit at the end\\)$"
+ },
+ {
   "id": "e0d4cf818",
   "re": "^that password is mostly your name; choose something others wouldn't guess$"
  },
@@ -156,6 +160,10 @@
   "re": "^the card and the helper's approval don't open this profile$"
  },
  {
+  "id": "e84e35dba",
+  "re": "^this business has no capital account in your personal book$"
+ },
+ {
   "id": "eb988c1cd",
   "re": "^app updates can't be undone; restore a safety copy instead$"
  },
@@ -206,6 +214,10 @@
  {
   "id": "ece13e26b",
   "re": "^a debit card must be linked to an active bank account$"
+ },
+ {
+  "id": "ef0fd3564",
+  "re": "^switch back to your personal book to start a business$"
  },
  {
   "id": "e040fdaa6",
@@ -264,6 +276,10 @@
   "re": "^the warranty can't end before the item was bought$"
  },
  {
+  "id": "e44626cc5",
+  "re": "^the financial year starts in a month from 1 to 12$"
+ },
+ {
   "id": "e61617b12",
   "re": "^this project already has a section with that name$"
  },
@@ -302,6 +318,10 @@
  {
   "id": "eb0f4c487",
   "re": "^changed again since; undo the later change first$"
+ },
+ {
+  "id": "ed78c0316",
+  "re": "^this business's book is missing from this device$"
  },
  {
   "id": "edd4ab94a",
@@ -368,6 +388,10 @@
   "re": "^expected a 3-letter ISO 4217 code such as INR$"
  },
  {
+  "id": "e7f2c7ec6",
+  "re": "^that PAN doesn't look right \\(like ABCDE1234F\\)$"
+ },
+ {
   "id": "e8042e6ac",
   "re": "^shared recovery isn't set up for this profile$"
  },
@@ -386,6 +410,10 @@
  {
   "id": "e7e707449",
   "re": "^choose the bank account this debit card uses$"
+ },
+ {
+  "id": "e9ae9d730",
+  "re": "^switch back to your personal book to do this$"
  },
  {
   "id": "ea257c422",
@@ -548,6 +576,10 @@
   "re": "^children are helped back in by a parent$"
  },
  {
+  "id": "eda03b853",
+  "re": "^a book for that business already exists$"
+ },
+ {
   "id": "ee8270e4f",
   "re": "^show has regional, crypto and watchlist$"
  },
@@ -594,6 +626,10 @@
  {
   "id": "eef62280a",
   "re": "^a project can have at most 60 sections$"
+ },
+ {
+  "id": "ef465209c",
+  "re": "^a business's currency can't be changed$"
  },
  {
   "id": "e5d803bee",
@@ -832,6 +868,10 @@
   "re": "^this doesn't look like a Form 16$"
  },
  {
+  "id": "e2db48c60",
+  "re": "^say whether money went in or out$"
+ },
+ {
   "id": "e41369c2d",
   "re": "^the end date is before the start$"
  },
@@ -886,6 +926,10 @@
  {
   "id": "efb9bd45c",
   "re": "^no history for that kind of item$"
+ },
+ {
+  "id": "efec2b486",
+  "re": "^you can keep up to 20 businesses$"
  },
  {
   "id": "e04bb4364",
@@ -1044,6 +1088,10 @@
   "re": "^two columns can't share an id$"
  },
  {
+  "id": "e7c98d5ae",
+  "re": "^choose a bank or cash account$"
+ },
+ {
   "id": "ea414ef1b",
   "re": "^speed is slow, normal or fast$"
  },
@@ -1070,6 +1118,10 @@
  {
   "id": "e7e6a5983",
   "re": "^internal state lock poisoned$"
+ },
+ {
+  "id": "e86f5dfbf",
+  "re": "^this book isn't a business's$"
  },
  {
   "id": "e87945a11",
@@ -1128,6 +1180,10 @@
   "re": "^choose which person you are$"
  },
  {
+  "id": "ea4c9c978",
+  "re": "^choose the business account$"
+ },
+ {
   "id": "ea9a4a474",
   "re": "^the quantity isn't a number$"
  },
@@ -1162,6 +1218,10 @@
  {
   "id": "e21e257b2",
   "re": "^settings must be an object$"
+ },
+ {
+  "id": "e47cb59ea",
+  "re": "^switch to a business first$"
  },
  {
   "id": "e8c84a400",
@@ -1278,6 +1338,14 @@
  {
   "id": "ead37307c",
   "re": "^that setting is too long$"
+ },
+ {
+  "id": "ee21230f7",
+  "re": "^give the business a name$"
+ },
+ {
+  "id": "ee567a5fe",
+  "re": "^unknown kind of business$"
  },
  {
   "id": "eea354a80",
@@ -1560,6 +1628,10 @@
   "re": "^no such snapshot$"
  },
  {
+  "id": "e5912d706",
+  "re": "^no such business$"
+ },
+ {
   "id": "eb1b3496e",
   "re": "^unknown currency$"
  },
@@ -1578,6 +1650,10 @@
  {
   "id": "e0d8df62c",
   "re": "^unknown setting$"
+ },
+ {
+  "id": "e5bc01ce8",
+  "re": "^give the amount$"
  },
  {
   "id": "e71626582",

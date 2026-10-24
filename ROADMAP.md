@@ -218,10 +218,11 @@ Vaulty must work in any country. Tax rules change every year and differ by count
 - **Updates:** packs are built into the app so tax works offline. Later, optional signed pack updates let a budget change be fixed without a full app release; nothing else leaves the device.
 - **Next pack:** pick the second country first, since it shows which building blocks are missing (UK or Singapore are moderate; the US is the hardest).
 
-### 8. Small business: business workspaces on a double-entry ledger (ledger ✅, workspaces next)
+### 8. Small business: business books on a double-entry ledger (ledger ✅, business books ✅ first version)
 A member can run a small business inside Vaulty without mixing it with personal money.
 
-- **Business workspace:** its own accounts, categories, clients, vendors and reports, separate from personal finances. Money moving between them is recorded as "owner paid in" (capital) or "owner took out" (drawings).
+- **Settled (24 October 2026): each business is its own encrypted book**, not a tagged corner of the personal one. Its key is kept wrapped under the member's data key in their personal book, so only they can open it; the app switches which book every page reads. This keeps business data apart for sharing with a partner or accountant, for its own backups and safety copies, and for the longer retention the law asks of business records.
+- **Business book:** its own accounts, categories, clients, vendors and reports, separate from personal finances. Money moving between them is recorded as "owner paid in" (capital) or "owner took out" (drawings), in both books: equity in the business, a transfer to or from the business's capital account in the personal one.
 - **Double-entry under the hood:** every transaction becomes balanced ledger entries. Users still just "add an expense"; they never see debits and credits. In return:
   - receivables and payables (who owes what, and for how long)
   - GST/VAT collected vs paid, correctly
@@ -326,7 +327,8 @@ Each phase is a release with a "done when" test. Order: daily use first, securit
 - **Done when:** net worth is complete and the tax planner fills itself in.
 
 ### Phase 6: Business (v1.x)
-- [ ] Business workspaces (decision 8), then GST invoices with PDF and email, then payments and receivables, then purchase bills and GST returns, then stock and payroll (see "Business: invoicing and beyond")
+- [x] Business books (decision 8): start a business, switch books, owner's capital and drawings in both books, business categories, GSTIN/PAN/state
+- [ ] Then GST invoices with PDF and email, then payments and receivables, then purchase bills and GST returns, then stock and payroll (see "Business: invoicing and beyond")
 - [ ] Edit log that can't be turned off, signed checkpoints, retention (decision 1c, parts 8 and 9)
 - [ ] Pentest before email sending and e-invoicing go live
 - **Done when:** a small business can invoice, get paid and hand its books to an accountant.

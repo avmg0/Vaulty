@@ -96,10 +96,18 @@ What changed in each version, for people using Vaulty. Newest first.
   the Personal Allowance and its taper above £100,000, basic, higher and additional rates,
   Class 1 National Insurance on salary, and pension contributions taken before tax. Tax packs
   can now describe a tapering allowance and charges alongside income tax.
+- Businesses: start one from the menu's book switcher or the Business page. Each business has its
+  own encrypted book (accounts, categories made for a business, transactions, reports, safety
+  copies), kept apart from your personal money and from family sharing; a band and badge show
+  when you're in one. Money you put in or take out is recorded in both books as capital or
+  drawings, never as income or spending. GSTIN (checked), PAN, state and financial-year start
+  are kept for invoices to come.
 - Settings in sections (profile, security, language, appearance, reminders, backups, family
   sharing, shortcuts, this computer, market prices), each also reachable from the command palette.
 
 ### Fixed
+- Taking a safety copy by hand, or before restoring a backup, could freeze the app (it waited on
+  itself). Each now takes one lock.
 - Undoing twice after editing a transaction (add, edit, undo, undo) is no longer refused.
 - Statement import no longer reads a date or reference in an amount column as an amount.
 - Card and account pictures would have been blocked in installed builds.

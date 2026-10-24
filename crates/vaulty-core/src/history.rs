@@ -21,7 +21,7 @@ const TRACKED: &[&str] = &[
     "accounts", "cards", "categories", "entries", "postings", "ledger_accounts", "workspaces",
     "calendar_events", "goals", "investments", "investment_events", "journal_entries",
     "recurring_payments", "tasks", "user_settings", "hotkeys", "budgets", "category_rules", "import_templates", "people",
-    "vault_documents", "vault_document_files", "card_statements", "card_benefits", "holdings", "holding_txns", "projects", "project_sections", "project_items", "project_payments", "project_files", "project_members", "tax_plans", "tax_payments", "tax_links", "goal_links", "policies", "policy_payments", "policy_claims",
+    "vault_documents", "vault_document_files", "card_statements", "card_benefits", "holdings", "holding_txns", "projects", "project_sections", "project_items", "project_payments", "project_files", "project_members", "tax_plans", "tax_payments", "tax_links", "goal_links", "business_profile", "policies", "policy_payments", "policy_claims",
 ];
 
 pub const TRASH_DAYS: i64 = 30;

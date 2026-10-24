@@ -46,6 +46,8 @@ import { HotkeysProvider, useHotkey } from "@/hooks/hotkeys";
 import { applySenior } from "@/lib/senior";
 import { History } from "@/pages/History";
 import { DATA_RESTORED } from "@/api";
+import { BookProvider, PERSONAL_ONLY, useBook } from "@/hooks/book";
+import { BusinessPage } from "@/pages/Business";
 import { VaultSplash } from "@/components/UnlockSplash";
 
 const LAST_USER_KEY = "vaulty.lastUser";
@@ -145,7 +147,7 @@ export function App() {
 }
 
 function Shell(props: { signOut: () => void; lockNow: () => void }) {
-  return <HotkeysProvider><ShellBody {...props} /></HotkeysProvider>;
+  return <HotkeysProvider><BookProvider><ShellBody {...props} /></BookProvider></HotkeysProvider>;
 }
 
 function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => void }) {
@@ -154,6 +156,9 @@ function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => v
   const [collapsed, setCollapsed] = useState(false);
   const { hideBalances, setHideBalances } = useTheme();
   useIdleLock(signOut);
+  const { book } = useBook();
+  // Leaving a page a business book doesn't have.
+  useEffect(() => { if (book && (PERSONAL_ONLY as readonly string[]).includes(page)) setPage("dashboard"); }, [book, page]);
   // After an undo or restore, re-mount the open page so it shows current data.
   const [version, setVersion] = useState(0);
   useEffect(() => {
@@ -178,7 +183,7 @@ function ShellBody({ signOut, lockNow }: { signOut: () => void; lockNow: () => v
   useHotkey("go_import", () => setPage("import"));
 
   const item = ALL_ITEMS.find((i) => i.id === page)!;
-  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => { requestSettingsTab("family"); setPage("settings"); }} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, reports: <Reports />, people: <PeoplePage />, tasks: <TasksPage />, documents: <DocumentsPage />, investments: <InvestmentsPage />, projects: <ProjectsPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, goals: <GoalsPage />, insurance: <InsurancePage />, journal: <JournalPage />, history: <History /> }[page as string];
+  const body = { dashboard: <Dashboard />, accounts: <Accounts />, transactions: <Transactions />, settings: <Settings />, family: <Family onOpenSettings={() => { requestSettingsTab("family"); setPage("settings"); }} />, cards: <Cards />, budgets: <Budgets />, recurring: <RecurringPage />, calendar: <CalendarPage />, reports: <Reports />, people: <PeoplePage />, tasks: <TasksPage />, documents: <DocumentsPage />, investments: <InvestmentsPage />, projects: <ProjectsPage />, import: <ImportPage onOpenHistory={() => setPage("history")} />, tax: <TaxPlanner />, goals: <GoalsPage />, insurance: <InsurancePage />, journal: <JournalPage />, business: <BusinessPage />, history: <History /> }[page as string];
 
   return (
     <div className="flex h-screen overflow-hidden">

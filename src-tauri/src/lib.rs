@@ -46,12 +46,23 @@ struct Session {
     /// Last time the person used the app (reported by the window), and how long it may sit idle.
     last_active: SystemTime,
     auto_lock: Option<Duration>,
+    /// The business book switched to, if any. Pages read and write it in place of the personal
+    /// book; family sharing never sees it.
+    book: Option<Book>,
+}
+
+struct Book {
+    id: String,
+    conn: Connection,
+    key: vaulty_core::Key,
+    /// Stand-in sharing store: business transactions are never shared with the family.
+    quiet: Household,
 }
 
 impl Session {
     fn new(user: UserSummary, conn: Connection, keys: Unlocked, household: Household, household_ready: bool) -> Self {
         let auto_lock = vaulty_core::settings::auto_lock(&conn).unwrap_or(Some(Duration::from_secs(5 * 60)));
-        Session { user, conn, keys, household, household_ready, hidden_until: None, last_active: SystemTime::now(), auto_lock }
+        Session { user, conn, keys, household, household_ready, hidden_until: None, last_active: SystemTime::now(), auto_lock, book: None }
     }
 
     fn hidden_open(&self) -> bool {
@@ -132,7 +143,10 @@ impl AppState {
     fn data_and_share<T>(&self, f: impl FnOnce(&Connection, &str, &Household) -> Result<T>) -> Result<T> {
         let mut guard = self.session.lock().map_err(poisoned)?;
         let s = live(&mut guard)?;
-        f(&s.conn, &s.user.id, &s.household)
+        match &s.book {
+            Some(b) => f(&b.conn, &s.user.id, &b.quiet),
+            None => f(&s.conn, &s.user.id, &s.household),
+        }
     }
 
     /// Like `data`, recorded as one undoable action in the member's history.
@@ -151,11 +165,63 @@ impl AppState {
         f(&s.keys)
     }
 
-    /// Runs `f` against the signed-in user's own database.
+    /// Runs `f` against the book in use: the member's personal book, or the business book
+    /// they switched to.
     fn data<T>(&self, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
         let mut guard = self.session.lock().map_err(poisoned)?;
         let s = live(&mut guard)?;
+        f(s.book.as_ref().map_or(&s.conn, |b| &b.conn))
+    }
+
+    /// Runs `f` against the member's personal book, whichever book is in use.
+    fn personal<T>(&self, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = live(&mut guard)?;
         f(&s.conn)
+    }
+
+    /// The business book in use, with the personal book and the member's keys.
+    fn business<T>(&self, f: impl FnOnce(&Connection, &Book, &Unlocked) -> Result<T>) -> Result<T> {
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = live(&mut guard)?;
+        let b = s.book.as_ref().ok_or_else(|| Error::Invalid("switch to a business first".into()))?;
+        f(&s.conn, b, &s.keys)
+    }
+
+    /// Refuses while a business book is in use (for things only the personal book has).
+    fn personal_only(&self) -> Result<()> {
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        if live(&mut guard)?.book.is_some() { return Err(Error::Invalid("switch back to your personal book to do this".into())); }
+        Ok(())
+    }
+
+    fn business_db_path(&self, user_id: &str, id: &str) -> PathBuf {
+        self.data_dir.join("users").join(format!("{user_id}-biz-{id}.db"))
+    }
+
+    /// Where the book in use keeps its safety copies and its attached files.
+    fn book_dirs(&self, s: &Session) -> (PathBuf, PathBuf) {
+        let (snaps, files) = (self.snapshot_dir(&s.user.id), self.documents_dir(&s.user.id));
+        match &s.book { Some(b) => (snaps.join(format!("biz-{}", b.id)), files.join(format!("biz-{}", b.id))), None => (snaps, files) }
+    }
+    fn files_dir(&self) -> Result<PathBuf> {
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        Ok(self.book_dirs(live(&mut guard)?).1)
+    }
+    fn snaps_dir(&self) -> Result<PathBuf> {
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        Ok(self.book_dirs(live(&mut guard)?).0)
+    }
+
+    /// A safety copy of the book in use.
+    fn take_snapshot(&self, reason: &str) -> Result<vaulty_core::snapshots::Snapshot> {
+        let mut guard = self.session.lock().map_err(poisoned)?;
+        let s = live(&mut guard)?;
+        let dir = self.book_dirs(s).0;
+        match &s.book {
+            Some(b) => vaulty_core::snapshots::take(&b.conn, &b.key, &dir, reason),
+            None => vaulty_core::snapshots::take(&s.conn, &s.keys.data_key, &dir, reason),
+        }
     }
 
     fn hidden_open(&self) -> Result<bool> {
@@ -238,11 +304,11 @@ impl AppState {
         self.data_dir.join("documents").join(user_id)
     }
 
-    /// Runs `f` with the member's database and keys together (one lock).
-    fn data_with_keys<T>(&self, f: impl FnOnce(&Connection, &Unlocked) -> Result<T>) -> Result<T> {
+    /// Runs `f` with the book in use and the key its attached files are encrypted with (one lock).
+    fn data_with_keys<T>(&self, f: impl FnOnce(&Connection, &vaulty_core::Key) -> Result<T>) -> Result<T> {
         let mut guard = self.session.lock().map_err(poisoned)?;
         let s = live(&mut guard)?;
-        f(&s.conn, &s.keys)
+        match &s.book { Some(b) => f(&b.conn, &b.key), None => f(&s.conn, &s.keys.data_key) }
     }
 
     fn delete_user_files(&self, user_id: &str) {
@@ -252,6 +318,12 @@ impl AppState {
             db::shred(std::path::Path::new(&format!("{}{suffix}", path.display())));
         }
         vaulty_core::snapshots::delete_all(&self.snapshot_dir(user_id));
+        // The member's business books.
+        if let Ok(entries) = std::fs::read_dir(self.data_dir.join("users")) {
+            for e in entries.flatten() {
+                if e.file_name().to_str().is_some_and(|n| n.starts_with(&format!("{user_id}-biz-"))) { db::shred(&e.path()); }
+            }
+        }
     }
 
     fn take_pending(&self) -> Result<SecondFactor> {
@@ -426,6 +498,74 @@ fn cards_best(s: S, amount: Option<Value>, category_id: Option<String>, place: O
 
 // ============================================================ documents
 
+// ------------------------------------------------------------ businesses (separate books)
+
+/// The member's businesses (from the personal book).
+#[tauri::command] fn businesses_list(s: S) -> Result<Vec<Value>> { s.personal(vaulty_core::business::list) }
+
+/// The book in use: `null` for personal, or the business's id, name and details.
+#[tauri::command] fn book_current(s: S) -> Result<Option<Value>> {
+    let mut guard = s.session.lock().map_err(poisoned)?;
+    let sess = live(&mut guard)?;
+    match &sess.book { Some(b) => vaulty_core::business::profile(&b.conn), None => Ok(None) }
+}
+
+/// Opens a business book in place of the personal one (`id`), or goes back to personal (`null`).
+#[tauri::command] fn book_switch(s: S, id: Option<String>) -> Result<Option<Value>> {
+    let mut guard = s.session.lock().map_err(poisoned)?;
+    let sess = live(&mut guard)?;
+    sess.book = None;
+    let Some(id) = id else { return Ok(None) };
+    let user = sess.user.id.clone();
+    let path = s.business_db_path(&user, &id);
+    let key = vaulty_core::business::key_of(&sess.conn, &sess.keys.data_key, &id)?;
+    let conn = vaulty_core::business::open(&sess.conn, &sess.keys.data_key, &path, &id)?;
+    let snaps = s.snapshot_dir(&user).join(format!("biz-{id}"));
+    // Daily safety copy and trash clean-up for the business book too (best effort).
+    if vaulty_core::snapshots::age_of_latest(&snaps).ok().flatten().is_none_or(|age| age > vaulty_core::snapshots::DAILY_INTERVAL_SECS) {
+        let _ = vaulty_core::snapshots::take(&conn, &key, &snaps, "daily");
+    }
+    let _ = vaulty_core::documents::purge(&conn, &s.documents_dir(&user).join(format!("biz-{id}")));
+    let profile = vaulty_core::business::profile(&conn)?;
+    sess.book = Some(Book { id, conn, key, quiet: Household::open_in_memory()? });
+    Ok(profile)
+}
+
+/// Starts a business: its own book, a capital account in the personal book, and switches to it.
+#[tauri::command] fn business_create(s: S, business: Value) -> Result<Option<Value>> {
+    limits::check(&business)?;
+    let id = {
+        let mut guard = s.session.lock().map_err(poisoned)?;
+        let sess = live(&mut guard)?;
+        if sess.book.is_some() { return Err(Error::Invalid("switch back to your personal book to start a business".into())); }
+        let user = sess.user.id.clone();
+        std::fs::create_dir_all(s.data_dir.join("users"))?;
+        let (id, conn) = vaulty_core::history::record(&sess.conn, "business.create", |p| vaulty_core::business::create(p, &sess.keys.data_key, |id| s.business_db_path(&user, id), &business))?;
+        drop(conn);
+        id
+    };
+    book_switch(s, Some(id))
+}
+
+/// Changes the business in use: its name and registration details.
+#[tauri::command] fn business_update(s: S, business: Value) -> Result<Option<Value>> {
+    limits::check(&business)?;
+    s.business(|p, b, _| { vaulty_core::business::update(p, &b.conn, &b.id, &business)?; vaulty_core::business::profile(&b.conn) })
+}
+
+/// Money between the owner and the business in use, on both books.
+#[tauri::command] fn business_owner_money(s: S, money: Value) -> Result<Value> {
+    limits::check(&money)?;
+    s.business(|p, b, _| vaulty_core::history::record(&b.conn, "business.owner_money", |bc| vaulty_core::history::record(p, "business.owner_money", |pc| vaulty_core::business::owner_money(pc, bc, &b.id, &money))))
+}
+/// The personal book's accounts, for choosing where owner money came from or went (from inside a business).
+#[tauri::command] fn personal_accounts(s: S) -> Result<Vec<Value>> { s.personal(vaulty_core::accounts::get_all) }
+#[tauri::command] fn business_owner_totals(s: S) -> Result<Value> { s.data(vaulty_core::business::owner_totals) }
+#[tauri::command] fn business_archive(s: S, id: String, archived: bool) -> Result<()> {
+    s.personal_only()?;
+    s.personal(|c| vaulty_core::business::set_archived(c, &id, archived))
+}
+
 /// Goals with progress and plan.
 #[tauri::command] fn goals_list(s: S) -> Result<Vec<Value>> { s.data(|c| vaulty_core::goals::list(c, today())) }
 #[tauri::command] fn goals_summary(s: S) -> Result<Vec<Value>> { s.data(|c| vaulty_core::goals::summary(c, today())) }
@@ -480,18 +620,16 @@ fn documents_remove_file(s: S, file_id: String) -> Result<()> { s.act("document.
 fn documents_add_file(s: S, document_id: String, path: String) -> Result<Value> {
     s.chosen(&path)?;
     let bytes = read_limited(&path, vaulty_core::documents::MAX_FILE as u64)?;
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    s.data_with_keys(|c, k| vaulty_core::history::record(c, "document.file_add", |c| vaulty_core::documents::add_file(c, &k.data_key, &dir, &document_id, &path, &bytes)))
+    let dir = s.files_dir()?;
+    s.data_with_keys(|c, k| vaulty_core::history::record(c, "document.file_add", |c| vaulty_core::documents::add_file(c, k, &dir, &document_id, &path, &bytes)))
 }
 
 /// A photo, for previewing in the window (base64). PDFs are saved and opened outside Vaulty.
 #[tauri::command]
 fn documents_preview(s: S, file_id: String) -> Result<Value> {
     use base64::Engine;
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    let (name, mime, bytes) = s.data_with_keys(|c, k| vaulty_core::documents::read_file(c, &k.data_key, &dir, &file_id))?;
+    let dir = s.files_dir()?;
+    let (name, mime, bytes) = s.data_with_keys(|c, k| vaulty_core::documents::read_file(c, k, &dir, &file_id))?;
     if !mime.starts_with("image/") { return Err(Error::Invalid("only photos can be shown here; save a copy to open a PDF".into())); }
     Ok(json!({ "name": name, "mime": mime, "data": base64::engine::general_purpose::STANDARD.encode(bytes) }))
 }
@@ -500,9 +638,8 @@ fn documents_preview(s: S, file_id: String) -> Result<Value> {
 #[tauri::command]
 fn documents_save_file(s: S, file_id: String, path: String) -> Result<()> {
     s.chosen(&path)?;
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    let (_, _, bytes) = s.data_with_keys(|c, k| vaulty_core::documents::read_file(c, &k.data_key, &dir, &file_id))?;
+    let dir = s.files_dir()?;
+    let (_, _, bytes) = s.data_with_keys(|c, k| vaulty_core::documents::read_file(c, k, &dir, &file_id))?;
     std::fs::write(path, bytes)?;
     Ok(())
 }
@@ -564,18 +701,16 @@ fn projects_file_add(s: S, project_id: String, path: String, link: Value) -> Res
     limits::check(&link)?;
     s.chosen(&path)?;
     let bytes = read_limited(&path, vaulty_core::documents::MAX_FILE as u64)?;
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    s.data_with_keys(|c, k| vaulty_core::history::record(c, "project.file_add", |c| vaulty_core::projects::add_file(c, &k.data_key, &dir, &project_id, &path, &bytes, &link)))
+    let dir = s.files_dir()?;
+    s.data_with_keys(|c, k| vaulty_core::history::record(c, "project.file_add", |c| vaulty_core::projects::add_file(c, k, &dir, &project_id, &path, &bytes, &link)))
 }
 
 /// A photo of a bill, for showing in the window (base64). PDFs are saved and opened outside Vaulty.
 #[tauri::command]
 fn projects_file_preview(s: S, id: String) -> Result<Value> {
     use base64::Engine;
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    let (name, mime, bytes) = s.data_with_keys(|c, k| vaulty_core::projects::read_file(c, &k.data_key, &dir, &id))?;
+    let dir = s.files_dir()?;
+    let (name, mime, bytes) = s.data_with_keys(|c, k| vaulty_core::projects::read_file(c, k, &dir, &id))?;
     if !mime.starts_with("image/") { return Err(Error::Invalid("only photos can be shown here; save a copy to open a PDF".into())); }
     Ok(json!({ "name": name, "mime": mime, "data": base64::engine::general_purpose::STANDARD.encode(bytes) }))
 }
@@ -584,9 +719,8 @@ fn projects_file_preview(s: S, id: String) -> Result<Value> {
 #[tauri::command]
 fn projects_file_save(s: S, id: String, path: String) -> Result<()> {
     s.chosen(&path)?;
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    let (_, _, bytes) = s.data_with_keys(|c, k| vaulty_core::projects::read_file(c, &k.data_key, &dir, &id))?;
+    let dir = s.files_dir()?;
+    let (_, _, bytes) = s.data_with_keys(|c, k| vaulty_core::projects::read_file(c, k, &dir, &id))?;
     std::fs::write(path, bytes)?;
     Ok(())
 }
@@ -594,9 +728,8 @@ fn projects_file_save(s: S, id: String, path: String) -> Result<()> {
 /// Reads a kept PDF bill into draft items, to check before adding.
 #[tauri::command]
 fn projects_read_bill(s: S, id: String) -> Result<vaulty_core::invoice::Draft> {
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    s.data_with_keys(|c, k| vaulty_core::projects::read_bill(c, &k.data_key, &dir, &id, ocr::recognize))
+    let dir = s.files_dir()?;
+    s.data_with_keys(|c, k| vaulty_core::projects::read_bill(c, k, &dir, &id, ocr::recognize))
 }
 /// Which text recognition this computer has for photos of bills ("" when none).
 #[tauri::command]
@@ -622,9 +755,8 @@ fn projects_share_export(s: S, id: String, path: String, password: String, with_
     limits::text("password", &password, limits::PASSWORD)?;
     if password.chars().count() < 8 { return Err(Error::Invalid("use a password of at least 8 characters".into())); }
     s.chosen(&path)?;
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    let data = s.data_with_keys(|c, k| vaulty_core::history::record(c, "project.share", |c| vaulty_core::project_share::export(c, &k.data_key, &dir, &id, with_files)))?;
+    let dir = s.files_dir()?;
+    let data = s.data_with_keys(|c, k| vaulty_core::history::record(c, "project.share", |c| vaulty_core::project_share::export(c, k, &dir, &id, with_files)))?;
     std::fs::write(path, vaulty_core::backup::encrypt_value(&data, &password, None)?)?;
     Ok(json!({ "files": data["files"].as_array().map_or(0, Vec::len), "files_left_out": data["files_left_out"] }))
 }
@@ -648,9 +780,8 @@ fn projects_share_peek(s: S, path: String, password: String) -> Result<Value> {
 #[tauri::command]
 fn projects_share_import(s: S, path: String, password: String, me: Option<String>) -> Result<Value> {
     let data = read_share(&s, &path, &password)?;
-    let user = s.current_user()?;
-    let dir = s.documents_dir(&user.id);
-    s.data_with_keys(|c, k| vaulty_core::history::record(c, "project.share_open", |c| vaulty_core::project_share::import(c, &k.data_key, &dir, &data, me.as_deref())))
+    let dir = s.files_dir()?;
+    s.data_with_keys(|c, k| vaulty_core::history::record(c, "project.share_open", |c| vaulty_core::project_share::import(c, k, &dir, &data, me.as_deref())))
 }
 
 /// The project as an Excel workbook, saved where the person chose.
@@ -771,7 +902,7 @@ fn nominee_answer(s: S, allow: bool) -> Result<()> {
 /// The member's own "In case of emergency" summary, as their nominee would see it.
 #[tauri::command]
 fn estate_preview(s: S) -> Result<vaulty_core::estate::Estate> {
-    s.data(|c| vaulty_core::estate::summary(c, today()))
+    s.personal(|c| vaulty_core::estate::summary(c, today()))
 }
 
 /// The signed-in member's own helpers.
@@ -1086,8 +1217,7 @@ fn statement_preview(s: S, path: String, account_id: String, mapping: statements
 fn statement_import(s: S, path: String, account_id: String, mapping: statements::Mapping, skip: Vec<usize>, include: Vec<usize>, password: Option<String>) -> Result<usize> {
     s.chosen(&path)?;
     let t = read_statement(&path, password.as_deref())?;
-    let me = s.current_user()?;
-    s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "before-import")))?;
+    s.take_snapshot("before-import")?;
     s.act("statement.import", |c| statements::import(c, &t, &mapping, &account_id, &skip, &include))
 }
 
@@ -1356,9 +1486,8 @@ fn export_csv(s: S, path: String) -> Result<usize> {
 fn backup_export(s: S, path: String, password: String, hint: Option<String>) -> Result<Value> {
     s.chosen(&path)?;
     s.guard_export()?;
-    let me = s.current_user()?;
-    let dir = s.documents_dir(&me.id);
-    let (mut data, files) = s.data_with_keys(|c, k| Ok((export::to_json(c)?, vaulty_core::documents::files_for_backup(c, &k.data_key, &dir)?)))?;
+    let dir = s.files_dir()?;
+    let (mut data, files) = s.data_with_keys(|c, k| Ok((export::to_json(c)?, vaulty_core::documents::files_for_backup(c, k, &dir)?)))?;
     let has_files = s.data(|c| Ok(c.query_row("SELECT EXISTS(SELECT 1 FROM vault_document_files)", [], |r| r.get::<_, bool>(0))?))?;
     let included = files.is_some();
     if let Some(f) = files { data["document_files"] = f; }
@@ -1406,16 +1535,15 @@ fn import_json(s: S, path: String) -> Result<Value> {
 }
 
 fn restore_backup(s: &AppState, data: Value) -> Result<Value> {
-    let me = s.current_user()?;
-    s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "before-import")))?;
+    s.take_snapshot("before-import")?;
     let counts = s.act_and_share("import", |c, me, h| {
         let counts = export::from_json(c, &data)?;
         h.republish_all(me, &transactions::shareable(c)?)?;
         Ok(counts)
     })?;
     // Document files carried by an encrypted backup, re-encrypted with this member's key.
-    let dir = s.documents_dir(&me.id);
-    let files = s.data_with_keys(|c, k| vaulty_core::documents::restore_files(c, &k.data_key, &dir, &data["document_files"]))?;
+    let dir = s.files_dir()?;
+    let files = s.data_with_keys(|c, k| vaulty_core::documents::restore_files(c, k, &dir, &data["document_files"]))?;
     let mut out = serde_json::to_value(counts)?;
     out["document_files"] = json!(files);
     Ok(out)
@@ -1644,20 +1772,19 @@ fn history_undo_last(s: S) -> Result<Option<Value>> {
 
 #[tauri::command]
 fn snapshots_list(s: S) -> Result<Vec<vaulty_core::snapshots::Snapshot>> {
-    let me = s.current_user()?;
-    vaulty_core::snapshots::list(&s.snapshot_dir(&me.id))
+    vaulty_core::snapshots::list(&s.snaps_dir()?)
 }
 
 #[tauri::command]
 fn snapshots_create(s: S) -> Result<vaulty_core::snapshots::Snapshot> {
-    let me = s.current_user()?;
-    s.keys(|k| s.data(|c| vaulty_core::snapshots::take(c, &k.data_key, &s.snapshot_dir(&me.id), "manual")))
+    s.take_snapshot("manual")
 }
 
 /// Replaces the member's data with a snapshot. The current data is snapshotted first, so a
 /// restore can itself be reversed.
 #[tauri::command]
 fn snapshots_restore(s: S, name: String) -> Result<()> {
+    s.personal_only()?;
     let mut guard = s.session.lock().map_err(poisoned)?;
     live(&mut guard)?;
     let sess = guard.take().ok_or_else(|| Error::Auth("locked".into()))?;
@@ -1937,7 +2064,7 @@ pub fn run() {
             transactions_get_all, transactions_create, transactions_update, transactions_delete,
             transactions_set_visibility, transactions_bulk, sharing_get, sharing_update, family_feed,
             settings_get, settings_update,
-            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, form16_read, form16_apply, goals_list, goals_summary, goals_create, goals_update, goals_set_done, goals_delete, calc_run, networth_timeline, nominees_list, nominees_set, anomalies_list, anomalies_dismiss, anomalies_reset, journal_list, journal_month_facts, journal_create, journal_update, journal_delete, insurance_list, insurance_summary, insurance_create, insurance_update, insurance_delete, insurance_pay, insurance_payment_delete, insurance_claim_add, insurance_claim_update, insurance_claim_delete, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
+            export_json, export_csv, import_json, backup_export, backup_inspect, backup_import, db_size, institutions_search, tax_countries, tax_describe, tax_compare, tax_plan_get, tax_plan_save, tax_payment_add, tax_payment_delete, tax_links_set, form16_read, form16_apply, businesses_list, book_current, book_switch, business_create, business_update, business_owner_money, business_owner_totals, business_archive, personal_accounts, goals_list, goals_summary, goals_create, goals_update, goals_set_done, goals_delete, calc_run, networth_timeline, nominees_list, nominees_set, anomalies_list, anomalies_dismiss, anomalies_reset, journal_list, journal_month_facts, journal_create, journal_update, journal_delete, insurance_list, insurance_summary, insurance_create, insurance_update, insurance_delete, insurance_pay, insurance_payment_delete, insurance_claim_add, insurance_claim_update, insurance_claim_delete, snapshots_list, snapshots_create, snapshots_restore, history_recent, history_trash, history_item, history_verify, history_undo, history_undo_last, market_get, market_update, market_set_key, market_quotes, market_refresh, fund_prices_update, fund_prices_status, cards_list, cards_create, cards_update, cards_delete,
         ])
         .build(tauri::generate_context!())
         .expect("error while running Vaulty")

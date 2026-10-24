@@ -11,11 +11,16 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useSession } from "@/hooks/session";
+import { useBook, PERSONAL_ONLY } from "@/hooks/book";
+import { BookSwitcher } from "@/components/layout/BookSwitcher";
 
 type Props = { page: PageId; onNavigate: (p: PageId) => void; collapsed: boolean; onToggle: () => void };
 
 export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
   const { user, signOut } = useSession();
+  const { book } = useBook();
+  // A business book shows only the pages that make sense for a business.
+  const shown = (i: NavItem) => !book || !(PERSONAL_ONLY as readonly string[]).includes(i.id);
   const keys = useHotkeyLabels();
   const { t } = useTranslation();
   const item = (i: NavItem) => (
@@ -31,11 +36,12 @@ export function Sidebar({ page, onNavigate, collapsed, onToggle }: Props) {
           <Button variant="ghost" size="icon" className="ml-auto size-7" onClick={onToggle} title={withKeys(t("nav.collapse"), keys.sidebar)} aria-label={t("nav.collapse")}><PanelLeftClose /></Button>
         )}
       </div>
+      <div className="px-2 pb-1"><BookSwitcher collapsed={collapsed} onNew={() => onNavigate("business")} /></div>
       <nav className="isolate flex-1 space-y-4 overflow-y-auto px-2 py-2">
         {collapsed && <Button variant="ghost" size="icon" className="mx-auto flex" onClick={onToggle} title={withKeys(t("nav.expand"), keys.sidebar)} aria-label={t("nav.expand")}><PanelLeftOpen /></Button>}
         {/* Senior mode: one short list of everyday pages, no group headings. */}
-        {user.senior ? <div className="space-y-0.5">{NAV.flatMap((g) => g.items).filter((i) => SENIOR_PAGES.includes(i.id)).map(item)}</div>
-          : NAV.map((g) => (
+        {user.senior ? <div className="space-y-0.5">{NAV.flatMap((g) => g.items).filter((i) => SENIOR_PAGES.includes(i.id) && shown(i)).map(item)}</div>
+          : NAV.map((g) => ({ ...g, items: g.items.filter(shown) })).filter((g) => g.items.length > 0).map((g) => (
           <div key={g.group} className="space-y-0.5">
             {!collapsed && <div className="text-muted-foreground px-2.5 pb-1 text-xs font-medium">{t(`nav.group.${g.group}`)}</div>}
             {g.items.map(item)}
